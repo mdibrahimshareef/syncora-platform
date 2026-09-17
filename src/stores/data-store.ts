@@ -1220,7 +1220,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
           progress: 0,
           taskCount: 0,
           members: [], // default members empty for now, could be passed
-          taskTypes: newProject.task_types || ['Task'],
+          taskTypes: ['Task'],
           updatedAt: newProject.updated_at || new Date().toISOString()
         }, ...state.projects]
       }))

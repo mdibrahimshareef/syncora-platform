@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     }
 
     // Standard Vercel AI SDK streaming response
-    const response = providerResponse.result!.toDataStreamResponse()
+    const response = providerResponse.result!.toTextStreamResponse()
     
     // Pass sources in header
     if (contextData.semanticKnowledge && contextData.semanticKnowledge.length > 0) {

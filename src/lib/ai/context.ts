@@ -17,7 +17,7 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
   // 1. Fetch active projects (limit to 10 most recently updated)
   const { data: projects } = await supabase
     .from('projects')
-    .select('id, name, status, task_types')
+    .select('id, name, status')
     .eq('workspace_id', workspaceId)
     .order('updated_at', { ascending: false })
     .limit(10)
@@ -29,7 +29,7 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
   if (projectIds.length > 0) {
     const { data } = await supabase
       .from('tasks')
-      .select('id, title, status, priority, task_type, created_at, updated_at, assignee_id, project_id')
+      .select('id, title, status, priority, created_at, updated_at, assignee_id, project_id')
       .in('project_id', projectIds)
       .neq('status', 'Done')
       .order('updated_at', { ascending: false })
