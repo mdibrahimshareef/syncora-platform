@@ -7,7 +7,8 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
     .from('tasks')
     .select(`
       *,
-      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
+      projects(workspace_id)
     `)
     .eq('project_id', projectId)
     .order('position', { ascending: true })
@@ -90,13 +91,13 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
       startDate: t.start_date as string || undefined,
       position: t.position as number,
       parentId: t.parent_id as string | null,
-      workspaceId: t.workspace_id as string,
+      workspaceId: (t.projects as any)?.workspace_id as string,
       taskType: t.task_type as string | undefined,
       reporterId: t.reporter_id as string | null,
       customerId: t.customer_id as string | null,
       requestId: t.request_id as string | null,
-      approvalId: t.approval_id as string | null,
-      documentId: t.document_id as string | null,
+      approvalId: (t.approval_id as string) || undefined,
+      documentId: (t.document_id as string) || undefined,
       estimatedHours: t.estimated_hours as number | undefined,
       storyPoints: t.story_points as number | undefined,
       recurrenceRule: t.recurrence_rule as string | null,
@@ -128,9 +129,10 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
     .from('tasks')
     .select(`
       *,
-      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
+      projects!inner(workspace_id)
     `)
-    .eq('workspace_id', workspaceId)
+    .eq('projects.workspace_id', workspaceId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -212,13 +214,13 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
       startDate: t.start_date as string || undefined,
       position: t.position as number,
       parentId: t.parent_id as string | null,
-      workspaceId: t.workspace_id as string,
+      workspaceId: workspaceId,
       taskType: t.task_type as string | undefined,
       reporterId: t.reporter_id as string | null,
       customerId: t.customer_id as string | null,
       requestId: t.request_id as string | null,
-      approvalId: t.approval_id as string | null,
-      documentId: t.document_id as string | null,
+      approvalId: (t.approval_id as string) || undefined,
+      documentId: (t.document_id as string) || undefined,
       estimatedHours: t.estimated_hours as number | undefined,
       storyPoints: t.story_points as number | undefined,
       recurrenceRule: t.recurrence_rule as string | null,
@@ -249,7 +251,7 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
 export async function createTask(
   supabase: SupabaseClient<Database>, 
   projectId: string, 
-  payload: { title: string, description?: string, status: string, priority: string, assigneeId?: string, startDate?: string, dueDate?: string, userId: string, parentId?: string | null, workspaceId?: string, taskType?: string, reporterId?: string, customerId?: string, requestId?: string, approvalId?: string, documentId?: string, estimatedHours?: number, storyPoints?: number }
+  payload: { title: string, description?: string, status: string, priority: string, assigneeId?: string | null, startDate?: string | null, dueDate?: string | null, userId: string, parentId?: string | null, workspaceId?: string | null, taskType?: string, reporterId?: string | null, customerId?: string | null, requestId?: string | null, approvalId?: string | null, documentId?: string | null, estimatedHours?: number, storyPoints?: number }
 ) {
   // Get max position for the status
   let positionQuery = supabase
@@ -270,30 +272,32 @@ export async function createTask(
   
   const position = (existingTasks && existingTasks.length > 0) ? existingTasks[0].position + 65536 : 65536
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const insertPayload: any = {
+    project_id: projectId,
+    title: payload.title,
+    description: payload.description || null,
+    status: payload.status,
+    priority: payload.priority,
+    assignee_id: payload.assigneeId || null,
+    start_date: payload.startDate || null,
+    due_date: payload.dueDate || null,
+    parent_id: payload.parentId || null,
+    position,
+    created_by: payload.userId,
+    task_type: payload.taskType || 'Task',
+    reporter_id: payload.reporterId || null,
+    customer_id: payload.customerId || null,
+    request_id: payload.requestId || null,
+    approval_id: payload.approvalId || null,
+    document_id: payload.documentId || null,
+    estimated_hours: payload.estimatedHours || 0,
+    story_points: payload.storyPoints || 0
+  }
+
   const { data, error } = await supabase
     .from('tasks')
-    .insert([{
-      project_id: projectId,
-      title: payload.title,
-      description: payload.description || null,
-      status: payload.status,
-      priority: payload.priority,
-      assignee_id: payload.assigneeId || null,
-      start_date: payload.startDate || null,
-      due_date: payload.dueDate || null,
-      parent_id: payload.parentId || null,
-      position,
-      created_by: payload.userId,
-      workspace_id: payload.workspaceId || null,
-      task_type: payload.taskType || 'Task',
-      reporter_id: payload.reporterId || null,
-      customer_id: payload.customerId || null,
-      request_id: payload.requestId || null,
-      approval_id: payload.approvalId || null,
-      document_id: payload.documentId || null,
-      estimated_hours: payload.estimatedHours || 0,
-      story_points: payload.storyPoints || 0
-    }])
+    .insert([insertPayload])
     .select()
     .single()
 
@@ -309,7 +313,8 @@ export async function updateTask(
     startDate: string, dueDate: string, parentId: string | null, recurrenceRule: string | null,
     slaPriority: string, slaSeverity: string, responseTarget: string, resolutionTarget: string, slaStatus: string,
     estimatedTime: number, trackedTime: number, estimatedCost: number, actualCost: number,
-    taskType: string, reporterId: string | null, customerId: string | null, requestId: string | null, approvalId: string | null, documentId: string | null
+    taskType: string, reporterId: string | null, customerId: string | null, requestId: string | null, approvalId: string | null, documentId: string | null,
+    estimatedHours: number, storyPoints: number
   }>
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

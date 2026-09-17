@@ -248,6 +248,16 @@ export const useDataStore = create<DataState>()((set, get) => ({
     }
   },
 
+  fetchProjectStatuses: async (projectId: string) => {
+    try {
+      const supabase = createClient()
+      const projectStatuses = await projectApi.getProjectStatuses(supabase, projectId)
+      set({ projectStatuses: projectStatuses as any })
+    } catch (err: unknown) {
+      console.error('Failed to load project statuses', err)
+    }
+  },
+
   fetchProjects: async () => {
     const { activeWorkspaceId } = get()
     if (!activeWorkspaceId) return
@@ -1358,6 +1368,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const newTask: Task = {
         id: payload.id,
         projectId: payload.project_id,
+        workspaceId: payload.workspace_id,
         title: payload.title,
         description: payload.description,
         status: payload.status,

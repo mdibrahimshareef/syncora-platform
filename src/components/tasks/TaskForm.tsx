@@ -76,6 +76,7 @@ export function TaskForm({ defaultValues, onSuccess }: TaskFormProps) {
   const workspaceMembers = useDataStore(s => s.workspaceMembers);
   const milestones = useDataStore(s => s.milestones);
   const documents = useDataStore(s => s.documents);
+  const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
   const [openAssignee, setOpenAssignee] = React.useState(false)
   
   const form = useForm<TaskFormValues>({
@@ -105,6 +106,7 @@ export function TaskForm({ defaultValues, onSuccess }: TaskFormProps) {
       status: data.status as TaskStatus,
       priority: data.priority as TaskPriority,
       projectId: data.projectId,
+      workspaceId: activeWorkspaceId || defaultValues?.workspaceId || "",
       assignee: selectedAssignee || undefined,
       startDate: data.startDate ? data.startDate.toISOString() : undefined,
       dueDate: data.dueDate ? data.dueDate.toISOString() : undefined,
@@ -113,7 +115,7 @@ export function TaskForm({ defaultValues, onSuccess }: TaskFormProps) {
       parentId: defaultValues?.parentId || null,
       estimatedTime: data.estimatedTime ? data.estimatedTime * 60 : null,
       milestoneId: data.milestoneId === 'none' ? null : data.milestoneId || null,
-      documentId: data.documentId === 'none' ? null : data.documentId || null,
+      documentId: data.documentId === 'none' ? undefined : data.documentId || undefined,
       taskType: data.taskType || 'Task',
     }
 

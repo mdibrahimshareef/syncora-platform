@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
 
 export type TemplateContent = {
-  statuses: { name: string, color: string, position: number }[],
+  statuses: { name: string, color: string, position: number, category?: string, is_default?: boolean, allowed_transitions?: string[] }[],
   customFields?: { name: string, type: 'text' | 'number' | 'date' | 'select' | 'multi-select', options: any }[],
   tasks?: { title: string, status: string, priority: string, position: number, description?: string }[],
   taskTypes?: string[]
@@ -83,7 +83,7 @@ export async function createProjectFromTemplate(
     
     const { error: statusError } = await supabase
       .from('project_statuses')
-      .insert(statusesToInsert)
+      .insert(statusesToInsert as any) // cast to any until types are updated
       
     if (statusError) throw statusError
   }
