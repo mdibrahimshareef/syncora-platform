@@ -2,7 +2,7 @@
 
 **Syncora is a full-stack Collaborative Work Management platform built with Next.js, TypeScript, Tailwind CSS, Supabase/PostgreSQL, Zustand, and realtime collaboration, supporting project management, workflows, approvals, requests, customer operations, reporting, and organization-level management.**
 
-## 🚀 Overview
+##  Overview
 
 Syncora was built to demonstrate complex, enterprise-grade architecture in a modern React ecosystem. It moves beyond simple task management by incorporating deep domain workflows, role-based access control (RBAC), row-level security (RLS), and a real-time sync engine.
 
@@ -16,7 +16,7 @@ Syncora was built to demonstrate complex, enterprise-grade architecture in a mod
   - Granular RBAC mapped directly to PostgreSQL Row-Level Security.
 - **Business Workflows**: External Customer Requests, Peer Approvals, Workload capacity planning, and comprehensive cross-project Reporting.
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
@@ -25,7 +25,7 @@ Syncora was built to demonstrate complex, enterprise-grade architecture in a mod
 - **Database & Auth**: Supabase (PostgreSQL)
 - **Realtime Engine**: Supabase Channels
 
-## 🔐 Architecture & Security
+##  Architecture & Security
 
 Syncora utilizes a dual-layer security model:
 1. **Frontend RBAC**: Zustand stores and React hooks intelligently disable or hide UI elements based on the current user's role (Owner, Admin, Member, Guest).
@@ -53,7 +53,7 @@ Syncora utilizes a dual-layer security model:
    npm run dev
    ```
 
-## 🧪 Testing & Validation
+##  Testing & Validation
 
 Syncora was built through 9 major release phases, culminating in a rigorous Portfolio & Production Validation sequence covering:
 - **E2E Multi-User Workflows**: Simulating Owner → Admin → Member interactions across shared workspaces.
