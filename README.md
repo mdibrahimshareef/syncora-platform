@@ -31,7 +31,7 @@ Syncora utilizes a dual-layer security model:
 1. **Frontend RBAC**: Zustand stores and React hooks intelligently disable or hide UI elements based on the current user's role (Owner, Admin, Member, Guest).
 2. **Backend RLS**: The ultimate source of truth. Supabase Row-Level Security policies are strictly enforced on all core tables (`projects`, `tasks`, `documents`, `audit_logs`). Even if the frontend UI is manipulated, Postgres will reject unauthorized operations via custom `is_workspace_member()` and `is_org_member()` database functions.
 
-## 🏃‍♂️ Running Locally
+##  Running Locally
 
 1. **Clone the repository**
 2. **Install dependencies**: 
@@ -61,5 +61,5 @@ Syncora was built through 9 major release phases, culminating in a rigorous Port
 - **Data Integrity**: Eliminating N+1 query patterns and guaranteeing that all actions result in persistent, immutable database mutations.
 - **Zero-Dead-End Guarantee**: No placeholder pages, "Coming Soon" buttons, or simulated data. Everything on the screen is connected to the operational backbone.
 
-## 📝 License
+##  License
 MIT
