@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Task, TaskStatus } from "@/types"
+import { Task, TaskStatus, WorkflowStatus } from "@/types"
 import { TaskColumn } from "@/components/tasks/TaskColumn"
 import { TaskCard } from "@/components/tasks/TaskCard"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
@@ -23,7 +23,7 @@ import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable"
 
 interface TaskBoardProps {
   tasks: Task[]
-  projectStatuses?: {name: string, color: string, position: number}[]
+  projectStatuses?: WorkflowStatus[]
 }
 
 const DEFAULT_COLUMNS: TaskStatus[] = ['Backlog', 'Todo', 'In Progress', 'Review', 'Done']

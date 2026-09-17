@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Task } from "@/types"
+import { Task, WorkflowStatus } from "@/types"
 import { useUIStore } from "@/stores/ui-store"
 import { 
   Table, 
@@ -28,7 +28,7 @@ import { toast } from "sonner"
 
 interface TaskListViewProps {
   tasks: Task[]
-  projectStatuses?: {name: string, color: string, position: number}[]
+  projectStatuses?: WorkflowStatus[]
 }
 
 export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
@@ -105,7 +105,8 @@ export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
       if (s) {
         // e.g., 'blue' -> 'bg-blue-50 text-blue-700 ...'
         // For simplicity we just map basic tailwind colors
-        return `bg-${s.color}-50 text-${s.color}-700 border-${s.color}-200 dark:bg-${s.color}-900/30 dark:text-${s.color}-300`
+        const color = s.color || 'slate'
+        return `bg-${color}-50 text-${color}-700 border-${color}-200 dark:bg-${color}-900/30 dark:text-${color}-300`
       }
     }
     

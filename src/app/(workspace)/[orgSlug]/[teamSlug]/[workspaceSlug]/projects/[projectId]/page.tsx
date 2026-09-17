@@ -175,11 +175,9 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-9 ml-1">
-                <MoreHorizontal className="size-4 text-muted-foreground" />
-                <span className="sr-only">More options</span>
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-9 ml-1" />}>
+              <MoreHorizontal className="size-4 text-muted-foreground" />
+              <span className="sr-only">More options</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               {isAdminOrOwner ? (
