@@ -18,8 +18,8 @@ export function HeroSection() {
   const springRotateY = useSpring(useTransform(tiltX, [-0.5, 0.5], [-10, 10]), springConfig)
 
   // Subtle parallax for the background grid
-  const gridX = useSpring(useTransform(mouseX, [0, 2000], [-15, 15]), { stiffness: 40, damping: 20 })
-  const gridY = useSpring(useTransform(mouseY, [0, 1000], [-15, 15]), { stiffness: 40, damping: 20 })
+  const gridX = useSpring(useTransform(mouseX, [0, 2000], [-40, 40]), { stiffness: 40, damping: 20 })
+  const gridY = useSpring(useTransform(mouseY, [0, 1000], [-40, 40]), { stiffness: 40, damping: 20 })
 
   function handleMouseMove({ currentTarget, clientX, clientY }: ReactMouseEvent) {
     const { left, top, width, height } = currentTarget.getBoundingClientRect()
@@ -53,18 +53,18 @@ export function HeroSection() {
       <motion.div 
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
-          maskImage: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`,
-          WebkitMaskImage: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`
+          maskImage: useMotionTemplate`radial-gradient(500px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`,
+          WebkitMaskImage: useMotionTemplate`radial-gradient(500px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`
         }}
       >
         <motion.div
-          className="absolute inset-0 text-primary/30 dark:text-white/15"
+          className="absolute inset-0"
           style={{ x: gridX, y: gridY }}
         >
-          <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
+          <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%] stroke-primary/40 dark:stroke-white/20" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1" />
+                <path d="M0 40V0H40" fill="none" strokeWidth="1" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#hero-grid)" />
