@@ -58,13 +58,13 @@ export function HeroSection() {
         }}
       >
         <motion.div
-          className="absolute inset-0"
+          className="absolute inset-0 text-primary dark:text-white opacity-40 dark:opacity-30"
           style={{ x: gridX, y: gridY }}
         >
-          <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%] stroke-primary/40 dark:stroke-white/20" xmlns="http://www.w3.org/2000/svg">
+          <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M0 40V0H40" fill="none" strokeWidth="1" />
+                <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1.5" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#hero-grid)" />
