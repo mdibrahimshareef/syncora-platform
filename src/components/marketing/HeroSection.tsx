@@ -49,7 +49,7 @@ export function HeroSection() {
       className="relative pt-24 pb-32 lg:pt-36 lg:pb-40 overflow-hidden group bg-background"
       onMouseMove={handleMouseMove}
     >
-      {/* Interactive Linear Background Grid Spotlight */}
+      {/* Interactive Hexagonal Data-Flow Grid Spotlight */}
       <motion.div 
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -58,16 +58,35 @@ export function HeroSection() {
         }}
       >
         <motion.div
-          className="absolute inset-0 text-primary opacity-40"
+          className="absolute inset-0 text-primary opacity-50"
           style={{ x: gridX, y: gridY }}
         >
           <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
+            <style>
+              {`
+                @keyframes dash-crawl {
+                  to {
+                    stroke-dashoffset: -200;
+                  }
+                }
+                .animate-dash-crawl {
+                  stroke-dasharray: 20 20;
+                  animation: dash-crawl 5s linear infinite;
+                }
+              `}
+            </style>
             <defs>
-              <pattern id="hero-grid" width="100" height="100" patternUnits="userSpaceOnUse">
-                <path d="M0 100V0H100" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <pattern id="hero-hex-grid" width="50" height="86.6" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+                <path 
+                  className="animate-dash-crawl" 
+                  d="M25 0L50 14.4V43.3L25 57.7L0 43.3V14.4L25 0ZM25 86.6L50 72.2V43.3M0 72.2L25 86.6V57.7" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="1" 
+                />
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#hero-grid)" />
+            <rect width="100%" height="100%" fill="url(#hero-hex-grid)" />
           </svg>
         </motion.div>
       </motion.div>
