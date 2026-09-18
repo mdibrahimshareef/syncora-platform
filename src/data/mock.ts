@@ -67,6 +67,7 @@ export const mockProjects: Project[] = [
 
 export const mockTasks: Task[] = [
   {
+    workspaceId: "w-mock",
     id: 't1',
     title: 'Build responsive sidebar navigation',
     description: 'Implement a collapsible sidebar with keyboard accessibility and tooltips for the collapsed state.',
@@ -81,6 +82,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't2',
     title: 'Implement authentication screens',
     description: 'Build the login, signup, and forgot password screens according to the new Figma designs.',
@@ -95,6 +97,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't3',
     title: 'Audit dashboard accessibility',
     description: 'Ensure the main dashboard meets WCAG AA standards. Focus on color contrast and screen reader support.',
@@ -109,6 +112,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't4',
     title: 'Create reusable form components',
     description: 'Build Input, Select, Checkbox, and Radio components using shadcn/ui as a base.',
@@ -123,6 +127,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't5',
     title: 'Optimize project board rendering',
     description: 'Investigate and fix performance issues when dragging cards on boards with more than 100 items.',
@@ -135,6 +140,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't6',
     title: 'Prepare mobile navigation states',
     description: 'Design the responsive drawer and hamburger menu interactions for mobile web.',
@@ -149,6 +155,7 @@ export const mockTasks: Task[] = [
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
   },
   {
+    workspaceId: "w-mock",
     id: 't7',
     title: 'Review design tokens',
     description: 'Finalize the color palette and typography scales for the new brand guidelines.',

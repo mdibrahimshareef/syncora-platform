@@ -56,12 +56,12 @@ export default function WorkloadPage() {
         stats[assigneeId].activeProjects.add(task.projectId)
       }
       
-      if (task.status === 'Done' || task.status === 'Completed') {
+      if (task.status === 'Done' || (task.status as string) === 'Completed') {
         stats[assigneeId].done++
-      } else if (task.status === 'Blocked') {
+      } else if ((task.status as string) === 'Blocked') {
         stats[assigneeId].blocked++
       } else {
-        if (task.status === 'In Progress' || task.status === 'Review' || task.status === 'In Review') {
+        if (task.status === 'In Progress' || task.status === 'Review' || (task.status as string) === 'In Review') {
           stats[assigneeId].inProgress++
         } else {
           stats[assigneeId].todo++

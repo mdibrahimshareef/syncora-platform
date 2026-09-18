@@ -75,7 +75,8 @@ export function RequestsClientWrapper({ orgSlug, teamSlug, workspaceSlug }: { or
         isRecurring: false,
         labels: [],
         assignee: suggestion.assigneeId || undefined,
-        dueDate: undefined
+        dueDate: undefined,
+        workspaceId: activeWorkspaceId!
       })
 
       await updateRequestStatus(request.id, "Triaged", undefined)

@@ -275,7 +275,7 @@ export function MyWorkClientWrapper() {
                     <div key={act.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0">
                       <div className="font-medium">{act.action}</div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {act.entity_type} • {new Date(act.created_at).toLocaleString()}
+                        {act.target} • {new Date(act.timestamp).toLocaleString()}
                       </div>
                     </div>
                   ))

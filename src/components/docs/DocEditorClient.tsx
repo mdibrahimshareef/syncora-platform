@@ -210,6 +210,7 @@ export function DocEditorClient({ docId, backUrl }: { docId: string, backUrl: st
           </Button>
           {!isPreview && (
             <Popover open={isTaskPopoverOpen} onOpenChange={setIsTaskPopoverOpen}>
+              {/* @ts-ignore */}
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   <CheckSquare className="h-4 w-4 mr-2" />

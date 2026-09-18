@@ -14,6 +14,8 @@ import * as customersApi from '@/lib/api/customers'
 import * as milestonesApi from '@/lib/api/milestones'
 import * as filtersApi from '@/lib/api/filters'
 import * as automationsApi from '@/lib/api/automations'
+import * as integrationsApi from '@/lib/api/integrations'
+import { Integration, WebhookEndpoint } from '@/lib/integrations/types'
 import { createProjectFromTemplate as apiCreateProjectFromTemplate, getTemplates } from '@/lib/api/templates'
 import { Template } from '@/lib/api/templates'
 
@@ -40,6 +42,8 @@ type DataState = {
   notifications: notificationsApi.Notification[]
   automations: automationsApi.Automation[]
   automationRuns: automationsApi.AutomationRun[]
+  integrations: Integration[]
+  webhookEndpoints: WebhookEndpoint[]
   unreadNotificationCount: number
   currentUser: User | null
   activeWorkspaceId: string | null
@@ -81,6 +85,8 @@ type DataState = {
   fetchNotifications: () => Promise<void>
   fetchAutomations: () => Promise<void>
   fetchAutomationRuns: () => Promise<void>
+  fetchIntegrations: () => Promise<void>
+  fetchWebhooks: () => Promise<void>
   markNotificationAsRead: (id: string) => Promise<void>
   markAllNotificationsAsRead: () => Promise<void>
 
@@ -179,6 +185,8 @@ export const useDataStore = create<DataState>()((set, get) => ({
   notifications: [],
   automations: [],
   automationRuns: [],
+  integrations: [],
+  webhookEndpoints: [],
   unreadNotificationCount: 0,
   currentUser: null,
   activeWorkspaceId: null,
@@ -355,6 +363,30 @@ export const useDataStore = create<DataState>()((set, get) => ({
       }
     } catch (err: unknown) {
       console.error(err)
+    }
+  },
+
+  fetchIntegrations: async () => {
+    const { activeWorkspaceId } = get()
+    if (!activeWorkspaceId) return
+    try {
+      const supabase = createClient()
+      const data = await integrationsApi.getIntegrations(supabase, activeWorkspaceId)
+      set({ integrations: data })
+    } catch (err) {
+      console.error('Failed to fetch integrations', err)
+    }
+  },
+
+  fetchWebhooks: async () => {
+    const { activeWorkspaceId } = get()
+    if (!activeWorkspaceId) return
+    try {
+      const supabase = createClient()
+      const data = await integrationsApi.getWebhooks(supabase, activeWorkspaceId)
+      set({ webhookEndpoints: data })
+    } catch (err) {
+      console.error('Failed to fetch webhooks', err)
     }
   },
 
