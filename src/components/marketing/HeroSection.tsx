@@ -58,7 +58,7 @@ export function HeroSection() {
         }}
       >
         <motion.div
-          className="absolute inset-0 text-primary opacity-50"
+          className="absolute inset-0 text-primary dark:text-white opacity-50 dark:opacity-20"
           style={{ x: gridX, y: gridY }}
         >
           <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
@@ -82,7 +82,7 @@ export function HeroSection() {
                   d="M25 0L50 14.4V43.3L25 57.7L0 43.3V14.4L25 0ZM25 86.6L50 72.2V43.3M0 72.2L25 86.6V57.7" 
                   fill="none" 
                   stroke="currentColor" 
-                  strokeWidth="1" 
+                  strokeWidth="0.5" 
                 />
               </pattern>
             </defs>
@@ -164,7 +164,7 @@ export function HeroSection() {
           onMouseLeave={handleDashboardMouseLeave}
         >
           <motion.div 
-            className="relative rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 overflow-hidden transform-gpu" 
+            className="relative rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 dark:shadow-[0_0_80px_-20px_rgba(255,255,255,0.1)] dark:border-white/10 overflow-hidden transform-gpu" 
             style={{ 
               transformStyle: "preserve-3d", 
               rotateX: springRotateX, 
