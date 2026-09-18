@@ -1,7 +1,7 @@
 "use client"
 
 import { MouseEvent as ReactMouseEvent } from "react"
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion"
+import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion"
 import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, CheckCircle2, PlayCircle, ShieldCheck } from "lucide-react"
@@ -49,19 +49,27 @@ export function HeroSection() {
       className="relative pt-24 pb-32 lg:pt-36 lg:pb-40 overflow-hidden group bg-background"
       onMouseMove={handleMouseMove}
     >
-      {/* Interactive Linear Background Grid */}
-      <motion.div
-        className="absolute inset-0 z-0 pointer-events-none text-primary/10 dark:text-white/5"
-        style={{ x: gridX, y: gridY }}
+      {/* Interactive Linear Background Grid Spotlight */}
+      <motion.div 
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          maskImage: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`,
+          WebkitMaskImage: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`
+        }}
       >
-        <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hero-grid)" />
-        </svg>
+        <motion.div
+          className="absolute inset-0 text-primary/30 dark:text-white/15"
+          style={{ x: gridX, y: gridY }}
+        >
+          <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hero-grid)" />
+          </svg>
+        </motion.div>
       </motion.div>
       
       {/* Grid Fade Mask */}
