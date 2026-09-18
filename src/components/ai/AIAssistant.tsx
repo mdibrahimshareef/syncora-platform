@@ -7,9 +7,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sparkles, Send, Bot, User, Loader2, AlertCircle } from "lucide-react"
+import { Sparkles, Send, Bot, User, Loader2, AlertCircle, Check } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
 
 export function AIAssistant() {
@@ -20,24 +21,42 @@ export function AIAssistant() {
   const updateTask = useDataStore(s => s.updateTask)
   
   const [sources, setSources] = React.useState<any[]>([])
+  const [input, setInput] = React.useState('')
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error, setInput, addToolResult } = useChat({
-    api: '/api/ai/chat',
-    body: { workspaceId: activeWorkspaceId },
-    onError: (err) => toast.error(err.message),
-    onResponse: (response) => {
-      const header = response.headers.get('x-ai-sources')
-      if (header) {
-        try {
-          setSources(JSON.parse(atob(header)))
-        } catch (e) {
-          console.error(e)
+  const { messages, error, status, addToolResult, sendMessage } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/ai/chat',
+      body: { workspaceId: activeWorkspaceId },
+      fetch: async (input, init) => {
+        const response = await fetch(input, init)
+        const header = response.headers.get('x-ai-sources')
+        if (header) {
+          try {
+            setSources(JSON.parse(atob(header)))
+          } catch (e) {
+            console.error(e)
+          }
         }
+        return response
       }
-    }
+    }),
+    onError: (err) => toast.error(err.message),
   })
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
+
+  const isLoading = status === 'submitted' || status === 'streaming'
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value)
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    sendMessage({ text: input })
+    setInput('')
+  }
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -56,6 +75,7 @@ export function AIAssistant() {
 
         await createTask({
           projectId: args.projectId || defaultProject.id,
+          workspaceId: activeWorkspaceId as string,
           title: args.title,
           description: args.description || '',
           status: 'Todo',
@@ -77,17 +97,17 @@ export function AIAssistant() {
       }
 
       toast.success(`Action confirmed and executed successfully.`)
-      addToolResult({ toolCallId, result: { success: true, message: 'Action successfully executed by user.' }})
+      addToolResult({ toolCallId, tool: toolName, output: { success: true, message: 'Action successfully executed by user.' }})
     } catch (err: any) {
       console.error(err)
       toast.error(err.message || 'Failed to execute action.')
-      addToolResult({ toolCallId, result: { success: false, message: `Execution failed: ${err.message}` }})
+      addToolResult({ toolCallId, tool: toolName, state: 'output-error', errorText: `Execution failed: ${err.message}` })
     }
   }
 
-  const onToolCancel = (toolCallId: string) => {
+  const onToolCancel = (toolCallId: string, toolName: string) => {
     toast.info('Action cancelled.')
-    addToolResult({ toolCallId, result: { success: false, message: 'Action cancelled by user.' }})
+    addToolResult({ toolCallId, tool: toolName, output: { success: false, message: 'Action cancelled by user.' }})
   }
 
   return (
@@ -126,17 +146,24 @@ export function AIAssistant() {
                   <div className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-indigo-500'}`}>
                     {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
-                  {msg.content && (
-                    <div className={`flex flex-col gap-2 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      {msg.content}
-                    </div>
-                  )}
+                  {msg.parts?.map((part: any, partIndex: number) => {
+                    if (part.type === 'text') {
+                      return (
+                        <div key={partIndex} className={`flex flex-col gap-2 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                          {part.text}
+                        </div>
+                      )
+                    }
+                    return null
+                  })}
                 </div>
                 
                 {/* Render Tool Invocations */}
-                {msg.toolInvocations?.map(toolInvocation => {
-                  const { toolCallId, toolName, args, state } = toolInvocation;
-                  if (state === 'result') {
+                {msg.parts?.map((part: any) => {
+                  if (!part.type.startsWith('tool-') && part.type !== 'dynamic-tool') return null;
+                  const toolName = part.type === 'dynamic-tool' ? part.toolName : part.type.replace('tool-', '')
+                  const { toolCallId, state, input: args } = part;
+                  if (state === 'output-available') {
                     // Tool was executed
                     return (
                       <div key={toolCallId} className="pl-11 text-xs text-muted-foreground flex items-center gap-2">
@@ -144,7 +171,7 @@ export function AIAssistant() {
                         Action {toolName} completed.
                       </div>
                     )
-                  } else {
+                  } else if (state === 'input-available') {
                     // Tool needs confirmation
                     return (
                       <div key={toolCallId} className="pl-11 pr-4">
@@ -152,11 +179,12 @@ export function AIAssistant() {
                           toolName={toolName} 
                           args={args} 
                           onConfirm={() => onToolConfirm(toolCallId, toolName, args)}
-                          onCancel={() => onToolCancel(toolCallId)}
+                          onCancel={() => onToolCancel(toolCallId, toolName)}
                         />
                       </div>
                     )
                   }
+                  return null;
                 })}
 
                 {/* Render Sources for the last assistant message */}
@@ -168,7 +196,11 @@ export function AIAssistant() {
                       .slice(0, 3) // Limit to 3 sources for UI bounding
                       .map((source: any, i: number) => {
                         // Construct real Syncora deep link
-                        const { activeOrgSlug, activeTeamSlug, activeWorkspaceSlug } = useDataStore.getState()
+                        const { workspaces, activeWorkspaceId } = useDataStore.getState()
+                        const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
+                        const activeOrgSlug = activeWorkspace?.orgSlug || 'org'
+                        const activeTeamSlug = activeWorkspace?.teamSlug || 'team'
+                        const activeWorkspaceSlug = activeWorkspace?.slug || 'workspace'
                         const base = `/${activeOrgSlug}/${activeTeamSlug}/${activeWorkspaceSlug}`
                         
                         let href = '#'
@@ -233,7 +265,7 @@ export function AIAssistant() {
               className="flex-1"
               disabled={isLoading || !activeWorkspaceId}
             />
-            <Button type="submit" size="icon" disabled={!input.trim() || isLoading || !activeWorkspaceId}>
+            <Button type="submit" size="icon" disabled={!(input || '').trim() || isLoading || !activeWorkspaceId}>
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
             </Button>
