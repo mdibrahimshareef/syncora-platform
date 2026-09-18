@@ -53,18 +53,18 @@ export function HeroSection() {
       <motion.div 
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
-          maskImage: useMotionTemplate`radial-gradient(500px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`,
-          WebkitMaskImage: useMotionTemplate`radial-gradient(500px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`
+          maskImage: useMotionTemplate`radial-gradient(800px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`,
+          WebkitMaskImage: useMotionTemplate`radial-gradient(800px circle at ${mouseX}px ${mouseY}px, black, transparent 80%)`
         }}
       >
         <motion.div
-          className="absolute inset-0 text-primary dark:text-white opacity-40 dark:opacity-30"
+          className="absolute inset-0 text-primary opacity-40"
           style={{ x: gridX, y: gridY }}
         >
           <svg className="absolute inset-0 h-[120%] w-[120%] -left-[10%] -top-[10%]" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <pattern id="hero-grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                <path d="M0 100V0H100" fill="none" stroke="currentColor" strokeWidth="1.5" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#hero-grid)" />
