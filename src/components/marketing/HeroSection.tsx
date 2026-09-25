@@ -163,8 +163,17 @@ export function HeroSection() {
           onMouseMove={handleDashboardMouseMove}
           onMouseLeave={handleDashboardMouseLeave}
         >
+          {/* Dedicated massive glow behind the card for dark mode */}
           <motion.div 
-            className="relative rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 dark:shadow-[0_20px_80px_-10px_rgba(255,255,255,0.4)] dark:border-white/20 dark:border-b-white/60 overflow-hidden transform-gpu" 
+            className="absolute inset-x-8 -bottom-16 top-1/4 bg-white/20 blur-[120px] z-0 hidden dark:block pointer-events-none"
+            style={{ 
+              rotateX: springRotateX, 
+              rotateY: springRotateY,
+            }}
+          />
+
+          <motion.div 
+            className="relative z-10 rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 dark:border-white/20 dark:border-b-white/60 overflow-hidden transform-gpu" 
             style={{ 
               transformStyle: "preserve-3d", 
               rotateX: springRotateX, 
