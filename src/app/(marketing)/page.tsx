@@ -2,7 +2,6 @@ import { Metadata } from "next"
 import dynamic from "next/dynamic"
 import { HeroSection } from "@/components/marketing/HeroSection"
 import { AISection } from "@/components/marketing/AISection"
-import { SocialProof } from "@/components/marketing/SocialProof"
 import { ValueProposition } from "@/components/marketing/ValueProposition"
 
 // Lazy load below-the-fold heavy interactive components
@@ -21,7 +20,6 @@ export default function MarketingPage() {
     <div>
       <HeroSection />
       <AISection />
-      <SocialProof />
       <ValueProposition />
       <ViewsShowcase />
       <AutomationShowcase />

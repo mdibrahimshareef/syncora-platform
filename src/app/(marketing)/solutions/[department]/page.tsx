@@ -1,7 +1,6 @@
 import { SolutionHero } from "@/components/marketing/SolutionHero"
 import { FinalCTA } from "@/components/marketing/FinalCTA"
 import { ValueProposition } from "@/components/marketing/ValueProposition"
-import { SocialProof } from "@/components/marketing/SocialProof"
 import { DepartmentFeatures } from "@/components/marketing/DepartmentFeatures"
 import { DepartmentUseCases } from "@/components/marketing/DepartmentUseCases"
 import { DepartmentFAQ } from "@/components/marketing/DepartmentFAQ"
@@ -341,11 +340,7 @@ export default async function DepartmentSolutionPage({ params }: { params: Promi
         themeColor={data.themeColor}
         illustration={data.illustration}
       />
-      
-      <div className="bg-background">
-        <SocialProof />
-      </div>
-      
+
       <DepartmentFeatures department={resolvedParams.department} />
       
       <DepartmentUseCases department={resolvedParams.department} />
