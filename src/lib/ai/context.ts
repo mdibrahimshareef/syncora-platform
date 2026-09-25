@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { embed } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { getEmbeddingModel } from './provider'
 
 export type AISource = {
   id: string;
@@ -9,35 +9,21 @@ export type AISource = {
   snippet: string;
   workspaceId: string;
   projectId?: string;
+  url?: string;
 }
 
 export async function getWorkspaceContext(workspaceId: string, query: string = '') {
   const supabase = await createClient()
 
-  // 1. Fetch active projects (limit to 10 most recently updated)
+  // 1. Fetch active projects (lightweight baseline)
   const { data: projects } = await supabase
     .from('projects')
     .select('id, name, status')
     .eq('workspace_id', workspaceId)
     .order('updated_at', { ascending: false })
-    .limit(10)
+    .limit(15)
 
-  const projectIds = projects?.map(p => p.id) || []
-
-  // 2. Fetch active tasks (limit to 20 most recent open tasks)
-  let tasks: any[] = []
-  if (projectIds.length > 0) {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, status, priority, created_at, updated_at, assignee_id, project_id')
-      .in('project_id', projectIds)
-      .neq('status', 'Done')
-      .order('updated_at', { ascending: false })
-      .limit(20)
-    tasks = data || []
-  }
-
-  // 3. Fetch workspace members for context (limit to 20)
+  // 2. Fetch workspace members (lightweight baseline)
   const { data: members } = await supabase
     .from('workspace_members')
     .select(`
@@ -46,52 +32,36 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
       profiles:user_id ( full_name, email )
     `)
     .eq('workspace_id', workspaceId)
-    .limit(20)
-
-  // Fetch project budgets
-  let budgets: any[] = []
-  if (projectIds.length > 0) {
-    const { data } = await supabase
-      .from('project_budgets')
-      .select('project_id, budget_type, budget_amount, budget_minutes')
-      .in('project_id', projectIds)
-    budgets = data || []
-  }
-
-  // Fetch recent time entries
-  const { data: recentTimeEntries } = await supabase
-    .from('time_entries')
-    .select('user_id, project_id, task_id, duration_minutes, started_at, description')
-    .eq('workspace_id', workspaceId)
-    .not('ended_at', 'is', null)
-    .order('ended_at', { ascending: false })
-    .limit(20)
+    .limit(30)
     
-  // 4. Semantic Search (Hybrid RAG) if API key is present and query exists
+  // 3. Semantic Search (Hybrid RAG) if API key is present and query exists
   let semanticMatches: AISource[] = []
   if (query && process.env.AI_API_KEY) {
     try {
-      const { embedding } = await embed({
-        model: openai.embedding('text-embedding-3-small'),
-        value: query,
-      })
-      
-      const { data: matches } = await supabase.rpc('match_embeddings', {
-        query_embedding: JSON.stringify(embedding) as any,
-        match_threshold: 0.5,
-        match_count: 5,
-        p_workspace_id: workspaceId
-      })
-      
-      if (matches) {
-        semanticMatches = matches.map((m: any) => ({
-          id: m.resource_id,
-          type: m.resource_type,
-          title: m.title || 'Unknown Resource',
-          snippet: m.content_text,
-          workspaceId: workspaceId,
-          projectId: m.metadata?.project_id
-        }))
+      const embeddingModel = getEmbeddingModel()
+      if (embeddingModel) {
+        const { embedding } = await embed({
+          model: embeddingModel,
+          value: query,
+        })
+        
+        const { data: matches } = await supabase.rpc('match_embeddings', {
+          query_embedding: JSON.stringify(embedding) as any,
+          match_threshold: 0.5,
+          match_count: 5,
+          p_workspace_id: workspaceId
+        })
+        
+        if (matches) {
+          semanticMatches = matches.map((m: any) => ({
+            id: m.resource_id,
+            type: m.resource_type,
+            title: m.title || 'Unknown Resource',
+            snippet: m.content_text,
+            workspaceId: workspaceId,
+            projectId: m.metadata?.project_id
+          }))
+        }
       }
     } catch (e) {
       console.error('Semantic search failed:', e)
@@ -101,15 +71,12 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
 
   return {
     projects: projects || [],
-    tasks: tasks || [],
     members: members?.map(m => ({
       id: m.user_id,
       role: m.role,
       name: (m.profiles as any)?.full_name || 'Unknown',
       email: (m.profiles as any)?.email || 'Unknown'
     })) || [],
-    budgets,
-    recentTimeEntries: recentTimeEntries || [],
     semanticKnowledge: semanticMatches
   }
 }

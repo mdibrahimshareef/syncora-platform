@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyWorkspaceAccess } from '@/lib/ai/auth'
 import { getWorkspaceContext } from '@/lib/ai/context'
 import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { getLanguageModel } from '@/lib/ai/provider'
 import { z } from 'zod'
 
 export async function POST(req: Request) {
@@ -48,10 +48,13 @@ export async function POST(req: Request) {
        })
     }
 
-    // 4. Generate structured response
-    const { object } = await generateObject({
-      model: openai(process.env.AI_MODEL || 'gpt-4o-mini'),
-      system: systemPrompt,
+      const model = getLanguageModel()
+      if (!model) throw new Error('AI Provider not configured')
+
+      // 4. Generate structured response
+      const { object } = await generateObject({
+        model: model,
+        system: systemPrompt,
       schema: z.object({
         priority: z.enum(['Low', 'Medium', 'High', 'Urgent']).describe('Suggested priority'),
         projectId: z.string().nullable().describe('Suggested Project ID based on the workspace context. Null if no match.'),

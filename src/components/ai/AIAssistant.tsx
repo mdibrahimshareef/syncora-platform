@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
+import { usePathname } from 'next/navigation'
 
 export function AIAssistant() {
   const { isAIAssistantOpen, setAIAssistantOpen } = useUIStore()
@@ -22,11 +23,12 @@ export function AIAssistant() {
   
   const [sources, setSources] = React.useState<any[]>([])
   const [input, setInput] = React.useState('')
+  const pathname = usePathname()
 
   const { messages, error, status, addToolResult, sendMessage } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/ai/chat',
-      body: { workspaceId: activeWorkspaceId },
+      body: { workspaceId: activeWorkspaceId, contextUrl: pathname },
       fetch: async (input, init) => {
         const response = await fetch(input, init)
         const header = response.headers.get('x-ai-sources')
@@ -130,12 +132,24 @@ export function AIAssistant() {
             )}
             
             {messages.length === 0 && (
-              <div className="flex gap-3 text-sm">
-                <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-background border-border text-indigo-500 shadow-sm">
-                  <Bot className="h-4 w-4" />
+              <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                <div className="h-12 w-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-4">
+                  <Sparkles className="h-6 w-6" />
                 </div>
-                <div className="flex flex-col gap-2 rounded-lg px-3 py-2 bg-muted">
-                  Hi! I am your SYNCORA AI assistant. I can help you summarize tasks, track project progress, or perform actions.
+                <h3 className="text-xl font-semibold mb-1">SYNCORA AI</h3>
+                <p className="text-sm text-muted-foreground mb-8">
+                  Working with {useDataStore(s => s.workspaces.find(w => w.id === activeWorkspaceId)?.name) || 'your workspace'}
+                </p>
+                
+                <div className="w-full text-left space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">What do you need?</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("What's blocking my team?")}>What's blocking my team?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("What needs my attention today?")}>What needs my attention today?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("How is our project doing?")}>How is our project doing?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("Which projects are over budget?")}>Which projects are over budget?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("Summarize this week's work")}>Summarize this week's work</Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -270,14 +284,6 @@ export function AIAssistant() {
               <span className="sr-only">Send</span>
             </Button>
           </form>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" className="text-xs h-7" onClick={() => setInput("Summarize my active tasks.")} disabled={!activeWorkspaceId}>
-              Summarize my tasks
-            </Button>
-            <Button variant="secondary" size="sm" className="text-xs h-7" onClick={() => setInput("What projects are off track?")} disabled={!activeWorkspaceId}>
-              Project risks
-            </Button>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
