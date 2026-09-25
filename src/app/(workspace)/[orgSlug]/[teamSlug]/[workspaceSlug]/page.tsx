@@ -15,12 +15,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex-1 space-y-6 p-6 md:p-8 pt-6">
-      <div className="flex flex-col space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Good morning, {firstName}</h2>
-        <p className="text-muted-foreground">
-          Here's what is happening across your workspace.
-        </p>
-      </div>
+
       
       <DashboardClientWrapper />
     </div>

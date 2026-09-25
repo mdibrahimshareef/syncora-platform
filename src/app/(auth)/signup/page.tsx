@@ -52,7 +52,7 @@ function SignupContent() {
   async function onSubmit(values: z.infer<typeof signupSchema>) {
     setIsLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
@@ -65,6 +65,12 @@ function SignupContent() {
     if (error) {
       setIsLoading(false)
       toast.error(error.message)
+      return
+    }
+
+    if (!data.session) {
+      toast.success("Please check your email to confirm your account.")
+      setIsLoading(false)
       return
     }
 
