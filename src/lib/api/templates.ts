@@ -115,6 +115,7 @@ export async function createProjectFromTemplate(
   if (shouldIncludeSampleData && content.tasks && content.tasks.length > 0) {
     const tasksToInsert = content.tasks.map(t => ({
       project_id: project.id,
+      workspace_id: workspaceId,
       title: t.title,
       description: t.description || '',
       status: t.status,

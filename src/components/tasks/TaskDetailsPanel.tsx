@@ -34,6 +34,7 @@ const RichTextEditor = dynamic(() => import("@/components/ui/rich-text-editor").
 import { toast } from "sonner"
 import { Task } from "@/types"
 import { TaskDependencies } from "@/components/tasks/TaskDependencies"
+import { ManualTimeEntryModal } from "@/components/time-tracking/ManualTimeEntryModal"
 
 export function TaskDetailsPanel() {
   const { selectedTaskId, setSelectedTaskId } = useUIStore()
@@ -171,6 +172,7 @@ export function TaskDetailsPanel() {
                 >
                   {task.watchers?.some(w => w.userId === currentUser?.id) ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                 </Button>
+                <ManualTimeEntryModal taskId={task.id} projectId={task.projectId || undefined} />
                 <Button variant="ghost" size="icon" className="size-8" onClick={() => setIsEditDialogOpen(true)}>
                   <Edit2 className="size-4" />
                 </Button>
@@ -336,6 +338,15 @@ export function TaskDetailsPanel() {
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Priority</span>
                   <div className="font-medium text-sm">{task.priority}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Time Tracked</span>
+                  <div className="font-medium text-sm flex items-center gap-1 text-muted-foreground">
+                    <Clock className="size-3.5" />
+                    {/* In a real implementation this would sum up time entries. For now, showing placeholder if none. */}
+                    <span>--:--</span>
+                  </div>
                 </div>
                 
                 <div className="space-y-1">

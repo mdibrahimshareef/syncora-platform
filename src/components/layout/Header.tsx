@@ -12,6 +12,7 @@ import { NotificationCenter } from "@/components/navigation/NotificationCenter"
 import { UserProfile } from "@/components/navigation/UserProfile"
 import { UpgradePlanDialog } from "@/components/navigation/UpgradePlanDialog"
 import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePresenceAvatars"
+import { GlobalTimer } from "@/components/time-tracking/GlobalTimer"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 
@@ -59,6 +60,8 @@ export function Header() {
             <span className="text-xs">⌘</span>K
           </kbd>
         </Button>
+
+        <GlobalTimer />
 
         <Button 
           variant="outline" 

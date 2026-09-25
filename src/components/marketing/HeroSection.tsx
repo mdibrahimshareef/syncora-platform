@@ -216,12 +216,12 @@ export function HeroSection() {
                       <div className="text-sm font-semibold flex items-center gap-2"><div className="size-2 rounded-full bg-slate-500" /> To Do</div>
                       <span className="text-xs text-muted-foreground">3</span>
                     </div>
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-background p-3 rounded-lg border border-border/50 shadow-sm flex flex-col gap-3">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-card p-3 rounded-lg border border-border/50 dark:border-white/10 shadow-sm flex flex-col gap-3">
                       <div className="flex gap-2"><span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 font-medium tracking-wide">DESIGN</span></div>
                       <div className="text-sm font-medium">Create social assets</div>
                       <div className="flex justify-between items-center"><div className="size-5 rounded-full bg-blue-500/50" /><span className="text-xs text-muted-foreground">Oct 12</span></div>
                     </motion.div>
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-background p-3 rounded-lg border border-border/50 shadow-sm flex flex-col gap-3">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-card p-3 rounded-lg border border-border/50 dark:border-white/10 shadow-sm flex flex-col gap-3">
                       <div className="flex gap-2"><span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 font-medium tracking-wide">COPY</span></div>
                       <div className="text-sm font-medium">Draft press release</div>
                       <div className="flex justify-between items-center"><div className="size-5 rounded-full bg-green-500/50" /><span className="text-xs text-muted-foreground">Oct 14</span></div>
@@ -234,7 +234,7 @@ export function HeroSection() {
                       <div className="text-sm font-semibold flex items-center gap-2"><div className="size-2 rounded-full bg-blue-500" /> In Progress</div>
                       <span className="text-xs text-muted-foreground">2</span>
                     </div>
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="bg-background p-3 rounded-lg border border-border/50 shadow-sm flex flex-col gap-3">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="bg-card p-3 rounded-lg border border-border/50 dark:border-white/10 shadow-sm flex flex-col gap-3">
                       <div className="flex gap-2"><span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium tracking-wide">VIDEO</span></div>
                       <div className="text-sm font-medium">Edit promo video</div>
                       <div className="w-full bg-muted rounded-full h-1.5"><div className="bg-primary w-2/3 h-full rounded-full" /></div>
@@ -248,7 +248,7 @@ export function HeroSection() {
                       <div className="text-sm font-semibold flex items-center gap-2"><div className="size-2 rounded-full bg-green-500" /> Done</div>
                       <span className="text-xs text-muted-foreground">5</span>
                     </div>
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="bg-background p-3 rounded-lg border border-border/50 shadow-sm flex flex-col gap-3 opacity-60">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="bg-card p-3 rounded-lg border border-border/50 dark:border-white/10 shadow-sm flex flex-col gap-3 opacity-60">
                       <div className="flex gap-2"><span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 font-medium tracking-wide">PLANNING</span></div>
                       <div className="text-sm font-medium line-through">Finalize budget</div>
                     </motion.div>

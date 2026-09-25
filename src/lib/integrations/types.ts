@@ -66,7 +66,8 @@ export interface SyncoraEvent {
   type: string;
   workspaceId: string;
   actorId?: string;
-  createdAt: string;
+  createdAt?: string;
+  timestamp?: string;
   payload: Record<string, any>;
 }
 

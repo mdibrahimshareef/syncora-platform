@@ -23,7 +23,6 @@ export async function processChatRequest(messages: any[], systemPrompt: string) 
       system: systemPrompt,
       messages,
       tools: aiTools,
-      maxSteps: 2, // Allow the model to call a tool and then optionally respond
     })
 
     return {

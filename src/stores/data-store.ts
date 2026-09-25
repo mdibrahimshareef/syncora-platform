@@ -133,10 +133,9 @@ type DataState = {
   deleteFilter: (id: string) => Promise<void>
 
   // Automation Actions
-  createAutomation: (payload: { name: string, trigger_type: string, trigger_config: any, action_type: string, action_config: any }) => Promise<void>
+  createAutomation: (payload: any) => Promise<void>
   updateAutomation: (id: string, updates: Partial<automationsApi.Automation>) => Promise<void>
   deleteAutomation: (id: string) => Promise<void>
-  toggleAutomation: (id: string, isActive: boolean) => Promise<void>
 
   // Project Actions
   fetchViews: () => Promise<void>
@@ -689,61 +688,27 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
     try {
       const supabase = createClient()
-      const created = await taskApi.createTask(supabase, taskData.projectId, {
-        title: taskData.title,
-        description: taskData.description,
-        status: taskData.status,
-        priority: taskData.priority,
-        assigneeId: taskData.assignee?.id,
-        startDate: taskData.startDate,
-        dueDate: taskData.dueDate,
-        userId: currentUser.id,
-        parentId: taskData.parentId,
-        workspaceId: taskData.workspaceId,
-        taskType: taskData.taskType,
-        reporterId: taskData.reporterId,
-        customerId: taskData.customerId,
-        requestId: taskData.requestId,
-        approvalId: taskData.approvalId,
-        documentId: taskData.documentId,
-        estimatedHours: taskData.estimatedHours,
-        storyPoints: taskData.storyPoints
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: taskData.projectId, taskData })
       })
+      
+      if (!res.ok) throw new Error('Failed to create task')
+      const created = await res.json()
 
-      // Replace temp task with real task
-      set((state) => {
-        const realtimeTaskExists = state.tasks.some(t => t.id === created.id);
-        if (realtimeTaskExists) {
-          // Realtime already inserted the task. Remove the temp one and enrich the realtime one.
-          return {
-            tasks: state.tasks.filter(t => t.id !== tempId).map(t => 
-              t.id === created.id ? { ...t, assignee: taskData.assignee, labels: taskData.labels || [] } : t
-            )
-          }
-        }
-        // Realtime hasn't arrived yet
-        return {
-          tasks: state.tasks.map(t => t.id === tempId ? { ...t, id: created.id } : t),
-          workspaceTasks: state.workspaceTasks.map(t => t.id === tempId ? { ...t, id: created.id } : t)
-        }
-      })
+      // The new task is already mapped with backend property names (snake_case).
+      // Optimistic replacement: Replace the temp task with the actual task from the backend.
+      set((state) => ({ 
+        tasks: state.tasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t),
+        workspaceTasks: state.workspaceTasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t)
+      }))
 
       // Log activity
       const { activeWorkspaceId } = get()
       if (activeWorkspaceId) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', created.id, 'created', { targetName: taskData.title })
         get().fetchActivity() // refresh
-
-        // Trigger Automations (Fire-and-forget, authoritative execution happens on server)
-        fetch('/api/automations/evaluate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspaceId: activeWorkspaceId,
-            event: 'TASK_CREATED',
-            payload: { taskId: created.id, taskData: created }
-          })
-        }).catch(console.error)
       }
     } catch (err: unknown) {
       // Rollback
@@ -766,40 +731,17 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
     try {
       const supabase = createClient()
-      await taskApi.updateTask(supabase, id, {
-        title: updates.title,
-        description: updates.description,
-        status: updates.status,
-        priority: updates.priority,
-        assigneeId: updates.assignee?.id,
-        startDate: updates.startDate,
-        dueDate: updates.dueDate,
-        parentId: updates.parentId,
-        recurrenceRule: updates.recurrenceRule,
-        taskType: updates.taskType,
-        reporterId: updates.reporterId,
-        customerId: updates.customerId,
-        requestId: updates.requestId,
-        approvalId: updates.approvalId,
-        documentId: updates.documentId,
-        estimatedHours: updates.estimatedHours,
-        storyPoints: updates.storyPoints
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
       })
+      if (!res.ok) throw new Error('Failed to update task')
 
       if (activeWorkspaceId && currentUser) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', id, 'updated', { targetName: updates.title || 'a task' })
         get().fetchActivity()
 
-        // Trigger Automations
-        fetch('/api/automations/evaluate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspaceId: activeWorkspaceId,
-            event: 'TASK_UPDATED',
-            payload: { taskId: id, changes: updates }
-          })
-        }).catch(console.error)
       }
     } catch (err: unknown) {
       // Rollback not implemented strictly here for brevity, but should reset to original
@@ -844,18 +786,6 @@ export const useDataStore = create<DataState>()((set, get) => ({
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', ids[0], 'updated', { targetName: `${ids.length} tasks` })
         get().fetchActivity()
 
-        // Trigger Automations for each task
-        ids.forEach(id => {
-          fetch('/api/automations/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              workspaceId: activeWorkspaceId,
-              event: 'TASK_UPDATED',
-              payload: { taskId: id, changes: updates }
-            })
-          }).catch(console.error)
-        })
       }
     } catch (err) {
       throw err
@@ -889,19 +819,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
     try {
       const supabase = createClient()
-      await taskApi.updateTask(supabase, id, { status: newStatus })
-
-      if (activeWorkspaceId) {
-        fetch('/api/automations/evaluate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspaceId: activeWorkspaceId,
-            event: 'TASK_UPDATED',
-            payload: { taskId: id, changes: { status: newStatus } }
-          })
-        }).catch(console.error)
-      }
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      if (!res.ok) throw new Error('Failed to update task status')
 
       if (activeWorkspaceId && currentUser) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', id, 'moved', { targetName: taskToMove.title, toStatus: newStatus })
@@ -1130,19 +1053,20 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   createAutomation: async (payload) => {
-    const { activeWorkspaceId, currentUser, automations } = get()
-    if (!activeWorkspaceId || !currentUser) return
     try {
       const supabase = createClient()
+      const { activeWorkspaceId, currentUser } = get()
+      if (!activeWorkspaceId || !currentUser) return
+      
       const newAutomation = await automationsApi.createAutomation(supabase, {
+        ...payload,
         workspace_id: activeWorkspaceId,
-        created_by: currentUser.id,
-        ...payload
+        created_by: currentUser.id
       })
-      set({ automations: [newAutomation, ...automations] })
-      toast.success("Automation rule created")
+      
+      set(state => ({ automations: [newAutomation, ...state.automations] }))
     } catch (error: any) {
-      toast.error(error.message || "Failed to create automation")
+      console.error('Error creating automation:', error)
       throw error
     }
   },
@@ -1160,34 +1084,17 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   deleteAutomation: async (id) => {
-    const { automations } = get()
-    // Optimistic
-    set({ automations: automations.filter(a => a.id !== id) })
     try {
       const supabase = createClient()
       await automationsApi.deleteAutomation(supabase, id)
-      toast.success("Automation rule deleted")
+      set(state => ({ automations: state.automations.filter(a => a.id !== id) }))
     } catch (error: any) {
-      set({ automations })
-      toast.error("Failed to delete automation")
+      console.error('Error deleting automation:', error)
       throw error
     }
   },
 
-  toggleAutomation: async (id, isActive) => {
-    const { automations } = get()
-    // Optimistic
-    set({ automations: automations.map(a => a.id === id ? { ...a, is_active: isActive } : a) })
-    try {
-      const supabase = createClient()
-      await automationsApi.updateAutomation(supabase, id, { is_active: isActive })
-      toast.success(isActive ? "Automation activated" : "Automation paused")
-    } catch (error: any) {
-      set({ automations })
-      toast.error("Failed to update automation status")
-      throw error
-    }
-  },
+
 
   createProject: async (projectData) => {
     const { currentUser, activeWorkspaceId, projects } = get()

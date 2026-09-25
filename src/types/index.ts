@@ -209,3 +209,51 @@ export type WorkflowStatus = {
   isDefault: boolean;
   allowedTransitions: string[];
 };
+
+export type TimeEntry = {
+  id: string;
+  workspaceId: string;
+  projectId?: string | null;
+  taskId?: string | null;
+  userId: string;
+  description?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  durationMinutes: number;
+  billable: boolean;
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  timesheetId?: string | null;
+  source: 'MANUAL' | 'TIMER' | 'AUTOMATION' | 'API';
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Timesheet = {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  periodStart: string;
+  periodEnd: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewComment?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProjectBudget = {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  budgetType: 'TIME' | 'COST' | 'TIME_AND_COST';
+  budgetMinutes: number;
+  budgetAmount?: number | null;
+  warningThreshold: number;
+  criticalThreshold: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy?: string | null;
+};

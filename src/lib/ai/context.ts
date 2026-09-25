@@ -47,6 +47,25 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
     `)
     .eq('workspace_id', workspaceId)
     .limit(20)
+
+  // Fetch project budgets
+  let budgets: any[] = []
+  if (projectIds.length > 0) {
+    const { data } = await supabase
+      .from('project_budgets')
+      .select('project_id, budget_type, budget_amount, budget_minutes')
+      .in('project_id', projectIds)
+    budgets = data || []
+  }
+
+  // Fetch recent time entries
+  const { data: recentTimeEntries } = await supabase
+    .from('time_entries')
+    .select('user_id, project_id, task_id, duration_minutes, started_at, description')
+    .eq('workspace_id', workspaceId)
+    .not('ended_at', 'is', null)
+    .order('ended_at', { ascending: false })
+    .limit(20)
     
   // 4. Semantic Search (Hybrid RAG) if API key is present and query exists
   let semanticMatches: AISource[] = []
@@ -58,7 +77,7 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
       })
       
       const { data: matches } = await supabase.rpc('match_embeddings', {
-        query_embedding: embedding,
+        query_embedding: JSON.stringify(embedding) as any,
         match_threshold: 0.5,
         match_count: 5,
         p_workspace_id: workspaceId
@@ -89,6 +108,8 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
       name: (m.profiles as any)?.full_name || 'Unknown',
       email: (m.profiles as any)?.email || 'Unknown'
     })) || [],
+    budgets,
+    recentTimeEntries: recentTimeEntries || [],
     semanticKnowledge: semanticMatches
   }
 }

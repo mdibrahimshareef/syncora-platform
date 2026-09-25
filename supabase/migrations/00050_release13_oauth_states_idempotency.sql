@@ -14,16 +14,16 @@ ALTER TABLE oauth_states ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "oauth_states_owner_insert"
   ON oauth_states FOR INSERT
-  WITH CHECK (is_workspace_member(workspace_id, auth.uid()) AND 
+  WITH CHECK (is_workspace_member(workspace_id) AND 
              EXISTS (SELECT 1 FROM workspace_members WHERE workspace_id = oauth_states.workspace_id AND user_id = auth.uid() AND role IN ('owner', 'admin')));
 
 CREATE POLICY "oauth_states_owner_select"
   ON oauth_states FOR SELECT
-  USING (is_workspace_member(workspace_id, auth.uid()));
+  USING (is_workspace_member(workspace_id));
 
 CREATE POLICY "oauth_states_owner_delete"
   ON oauth_states FOR DELETE
-  USING (is_workspace_member(workspace_id, auth.uid()));
+  USING (is_workspace_member(workspace_id));
 
 -- Create Webhook Idempotency table
 CREATE TABLE webhook_idempotency (

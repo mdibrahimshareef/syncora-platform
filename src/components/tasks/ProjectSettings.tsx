@@ -51,6 +51,24 @@ export function ProjectSettings({ project, projectStatuses }: ProjectSettingsPro
           <Plus className="size-4 mr-2" /> Add Custom Status (Coming Soon)
         </Button>
       </div>
+
+      <div className="space-y-4 bg-card border rounded-lg p-6">
+        <div>
+          <h3 className="text-md font-medium">Project Budget</h3>
+          <p className="text-sm text-muted-foreground mb-4">Set time and effort budgets for this project.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="budget_minutes">Budget (Minutes)</Label>
+            <Input id="budget_minutes" type="number" placeholder="e.g. 2400 (40 hours)" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="warning_threshold">Warning Threshold (%)</Label>
+            <Input id="warning_threshold" type="number" placeholder="e.g. 75" defaultValue="75" />
+          </div>
+        </div>
+        <Button size="sm">Save Budget</Button>
+      </div>
     </div>
   )
 }

@@ -1,52 +1,34 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
+import { AutomationRecord, AutomationRunRecord, AutomationActionLogRecord } from '../automations/types'
 
-export type Automation = {
-  id: string
-  workspace_id: string
-  name: string
-  trigger_type: string
-  trigger_config: any
-  action_type: string
-  action_config: any
-  is_active: boolean
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-export type AutomationRun = {
-  id: string
-  automation_id: string
-  workspace_id: string
-  status: 'Success' | 'Failed'
-  error_message: string | null
-  executed_at: string
-}
+export type Automation = AutomationRecord;
+export type AutomationRun = AutomationRunRecord;
+export type AutomationActionLog = AutomationActionLogRecord;
 
 export async function getAutomations(supabase: SupabaseClient<Database>, workspaceId: string): Promise<Automation[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('automations')
     .select('*')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as Automation[]
+  return data as unknown as Automation[]
 }
 
 export async function createAutomation(
   supabase: SupabaseClient<Database>, 
-  payload: { workspace_id: string, name: string, trigger_type: string, trigger_config: any, action_type: string, action_config: any, created_by: string }
+  payload: Partial<Automation> & { workspace_id: string, name: string, trigger_type: string, actions: any[] }
 ): Promise<Automation> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('automations')
-    .insert(payload)
+    .insert(payload as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as Automation
+  return data as unknown as Automation
 }
 
 export async function updateAutomation(
@@ -54,19 +36,19 @@ export async function updateAutomation(
   id: string, 
   updates: Partial<Automation>
 ): Promise<Automation> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('automations')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...updates, updated_at: new Date().toISOString() } as any)
     .eq('id', id)
     .select()
     .single()
 
   if (error) throw error
-  return data as Automation
+  return data as unknown as Automation
 }
 
 export async function deleteAutomation(supabase: SupabaseClient<Database>, id: string): Promise<boolean> {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('automations')
     .delete()
     .eq('id', id)
@@ -76,7 +58,7 @@ export async function deleteAutomation(supabase: SupabaseClient<Database>, id: s
 }
 
 export async function getAutomationRuns(supabase: SupabaseClient<Database>, workspaceId: string): Promise<AutomationRun[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('automation_runs')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -84,5 +66,16 @@ export async function getAutomationRuns(supabase: SupabaseClient<Database>, work
     .limit(100)
 
   if (error) throw error
-  return data as AutomationRun[]
+  return data as unknown as AutomationRun[]
+}
+
+export async function getAutomationActionLogs(supabase: SupabaseClient<Database>, runId: string): Promise<AutomationActionLog[]> {
+  const { data, error } = await supabase
+    .from('automation_action_logs')
+    .select('*')
+    .eq('run_id', runId)
+    .order('started_at', { ascending: true })
+
+  if (error) throw error
+  return data as unknown as AutomationActionLog[]
 }

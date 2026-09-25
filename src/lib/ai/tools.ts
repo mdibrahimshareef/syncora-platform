@@ -12,7 +12,7 @@ export const aiTools = {
       priority: z.enum(['Low', 'Medium', 'High', 'Urgent']).optional().describe('The priority of the task.'),
       description: z.string().optional().describe('A brief description of the task.')
     }),
-    execute: async (args) => {
+    execute: async (args: any) => {
       // The actual execution is halted here on the server side because 
       // Vercel AI SDK will return the toolCall to the client. 
       // The client intercepts it, renders the confirmation UI, and then executes the mutation separately!
@@ -22,7 +22,7 @@ export const aiTools = {
         proposed_action: args 
       }
     }
-  }),
+  } as any),
   
   update_task: tool({
     description: 'Propose updating an existing task (e.g. changing status, priority, or due date). Wait for user confirmation.',
@@ -36,14 +36,14 @@ export const aiTools = {
         assigneeId: z.string().optional(),
       }).describe('The fields to update.')
     }),
-    execute: async (args) => {
+    execute: async (args: any) => {
       return { 
         status: 'proposal_ready',
         message: 'Action proposed to user for confirmation. Do not assume it has been executed yet.',
         proposed_action: args 
       }
     }
-  }),
+  } as any),
   
   assign_task: tool({
     description: 'Propose assigning a task to a user.',
@@ -51,13 +51,13 @@ export const aiTools = {
       taskId: z.string().describe('The ID of the task.'),
       assigneeId: z.string().describe('The user ID of the assignee.')
     }),
-    execute: async (args) => {
+    execute: async (args: any) => {
       return { 
         status: 'proposal_ready',
         message: 'Action proposed to user for confirmation.',
         proposed_action: args 
       }
     }
-  })
+  } as any)
 }
 

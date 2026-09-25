@@ -134,6 +134,7 @@ export default function WorkloadPage() {
                 <TableHead className="text-center">Overdue</TableHead>
                 <TableHead className="text-center">Active Projects</TableHead>
                 <TableHead className="text-center">Effort (Hrs)</TableHead>
+                <TableHead className="text-center">Logged (Hrs)</TableHead>
                 <TableHead className="text-center">Capacity</TableHead>
               </TableRow>
             </TableHeader>
@@ -187,6 +188,12 @@ export default function WorkloadPage() {
                   <TableCell className="text-center">
                     <span className="text-sm font-medium text-muted-foreground">
                       {stat.totalEffort > 0 ? (stat.totalEffort / 60).toFixed(1) : '-'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {/* Placeholder for MVP until real time entries are aggregated */}
+                      -
                     </span>
                   </TableCell>
                   <TableCell className="text-center">

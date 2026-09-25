@@ -1,5 +1,6 @@
 import { SyncoraEvent, WebhookEndpoint } from '../integrations/types';
 import { processWebhookDelivery, processIntegrationDelivery } from '../webhooks/delivery';
+import { processEventForAutomations } from '../automations/engine';
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -10,7 +11,7 @@ import { createClient } from '@/lib/supabase/server';
  * 
  * @param event The structured event to dispatch
  */
-export async function dispatchEvent(event: SyncoraEvent) {
+export async function dispatchEvent(event: SyncoraEvent, depth: number = 1) {
   console.log(`[Event Dispatcher] Dispatching event: ${event.type} for workspace ${event.workspaceId}`);
   
   const supabase = await createClient();
@@ -68,7 +69,8 @@ export async function dispatchEvent(event: SyncoraEvent) {
     try {
       const tasks = [
         ...deliveryIds.map(id => processWebhookDelivery(id, event)),
-        processIntegrationDelivery(event)
+        processIntegrationDelivery(event),
+        processEventForAutomations(event, depth)
       ];
 
       await Promise.allSettled(tasks);
