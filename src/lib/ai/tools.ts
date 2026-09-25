@@ -95,6 +95,24 @@ export function getAiTools(workspaceId: string) {
       }
     }),
 
+    get_automation_status: tool({
+      description: 'Check the status, rules, and recent execution history of automations in the workspace.',
+      parameters: z.object({
+        automationId: z.string().optional(),
+        limit: z.number().default(10)
+      }),
+      execute: async (args: any) => {
+        const supabase = await createClient()
+        let query = supabase.from('automations').select('id, name, trigger_type, action_type, is_active, last_run_at').eq('workspace_id', workspaceId).order('created_at', { ascending: false })
+        
+        if (args.automationId) query = query.eq('id', args.automationId)
+        
+        const { data, error } = await query.limit(args.limit)
+        if (error) return { error: error.message }
+        return data || []
+      }
+    }),
+
     // --- ACTION TOOLS (Proposal Pattern) ---
     
     create_task: tool({
