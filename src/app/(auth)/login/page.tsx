@@ -67,7 +67,7 @@ function LoginContent() {
       <CardHeader className="space-y-1 text-center">
         <CardTitle className="text-2xl font-bold tracking-tight">SYNCORA</CardTitle>
         <CardDescription>
-          Enter your email and password to sign in
+          Enter your email and password to log in
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -103,7 +103,7 @@ function LoginContent() {
             />
             <Button className="w-full mt-2" type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              Log In
             </Button>
           </form>
         </Form>

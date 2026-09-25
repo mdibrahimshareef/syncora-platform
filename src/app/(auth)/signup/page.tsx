@@ -134,7 +134,7 @@ function SignupContent() {
         <div className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href={`/login${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`} className="underline underline-offset-4 hover:text-primary font-medium">
-            Sign in
+            Log in
           </Link>
         </div>
       </CardFooter>
