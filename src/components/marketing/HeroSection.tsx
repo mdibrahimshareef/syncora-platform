@@ -164,7 +164,7 @@ export function HeroSection() {
           onMouseLeave={handleDashboardMouseLeave}
         >
           <motion.div 
-            className="relative rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 dark:shadow-white/10 dark:border-white/10 overflow-hidden transform-gpu" 
+            className="relative rounded-xl md:rounded-2xl border border-border/50 bg-background shadow-2xl shadow-black/20 dark:shadow-[0_16px_64px_-12px_rgba(255,255,255,0.15)] dark:border-white/20 overflow-hidden transform-gpu" 
             style={{ 
               transformStyle: "preserve-3d", 
               rotateX: springRotateX, 

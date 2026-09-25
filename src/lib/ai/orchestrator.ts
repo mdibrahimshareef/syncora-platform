@@ -4,7 +4,7 @@ import { buildSystemPrompt } from '@/lib/ai/prompts'
 import { getLanguageModel } from '@/lib/ai/provider'
 import { getAiTools } from '@/lib/ai/tools'
 import { logAITelemetry } from '@/lib/ai/telemetry'
-import { streamText } from 'ai'
+import { streamText, isStepCount } from 'ai'
 
 export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '') {
   const startTime = Date.now()
@@ -54,7 +54,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
       system: systemPrompt,
       messages,
       tools: getAiTools(workspaceId) as any,
-      maxSteps: 3,
+      stopWhen: isStepCount(3),
       onFinish: (event) => {
         logAITelemetry({
           requestId,
