@@ -127,7 +127,7 @@ export function HeroSection() {
             </Link>
             <Link href="#product" className={buttonVariants({ variant: "outline", size: "lg", className: "h-12 px-8 rounded-full text-base font-semibold w-full sm:w-auto bg-background/50 backdrop-blur-sm border-border/50 hover:bg-accent/50 transition-all" })}>
               <PlayCircle className="mr-2 size-5 text-muted-foreground" />
-              See How It Works
+              Watch Demo
             </Link>
           </div>
 

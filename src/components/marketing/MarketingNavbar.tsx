@@ -48,7 +48,7 @@ export function MarketingNavbar() {
 
             <NavigationMenuItem>
               <NavigationMenuLink render={<Link href="#how-it-works" />} className={navigationMenuTriggerStyle()}>
-                How it works
+                Automations
               </NavigationMenuLink>
             </NavigationMenuItem>
 
@@ -133,10 +133,10 @@ export function MarketingNavbar() {
         <div className="hidden md:flex items-center gap-4">
           <ThemeToggle />
           <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Sign In
+            Log in
           </Link>
           <Link href="/signup" className={buttonVariants({ size: "sm", className: "rounded-full px-6 font-semibold shadow-sm" })}>
-            Get Started
+            Sign up
           </Link>
         </div>
 
@@ -163,7 +163,7 @@ export function MarketingNavbar() {
                     Features
                   </Link>
                   <Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
-                    How it works
+                    Automations
                   </Link>
                   <Link href="#solutions" className="text-muted-foreground hover:text-foreground transition-colors">
                     Solutions
@@ -178,10 +178,10 @@ export function MarketingNavbar() {
 
                 <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-border">
                   <Link href="/login" className={buttonVariants({ variant: "outline", className: "w-full justify-center" })}>
-                    Sign In
+                    Log in
                   </Link>
                   <Link href="/signup" className={buttonVariants({ className: "w-full justify-center rounded-full font-semibold" })}>
-                    Get Started
+                    Sign up
                   </Link>
                 </div>
               </div>
