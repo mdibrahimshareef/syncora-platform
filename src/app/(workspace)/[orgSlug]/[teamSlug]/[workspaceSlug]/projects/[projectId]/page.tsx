@@ -10,7 +10,7 @@ import { notFound, useSearchParams, useRouter, usePathname } from "next/navigati
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, MoreHorizontal, Trash2 } from "lucide-react"
+import { Plus, MoreHorizontal, Trash2, Edit } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,7 @@ import { TaskFilters, TaskFilterState } from "@/components/tasks/TaskFilters"
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog"
 import { PresenceAvatars } from "@/components/collaboration/PresenceAvatars"
 import { ProjectSettings } from "@/components/tasks/ProjectSettings"
+import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
 
 import { getProjectStatuses } from "@/lib/api/projects"
 import { createClient } from "@/lib/supabase/client"
@@ -47,6 +48,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const deleteProject = useDataStore(s => s.deleteProject);
   const [isStatusesLoading, setIsStatusesLoading] = React.useState(true)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState("")
   const [isDeleting, setIsDeleting] = React.useState(false)
 
@@ -181,13 +183,22 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               {isAdminOrOwner ? (
-                <DropdownMenuItem 
-                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="mr-2 size-4" />
-                  <span>Delete Project</span>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => setIsEditDialogOpen(true)}
+                  >
+                    <Edit className="mr-2 size-4" />
+                    <span>Edit Project</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    <span>Delete Project</span>
+                  </DropdownMenuItem>
+                </>
               ) : (
                 <DropdownMenuItem disabled>
                   <span className="text-muted-foreground text-sm">No actions available</span>
@@ -287,6 +298,11 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         open={isCreateTaskOpen} 
         onOpenChange={setIsCreateTaskOpen} 
         defaultValues={{ projectId: project.id }}
+      />
+      <CreateProjectDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        defaultValues={project}
       />
     </Tabs>
   )
