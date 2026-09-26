@@ -30,7 +30,7 @@ export function AIAssistant() {
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
     onError: (err) => toast.error(err.message),
-    onResponse: (response) => {
+    onResponse: (response: Response) => {
       const convId = response.headers.get('X-Conversation-Id')
       if (convId && !conversationId) {
         setConversationId(convId)
