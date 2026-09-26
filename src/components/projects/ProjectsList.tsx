@@ -66,12 +66,9 @@ export function ProjectsList() {
           <p className="text-sm text-muted-foreground max-w-[420px] mx-auto mb-8 leading-relaxed">
             Projects are larger units of work with a clear outcome, such as a new feature you want to ship. They can be shared across multiple teams and are comprised of tasks and optional documents.
           </p>
-          <div className="flex items-center gap-3 justify-center">
+          <div className="flex items-center justify-center">
             <Button onClick={() => setIsCreateOpen(true)}>
               Create new project
-            </Button>
-            <Button variant="secondary">
-              Documentation
             </Button>
           </div>
         </div>
