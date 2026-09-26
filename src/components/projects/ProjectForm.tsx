@@ -43,6 +43,7 @@ type ProjectFormValues = z.infer<typeof projectSchema>
 interface ProjectFormProps {
   defaultValues?: Partial<Project>
   onSuccess?: () => void
+  onDirtyChange?: (isDirty: boolean) => void
 }
 
 const PROJECT_COLORS = [
@@ -56,7 +57,7 @@ const PROJECT_COLORS = [
 
 import { createClient } from "@/lib/supabase/client"
 
-export function ProjectForm({ defaultValues, onSuccess }: ProjectFormProps) {
+export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: ProjectFormProps) {
   const createProject = useDataStore(s => s.createProject);
   const updateProject = useDataStore(s => s.updateProject);
   const templates = useDataStore(s => s.templates);
@@ -79,6 +80,14 @@ export function ProjectForm({ defaultValues, onSuccess }: ProjectFormProps) {
       includeSampleData: true,
     },
   })
+
+  const { isDirty } = form.formState;
+
+  React.useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
 
   async function onSubmit(data: ProjectFormValues) {
     const projectPayload = {
