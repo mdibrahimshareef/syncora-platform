@@ -199,7 +199,37 @@ export const useDataStore = create<DataState>()((set, get) => ({
     ...data
   })),
 
-  setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
+  setActiveWorkspaceId: (id) => {
+    const currentId = get().activeWorkspaceId;
+    if (currentId === id) return;
+    
+    set({ 
+      activeWorkspaceId: id,
+      tasks: [],
+      workspaceTasks: [],
+      milestones: [],
+      savedFilters: [],
+      searchResults: [],
+      isSearching: false,
+      projects: [],
+      projectStatuses: [],
+      activity: [],
+      workspaceMembers: [],
+      onlineWorkspaceUsers: [],
+      documents: [],
+      requests: [],
+      requestForms: [],
+      approvals: [],
+      customers: [],
+      customerRequests: [],
+      automations: [],
+      automationRuns: [],
+      integrations: [],
+      webhookEndpoints: [],
+      isLoading: true, // Show loading state on switch
+      error: null,
+    });
+  },
 
   updateCurrentUser: async (updates) => {
     const { currentUser } = get()
@@ -273,8 +303,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const projects = await projectApi.getProjects(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ projects, isLoading: false })
     } catch (err: unknown) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ error: (err as Error).message, isLoading: false })
     }
   },
@@ -297,8 +329,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const workspaceTasks = await taskApi.getWorkspaceTasks(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ workspaceTasks, isLoading: false })
     } catch (err: unknown) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ error: (err as Error).message, isLoading: false })
     }
   },
@@ -307,6 +341,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const { activeWorkspaceId } = get()
     if (!activeWorkspaceId) return
     if (!query || query.trim() === '') {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults: [], isSearching: false })
       return
     }
@@ -315,8 +350,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const searchResults = await searchApi.performGlobalSearch(supabase, activeWorkspaceId, query)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults, isSearching: false })
     } catch (err) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults: [], isSearching: false })
     }
   },
@@ -330,6 +367,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const activity = await activityApi.getRecentActivity(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ activity })
     } catch (err: unknown) {
       console.error(err)
@@ -482,6 +520,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const customers = await customersApi.getCustomers(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ customers })
     } catch (err) {
       console.error('Failed to fetch customers', err)
@@ -494,6 +533,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const customerRequests = await customersApi.getCustomerRequests(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ customerRequests })
     } catch (err) {
       console.error('Failed to fetch customer requests', err)
@@ -521,6 +561,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       if (!activeWorkspaceId) return
       
       const automations = await automationsApi.getAutomations(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ automations })
     } catch (error: any) {
       console.error('Error fetching automations:', error)
@@ -534,6 +575,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       if (!activeWorkspaceId) return
       
       const automationRuns = await automationsApi.getAutomationRuns(supabase, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ automationRuns })
     } catch (error: any) {
       console.error('Error fetching automation runs:', error)
@@ -1183,6 +1225,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   updateProject: async (id, updates) => {
     const { projects } = get()
+    const originalProject = projects.find(p => p.id === id)
     
     set({
       projects: projects.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p)
@@ -1198,6 +1241,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
         status: updates.status,
       })
     } catch (err: unknown) {
+      if (originalProject) {
+        set({
+          projects: get().projects.map(p => p.id === id ? originalProject : p)
+        })
+      }
       throw err
     }
   },
@@ -1221,6 +1269,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
   // Realtime Receivers
   applyRealtimeProjectInsert: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       if (state.projects.some(p => p.id === payload.id)) return state
       const newProject: Project = {
         id: payload.id,
@@ -1241,6 +1290,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
   applyRealtimeProjectUpdate: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       const existing = state.projects.find(p => p.id === payload.id)
       if (!existing) return state
       const updatedProject = {
@@ -1258,15 +1308,16 @@ export const useDataStore = create<DataState>()((set, get) => ({
     })
   },
   applyRealtimeProjectDelete: (payload) => {
-    set((state) => ({
+    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
       projects: state.projects.filter(p => p.id !== payload.id),
       tasks: state.tasks.filter(t => t.projectId !== payload.id),
       workspaceTasks: state.workspaceTasks.filter(t => t.projectId !== payload.id)
-    }))
+    } })
   },
 
   applyRealtimeTaskUpdate: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       const existing = state.tasks.find(t => t.id === payload.id)
       if (!existing) return state
       
@@ -1301,6 +1352,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeTaskInsert: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       // Check if it already exists (e.g. from an optimistic insert that finally resolved, although our create logic replaces tempId)
       if (state.tasks.some(t => t.id === payload.id)) return state
 
@@ -1335,14 +1387,15 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   applyRealtimeTaskDelete: (payload) => {
-    set((state) => ({
+    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
       tasks: state.tasks.filter(t => t.id !== payload.id),
       workspaceTasks: state.workspaceTasks.filter(t => t.id !== payload.id)
-    }))
+    } })
   },
 
   applyRealtimeMilestoneInsert: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       if (state.milestones.some(m => m.id === payload.id)) return state
       const newMilestone: import('@/types').Milestone = {
         id: payload.id,
@@ -1360,6 +1413,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeMilestoneUpdate: (payload) => {
     set((state) => {
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       const existing = state.milestones.find(m => m.id === payload.id)
       if (!existing) return state
       const updatedMilestone = {
@@ -1373,9 +1427,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   applyRealtimeMilestoneDelete: (payload) => {
-    set((state) => ({
+    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
       milestones: state.milestones.filter(m => m.id !== payload.id)
-    }))
+    } })
   },
 
 

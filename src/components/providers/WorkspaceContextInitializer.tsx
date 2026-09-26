@@ -39,7 +39,6 @@ export function WorkspaceContextInitializer() {
       // Update cookie silently so next reload uses this workspace by default
       document.cookie = `SYNCORA_workspace_id=${currentWorkspace.id}; path=/; max-age=31536000`
 
-      // If we just navigated to a new workspace, or this is the first load
       if (isNewWorkspace || !initialized) {
         useDataStore.getState().fetchWorkspaceMembers()
         useDataStore.getState().fetchProjects()
@@ -52,7 +51,12 @@ export function WorkspaceContextInitializer() {
         useDataStore.getState().fetchApprovals()
         setInitialized(true)
       }
+    } else if (workspaces.length > 0) {
+      // User does not have access to this workspace, redirect to their first available workspace
+      const defaultWorkspace = workspaces[0]
+      window.location.href = `/${defaultWorkspace.orgSlug || 'org'}/${defaultWorkspace.teamSlug || 'team'}/${defaultWorkspace.slug}/home`
     }
+    // If workspaces.length === 0, we are just waiting for Zustand hydration (layout.tsx ensures they have > 0)
   }, [params, workspaces, organizations, teams, initialized])
 
   return null
