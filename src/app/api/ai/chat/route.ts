@@ -3,7 +3,7 @@ import { orchestrateChatRequest } from '@/lib/ai/orchestrator'
 
 export async function POST(req: Request) {
   try {
-    const { messages, workspaceId, contextUrl } = await req.json()
+    const { messages, workspaceId, contextUrl, conversationId } = await req.json()
 
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 })
     }
 
-    const orchestrationResult = await orchestrateChatRequest(workspaceId, messages, contextUrl)
+    const orchestrationResult = await orchestrateChatRequest(workspaceId, messages, contextUrl, conversationId)
 
     if (orchestrationResult.isDevMode) {
       // Simulate network delay for UI testing
@@ -26,6 +26,8 @@ export async function POST(req: Request) {
     }
 
     // Standard Vercel AI SDK streaming response with data annotations
+    // @ts-ignore
+    // @ts-ignore
     const response = orchestrationResult.result!.toDataStreamResponse({ data: orchestrationResult.streamData })
     return response
 

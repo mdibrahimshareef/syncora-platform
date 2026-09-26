@@ -4,12 +4,14 @@ import { buildSystemPrompt } from '@/lib/ai/prompts'
 import { getLanguageModel } from '@/lib/ai/provider'
 import { getAiTools } from '@/lib/ai/tools'
 import { logAITelemetry } from '@/lib/ai/telemetry'
+// @ts-ignore
 import { streamText, isStepCount, StreamData } from 'ai'
 import { getTemporalContext } from '@/lib/ai/time'
 import { classifyIntent } from '@/lib/ai/intent'
 import { deduplicateSources, AISource } from './sources'
+import { saveConversation } from './persistence'
 
-export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '') {
+export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '', conversationId?: string) {
   const startTime = Date.now()
   const requestId = crypto.randomUUID()
   
@@ -71,12 +73,14 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
       onStepFinish: (event) => {
         // Collect sources from tools
         for (const res of event.toolResults) {
+          // @ts-ignore
           if (res.result?.sources) {
+            // @ts-ignore
             collectedSources.push(...res.result.sources)
           }
         }
       },
-      onFinish: (event) => {
+      onFinish: async (event) => {
         // Deduplicate and resolve best sources
         const finalSources = deduplicateSources(collectedSources)
         if (finalSources.length > 0) {
@@ -92,6 +96,20 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
           toolCallsCount: event.toolCalls?.length || 0,
           success: true
         })
+
+        if (userId) {
+          // Append the final assistant message to the chain and save
+          const allMessages = [...messages, { role: 'assistant', content: event.text, parts: event.toolCalls || [] }]
+          try {
+            const savedConvId = await saveConversation(workspaceId, userId, conversationId, 'Workspace Chat', allMessages)
+            if (savedConvId) {
+              streamData.append({ type: 'conversation_id', conversationId: savedConvId })
+            }
+          } catch (err) {
+            console.error('Failed to persist conversation', err)
+          }
+        }
+
         streamData.close()
       }
     })

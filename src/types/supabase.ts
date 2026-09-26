@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -34,6 +34,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_action_logs: {
+        Row: {
+          action_id: string
+          workspace_id: string
+          user_id: string
+          action_type: string
+          status: string
+          payload: Json | null
+          result: Json | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          action_id: string
+          workspace_id: string
+          user_id: string
+          action_type: string
+          status: string
+          payload?: Json | null
+          result?: Json | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          action_id?: string
+          workspace_id?: string
+          user_id?: string
+          action_type?: string
+          status?: string
+          payload?: Json | null
+          result?: Json | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_action_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       activities: {
         Row: {
           action: string

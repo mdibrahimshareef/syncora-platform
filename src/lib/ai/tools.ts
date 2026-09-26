@@ -26,7 +26,7 @@ const automationStatusSchema = z.object({
   limit: z.number().default(10)
 })
 
-const createTaskSchema = z.object({
+export const createTaskSchema = z.object({
   title: z.string().describe('The title of the task to create.'),
   projectId: z.string().optional().describe('The ID of the project this task belongs to.'),
   assigneeId: z.string().optional().describe('The user ID of the assignee.'),
@@ -35,7 +35,7 @@ const createTaskSchema = z.object({
   description: z.string().optional().describe('A brief description of the task.')
 })
 
-const updateTaskSchema = z.object({
+export const updateTaskSchema = z.object({
   taskId: z.string().describe('The ID of the task to update.'),
   updates: z.object({
     title: z.string().optional(),
@@ -43,12 +43,19 @@ const updateTaskSchema = z.object({
     priority: z.enum(['Low', 'Medium', 'High', 'Urgent']).optional(),
     dueDate: z.string().optional(),
     assigneeId: z.string().optional(),
-  }).describe('The fields to update.')
+  }).describe('The fields to update.'),
+  expectedState: z.object({
+    status: z.string().optional(),
+    assigneeId: z.string().optional()
+  }).optional().describe('The expected current state of the task before updating, to prevent stale overrides.')
 })
 
-const assignTaskSchema = z.object({
+export const assignTaskSchema = z.object({
   taskId: z.string().describe('The ID of the task.'),
-  assigneeId: z.string().describe('The user ID of the assignee.')
+  assigneeId: z.string().describe('The user ID of the assignee.'),
+  expectedState: z.object({
+    assigneeId: z.string().optional().nullable()
+  }).optional().describe('The expected current assignee before updating, to prevent stale overrides.')
 })
 
 export function getAiTools(workspaceId: string, userId?: string) {
@@ -342,7 +349,7 @@ export function getAiTools(workspaceId: string, userId?: string) {
                  id: `user-${userId}`,
                  entityId: userId,
                  type: 'user',
-                 title: userProfile.full_name,
+                 title: userProfile.full_name || 'Unknown User',
                  workspaceId,
                  sourceKind: 'tool'
               })
