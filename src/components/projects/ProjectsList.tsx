@@ -5,7 +5,7 @@ import { useDataStore } from "@/stores/data-store"
 import { ProjectCard } from "@/components/projects/ProjectCard"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Loader2 } from "lucide-react"
+import { Search, Plus, Loader2, Layers } from "lucide-react"
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
 
 export function ProjectsList() {
@@ -57,16 +57,34 @@ export function ProjectsList() {
             <ProjectCard key={project.id} project={project} />
           ))}
         </div>
+      ) : projects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="mb-6">
+            <Layers className="size-16 text-muted-foreground opacity-80 stroke-[1]" />
+          </div>
+          <h3 className="text-xl font-medium mb-3">Projects</h3>
+          <p className="text-sm text-muted-foreground max-w-[420px] mx-auto mb-8 leading-relaxed">
+            Projects are larger units of work with a clear outcome, such as a new feature you want to ship. They can be shared across multiple teams and are comprised of tasks and optional documents.
+          </p>
+          <div className="flex items-center gap-3 justify-center">
+            <Button onClick={() => setIsCreateOpen(true)}>
+              Create new project
+            </Button>
+            <Button variant="secondary">
+              Documentation
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed rounded-lg bg-muted/30">
-          <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4 mx-auto">
             <Search className="size-6 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium mb-1">No projects found</h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
             We couldn't find any projects matching "{searchQuery}". Try adjusting your search term.
           </p>
-          <Button variant="outline" className="mt-6" onClick={() => setSearchQuery("")}>
+          <Button variant="outline" className="mt-6 mx-auto" onClick={() => setSearchQuery("")}>
             Clear Search
           </Button>
         </div>
