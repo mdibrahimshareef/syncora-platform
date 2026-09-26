@@ -25,10 +25,25 @@ export async function POST(req: Request) {
       })
     }
 
-    // Standard Vercel AI SDK streaming response with data annotations
+    const headers: Record<string, string> = {}
+    if (orchestrationResult.conversationId) {
+      headers['X-Conversation-Id'] = orchestrationResult.conversationId
+    }
+    headers['X-Initial-Sources'] = JSON.stringify(orchestrationResult.sources || [])
+
+    let response;
     // @ts-ignore
-    // @ts-ignore
-    const response = orchestrationResult.result!.toDataStreamResponse({ data: orchestrationResult.streamData })
+    if (typeof orchestrationResult.result!.toDataStreamResponse === 'function') {
+      // @ts-ignore
+      response = orchestrationResult.result!.toDataStreamResponse({ headers })
+    } else if (typeof orchestrationResult.result!.toUIMessageStreamResponse === 'function') {
+      // @ts-ignore
+      response = orchestrationResult.result!.toUIMessageStreamResponse({ headers })
+    } else {
+      // Fallback
+      // @ts-ignore
+      response = orchestrationResult.result!.toTextStreamResponse({ headers })
+    }
     return response
 
   } catch (error: any) {

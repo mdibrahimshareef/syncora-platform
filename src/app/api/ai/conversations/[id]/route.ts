@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyWorkspaceAccess } from '@/lib/ai/auth'
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const url = new URL(req.url)
   const workspaceId = url.searchParams.get('workspaceId')
 
@@ -18,7 +19,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const { data: conv, error: convError } = await supabase
       .from('ai_conversations')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('workspace_id', workspaceId)
       .eq('user_id', authContext.user.id)
       .single()
@@ -30,7 +31,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const { data, error } = await supabase
       .from('ai_messages')
       .select('id, role, content, tool_calls, created_at')
-      .eq('conversation_id', params.id)
+      .eq('conversation_id', id)
       .order('created_at', { ascending: true })
 
     if (error) throw error

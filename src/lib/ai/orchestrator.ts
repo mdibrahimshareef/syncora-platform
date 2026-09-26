@@ -5,7 +5,7 @@ import { getLanguageModel } from '@/lib/ai/provider'
 import { getAiTools } from '@/lib/ai/tools'
 import { logAITelemetry } from '@/lib/ai/telemetry'
 // @ts-ignore
-import { streamText, isStepCount, StreamData } from 'ai'
+import { streamText, isStepCount } from 'ai'
 import { getTemporalContext } from '@/lib/ai/time'
 import { classifyIntent } from '@/lib/ai/intent'
 import { deduplicateSources, AISource } from './sources'
@@ -28,6 +28,9 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     logAITelemetry({ requestId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'AUTH_ERROR' })
     throw new Error(`Auth Error: ${authError.message}`)
   }
+
+  // Pre-generate conversationId so it can be sent via headers if needed
+  const activeConversationId = conversationId || (userId ? crypto.randomUUID() : undefined)
 
   // 2. Classify Intent
   const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()?.content || ''
@@ -56,12 +59,12 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
       return {
         isDevMode: true,
         message: `[DEVELOPMENT MODE] I am running in mock mode because no AI API key is configured.\n\nBased on the system prompt and workspace context, I can see your data, but I am unable to analyze it dynamically. To enable real AI, set AI_PROVIDER='openai' and configure AI_API_KEY.`,
-        sources: contextData.semanticKnowledge
+        sources: contextData.semanticKnowledge,
+        conversationId: activeConversationId
       }
     }
 
     // 6. Execute via Vercel AI SDK
-    const streamData = new StreamData()
     let collectedSources: AISource[] = [...contextData.semanticKnowledge]
 
     const result = streamText({
@@ -81,12 +84,6 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
         }
       },
       onFinish: async (event) => {
-        // Deduplicate and resolve best sources
-        const finalSources = deduplicateSources(collectedSources)
-        if (finalSources.length > 0) {
-          streamData.append({ type: 'sources', sources: finalSources })
-        }
-        
         logAITelemetry({
           requestId,
           userId,
@@ -97,27 +94,23 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
           success: true
         })
 
-        if (userId) {
+        if (userId && activeConversationId) {
           // Append the final assistant message to the chain and save
           const allMessages = [...messages, { role: 'assistant', content: event.text, parts: event.toolCalls || [] }]
           try {
-            const savedConvId = await saveConversation(workspaceId, userId, conversationId, 'Workspace Chat', allMessages)
-            if (savedConvId) {
-              streamData.append({ type: 'conversation_id', conversationId: savedConvId })
-            }
+            await saveConversation(workspaceId, userId, activeConversationId, 'Workspace Chat', allMessages)
           } catch (err) {
             console.error('Failed to persist conversation', err)
           }
         }
-
-        streamData.close()
       }
     })
 
     return {
       isDevMode: false,
       result,
-      streamData
+      sources: contextData.semanticKnowledge,
+      conversationId: activeConversationId
     }
   } catch (error: any) {
     logAITelemetry({ requestId, userId, workspaceId, model: process.env.AI_MODEL || 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'EXECUTION_ERROR' })

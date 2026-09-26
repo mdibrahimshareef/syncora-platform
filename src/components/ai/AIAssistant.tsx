@@ -30,6 +30,21 @@ export function AIAssistant() {
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
     onError: (err) => toast.error(err.message),
+    onResponse: (response) => {
+      const convId = response.headers.get('X-Conversation-Id')
+      if (convId && !conversationId) {
+        setConversationId(convId)
+      }
+      const initialSourcesJson = response.headers.get('X-Initial-Sources')
+      if (initialSourcesJson) {
+        try {
+          const parsed = JSON.parse(initialSourcesJson)
+          if (parsed.length > 0) {
+            setSources(parsed)
+          }
+        } catch (e) {}
+      }
+    }
   })
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -60,21 +75,33 @@ export function AIAssistant() {
   }, [messages, isLoading, error])
 
   React.useEffect(() => {
-    if (data && data.length > 0) {
-      const allSources = data
-        .filter((d: any) => d && d.type === 'sources' && Array.isArray(d.sources))
-        .flatMap((d: any) => d.sources)
-      
-      if (allSources.length > 0) {
-        setSources(allSources)
+    // Extract dynamic sources from tool results
+    let dynamicSources: any[] = []
+    messages.forEach(msg => {
+      if (msg.role === 'assistant' && msg.parts) {
+        msg.parts.forEach((part: any) => {
+          const result = part.result || part.output
+          if (result && Array.isArray(result.sources)) {
+            dynamicSources.push(...result.sources)
+          }
+        })
       }
-
-      const convIdData = data.find((d: any) => d && d.type === 'conversation_id')
-      if (convIdData && convIdData.conversationId && !conversationId) {
-        setConversationId(convIdData.conversationId)
-      }
+    })
+    
+    if (dynamicSources.length > 0) {
+      setSources(prev => {
+        // Simple deduplication by id
+        const merged = [...prev, ...dynamicSources]
+        const seen = new Set()
+        return merged.filter(s => {
+          if (!s.id) return true
+          if (seen.has(s.id)) return false
+          seen.add(s.id)
+          return true
+        })
+      })
     }
-  }, [data, conversationId])
+  }, [messages])
 
   const onToolConfirm = async (toolCallId: string, toolName: string, args: any) => {
     try {
