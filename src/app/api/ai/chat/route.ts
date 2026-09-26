@@ -25,15 +25,8 @@ export async function POST(req: Request) {
       })
     }
 
-    // Standard Vercel AI SDK streaming response
-    const response = orchestrationResult.result!.toDataStreamResponse()
-    
-    // Pass sources in header
-    if (orchestrationResult.sources && orchestrationResult.sources.length > 0) {
-      // safely encode sources to avoid header parsing issues
-      response.headers.set('x-ai-sources', Buffer.from(JSON.stringify(orchestrationResult.sources)).toString('base64'))
-    }
-    
+    // Standard Vercel AI SDK streaming response with data annotations
+    const response = orchestrationResult.result!.toDataStreamResponse({ data: orchestrationResult.streamData })
     return response
 
   } catch (error: any) {

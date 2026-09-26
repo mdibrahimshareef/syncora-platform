@@ -25,23 +25,9 @@ export function AIAssistant() {
   const [input, setInput] = React.useState('')
   const pathname = usePathname()
 
-  const { messages, error, status, addToolResult, sendMessage } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/ai/chat',
-      body: { workspaceId: activeWorkspaceId, contextUrl: pathname },
-      fetch: async (input, init) => {
-        const response = await fetch(input, init)
-        const header = response.headers.get('x-ai-sources')
-        if (header) {
-          try {
-            setSources(JSON.parse(atob(header)))
-          } catch (e) {
-            console.error(e)
-          }
-        }
-        return response
-      }
-    }),
+  const { messages, error, status, addToolResult, sendMessage, data } = useChat({
+    api: '/api/ai/chat',
+    body: { workspaceId: activeWorkspaceId, contextUrl: pathname },
     onError: (err) => toast.error(err.message),
   })
 
@@ -65,6 +51,20 @@ export function AIAssistant() {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isLoading, error])
+
+  React.useEffect(() => {
+    if (data && data.length > 0) {
+      const allSources = data
+        .filter((d: any) => d && d.type === 'sources' && Array.isArray(d.sources))
+        .flatMap((d: any) => d.sources)
+      
+      const uniqueSources = allSources.filter((source: any, idx: number, arr: any[]) => 
+        arr.findIndex(s => s.id === source.id) === idx
+      )
+      
+      setSources(uniqueSources)
+    }
+  }, [data])
 
   const onToolConfirm = async (toolCallId: string, toolName: string, args: any) => {
     try {
@@ -209,33 +209,20 @@ export function AIAssistant() {
                       .filter((source: any, idx: number, arr: any[]) => arr.findIndex(s => s.id === source.id) === idx)
                       .slice(0, 3) // Limit to 3 sources for UI bounding
                       .map((source: any, i: number) => {
-                        // Construct real Syncora deep link
-                        const { workspaces, activeWorkspaceId } = useDataStore.getState()
-                        const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
-                        const activeOrgSlug = activeWorkspace?.orgSlug || 'org'
-                        const activeTeamSlug = activeWorkspace?.teamSlug || 'team'
-                        const activeWorkspaceSlug = activeWorkspace?.slug || 'workspace'
-                        const base = `/${activeOrgSlug}/${activeTeamSlug}/${activeWorkspaceSlug}`
+                        let href = source.url
                         
-                        let href = '#'
-                        if (source.type === 'project') href = `${base}/projects/${source.id}`
-                        else if (source.type === 'task') href = `${base}/projects/${source.projectId}?task=${source.id}`
-                        else if (source.type === 'document') href = `${base}/docs/${source.id}`
-
                         return (
-                          <a 
-                            key={`${source.id}-${i}`}
-                            href={href}
-                            className="flex flex-col gap-1 border rounded-md p-2 bg-background hover:bg-muted transition-colors text-xs w-full max-w-[200px]"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <span className="font-semibold text-foreground truncate">{source.title}</span>
-                            <span className="text-muted-foreground capitalize">{source.type}</span>
-                            <span className="text-indigo-500 mt-1 flex items-center gap-1 group">
-                              Open {source.type} <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-                            </span>
-                          </a>
+                          <div key={`${source.id}-${i}`} className="flex flex-col gap-1 border rounded-md p-2 bg-background hover:bg-muted transition-colors text-xs w-full max-w-[200px]">
+                             <span className="font-semibold text-foreground truncate">{source.title}</span>
+                             <span className="text-muted-foreground capitalize">{source.type}</span>
+                             {href ? (
+                               <a href={href} target="_blank" rel="noreferrer" className="text-indigo-500 mt-1 flex items-center gap-1 group">
+                                 Open {source.type} <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                               </a>
+                             ) : (
+                               <span className="text-muted-foreground mt-1 text-[10px]">No link available</span>
+                             )}
+                          </div>
                         )
                       })
                     }

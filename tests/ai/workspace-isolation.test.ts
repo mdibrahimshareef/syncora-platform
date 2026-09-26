@@ -2,9 +2,18 @@ import { describe, it, expect, vi } from 'vitest'
 import { getAiTools } from '../../src/lib/ai/tools'
 
 // Mock Supabase
-const mockEq = vi.fn().mockReturnThis()
-const mockSelect = vi.fn().mockReturnThis()
-const mockFrom = vi.fn().mockReturnValue({ select: mockSelect, eq: mockEq })
+// Mock Supabase
+const mockChain: any = {}
+mockChain.eq = vi.fn().mockReturnValue(mockChain)
+mockChain.ilike = vi.fn().mockReturnValue(mockChain)
+mockChain.lt = vi.fn().mockReturnValue(mockChain)
+mockChain.neq = vi.fn().mockReturnValue(mockChain)
+mockChain.not = vi.fn().mockReturnValue(mockChain)
+mockChain.order = vi.fn().mockReturnValue(mockChain)
+mockChain.limit = vi.fn().mockReturnValue(mockChain)
+mockChain.single = vi.fn().mockReturnValue(mockChain)
+mockChain.select = vi.fn().mockReturnValue(mockChain)
+const mockFrom = vi.fn().mockReturnValue(mockChain)
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => ({
@@ -18,11 +27,11 @@ describe('Workspace Isolation', () => {
     const tools = getAiTools(workspaceA)
     
     // Execute a read-only tool
-    mockEq.mockResolvedValue({ data: [{ id: 'task-1' }], error: null })
+    mockChain.limit.mockResolvedValue({ data: [{ id: 'task-1' }], error: null })
     await tools.search_tasks.execute({ limit: 10 }, {} as any)
     
     // Verify that the query explicitly filtered by workspaceA
-    expect(mockEq).toHaveBeenCalledWith('workspace_id', workspaceA)
+    expect(mockChain.eq).toHaveBeenCalledWith('workspace_id', workspaceA)
   })
 })
 

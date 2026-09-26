@@ -2,15 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { embed } from 'ai'
 import { getEmbeddingModel } from './provider'
 
-export type AISource = {
-  id: string;
-  type: string;
-  title: string;
-  snippet: string;
-  workspaceId: string;
-  projectId?: string;
-  url?: string;
-}
+import { AISource, resolveSourceUrl } from './sources'
 
 export async function getWorkspaceContext(workspaceId: string, query: string = '') {
   const supabase = await createClient()
@@ -53,13 +45,19 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
         })
         
         if (matches) {
-          semanticMatches = matches.map((m: any) => ({
-            id: m.resource_id,
-            type: m.resource_type,
-            title: m.title || 'Unknown Resource',
-            snippet: m.content_text,
-            workspaceId: workspaceId,
-            projectId: m.metadata?.project_id
+          semanticMatches = await Promise.all(matches.map(async (m: any) => {
+            const url = await resolveSourceUrl(workspaceId, m.resource_type, m.resource_id, m.metadata?.project_id)
+            return {
+              id: m.resource_id,
+              entityId: m.resource_id,
+              type: m.resource_type,
+              title: m.title || 'Unknown Resource',
+              description: m.content_text, // rename snippet to description for AISource parity
+              workspaceId: workspaceId,
+              sourceKind: 'semantic' as const,
+              confidence: m.similarity,
+              url
+            }
           }))
         }
       }
