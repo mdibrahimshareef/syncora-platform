@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // Standard Vercel AI SDK streaming response
-    const response = orchestrationResult.result!.toTextStreamResponse()
+    const response = orchestrationResult.result!.toDataStreamResponse()
     
     // Pass sources in header
     if (orchestrationResult.sources && orchestrationResult.sources.length > 0) {
