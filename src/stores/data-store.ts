@@ -765,6 +765,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
   updateTask: async (id, updates) => {
     const { tasks, workspaceTasks, currentUser, activeWorkspaceId } = get()
     
+    // Store original state for rollback
+    const originalTasks = [...tasks]
+    const originalWorkspaceTasks = [...workspaceTasks]
+
     // Optimistic update
     set({
       tasks: tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t),
@@ -783,10 +787,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
       if (activeWorkspaceId && currentUser) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', id, 'updated', { targetName: updates.title || 'a task' })
         get().fetchActivity()
-
       }
     } catch (err: unknown) {
-      // Rollback not implemented strictly here for brevity, but should reset to original
+      // Rollback
+      set({
+        tasks: originalTasks,
+        workspaceTasks: originalWorkspaceTasks
+      })
       throw err
     }
   },
@@ -1268,7 +1275,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   // Realtime Receivers
   applyRealtimeProjectInsert: (payload) => {
+    console.log('ZUSTAND INSERT PAYLOAD:', payload);
     set((state) => {
+      console.log('ZUSTAND INSERT STATE activeWorkspaceId:', state.activeWorkspaceId, 'projects length:', state.projects.length);
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       if (state.projects.some(p => p.id === payload.id)) return state
       const newProject: Project = {
@@ -1289,10 +1298,18 @@ export const useDataStore = create<DataState>()((set, get) => ({
     })
   },
   applyRealtimeProjectUpdate: (payload) => {
+    console.log('ZUSTAND UPDATE PAYLOAD:', payload);
     set((state) => {
-      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
+      console.log('ZUSTAND UPDATE STATE activeWorkspaceId:', state.activeWorkspaceId, 'projects length:', state.projects.length);
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) {
+        console.log('ZUSTAND UPDATE REJECTED: Workspace mismatch. Payload:', payload.workspace_id, 'State:', state.activeWorkspaceId);
+        return state;
+      }
       const existing = state.projects.find(p => p.id === payload.id)
-      if (!existing) return state
+      if (!existing) {
+        console.log('ZUSTAND UPDATE REJECTED: Project not found in state:', payload.id);
+        return state;
+      }
       const updatedProject = {
         ...existing,
         name: payload.name ?? existing.name,
@@ -1318,7 +1335,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
   applyRealtimeTaskUpdate: (payload) => {
     set((state) => {
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      const existing = state.tasks.find(t => t.id === payload.id)
+      const existing = state.tasks.find(t => t.id === payload.id) || state.workspaceTasks.find(t => t.id === payload.id);
       if (!existing) return state
       
       // Basic deduplication: if the updated_at from the payload is not newer, ignore it
