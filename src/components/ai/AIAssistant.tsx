@@ -26,7 +26,7 @@ export function AIAssistant() {
   const pathname = usePathname()
 
   // @ts-ignore
-  const { messages, error, status, addToolResult, append, data, setMessages, input, handleInputChange, handleSubmit, setInput } = useChat({
+  const { messages, error, status, addToolResult, append, data, setMessages, input, handleInputChange, handleSubmit } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -53,7 +53,11 @@ export function AIAssistant() {
   const isLoading = status === 'submitted' || status === 'streaming'
 
   const handlePromptClick = (text: string) => {
-    setInput(text)
+    if (handleInputChange) {
+      handleInputChange({
+        target: { value: text }
+      } as React.ChangeEvent<HTMLInputElement>)
+    }
   }
 
   const handleNewChat = () => {
