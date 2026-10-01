@@ -158,8 +158,8 @@ export function AIAssistant() {
 
   return (
     <Sheet open={isAIAssistantOpen} onOpenChange={setAIAssistantOpen}>
-      <SheetContent className="w-full sm:max-w-md md:max-w-lg flex flex-col h-full border-l p-0 shadow-2xl">
-        <SheetHeader className="p-4 border-b bg-muted/30 flex-row items-center justify-between space-y-0">
+      <SheetContent className="w-full sm:max-w-md md:max-w-lg flex flex-col h-[100dvh] max-h-screen border-l p-0 shadow-2xl overflow-hidden">
+        <SheetHeader className="p-4 border-b bg-muted/30 flex-row items-center justify-between space-y-0 shrink-0">
           <SheetTitle className="flex items-center gap-2 text-lg relative">
             <Sparkles className="h-5 w-5 text-indigo-500" />
             SYNCORA AI
@@ -171,7 +171,7 @@ export function AIAssistant() {
           </div>
         </SheetHeader>
         
-        <ScrollArea className="flex-1 p-4">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           <div className="space-y-6">
             {!activeWorkspaceId && (
               <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex gap-2">
@@ -304,9 +304,9 @@ export function AIAssistant() {
             )}
             <div ref={scrollRef} />
           </div>
-        </ScrollArea>
+        </div>
 
-        <div className="p-4 border-t bg-background">
+        <div className="p-4 border-t bg-background shrink-0">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               placeholder={activeWorkspaceId ? "Ask anything about your workspace..." : "Select workspace..."}
