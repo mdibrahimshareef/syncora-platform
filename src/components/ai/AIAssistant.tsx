@@ -27,7 +27,7 @@ export function AIAssistant() {
 
   const [inputValue, setInputValue] = React.useState('')
 
-  const { messages, error, status, addToolResult, append, data, setMessages } = useChat({
+  const { messages, error, status, addToolResult, sendMessage, setMessages } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -70,9 +70,8 @@ export function AIAssistant() {
 
     setInputValue('')
     try {
-      await append({
-        role: 'user',
-        content: textToSubmit
+      await sendMessage({
+        text: textToSubmit
       })
     } catch (err: any) {
       console.error(err)
