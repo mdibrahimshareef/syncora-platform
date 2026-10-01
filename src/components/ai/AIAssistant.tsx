@@ -25,8 +25,10 @@ export function AIAssistant() {
   const [conversationId, setConversationId] = React.useState<string | undefined>(undefined)
   const pathname = usePathname()
 
+  const [inputValue, setInputValue] = React.useState('')
+
   // @ts-ignore
-  const { messages, error, status, addToolResult, append, data, setMessages, input, handleInputChange, handleSubmit } = useChat({
+  const { messages, error, status, addToolResult, append, data, setMessages } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -53,10 +55,24 @@ export function AIAssistant() {
   const isLoading = status === 'submitted' || status === 'streaming'
 
   const handlePromptClick = (text: string) => {
-    if (handleInputChange) {
-      handleInputChange({
-        target: { value: text }
-      } as unknown as React.ChangeEvent<HTMLInputElement>)
+    setInputValue(text)
+  }
+
+  const handleFormSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault()
+    if (!inputValue.trim() || isLoading || !activeWorkspaceId) return
+    const textToSubmit = inputValue
+    setInputValue('')
+    try {
+      await append({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: textToSubmit
+      })
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to send: ' + (err.message || 'Unknown error'))
+      setInputValue(textToSubmit)
     }
   }
 
@@ -303,16 +319,16 @@ export function AIAssistant() {
         </div>
 
         <div className="p-4 border-t bg-background shrink-0">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
             <Input
               placeholder={activeWorkspaceId ? "Ask anything about your workspace..." : "Select workspace..."}
-              value={input}
-              onChange={handleInputChange}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               className="flex-1"
               disabled={isLoading || !activeWorkspaceId}
               aria-label="Chat input"
             />
-            <Button type="submit" size="icon" disabled={!(input || '').trim() || isLoading || !activeWorkspaceId} aria-label="Send message">
+            <Button type="submit" size="icon" disabled={!inputValue.trim() || isLoading || !activeWorkspaceId} aria-label="Send message">
               <Send className="h-4 w-4" />
             </Button>
           </form>
