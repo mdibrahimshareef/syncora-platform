@@ -18,11 +18,7 @@ export async function POST(req: Request) {
     if (orchestrationResult.isDevMode) {
       // Simulate network delay for UI testing
       await new Promise(resolve => setTimeout(resolve, 800))
-      return NextResponse.json({
-        isDevMode: true,
-        message: orchestrationResult.message,
-        sources: orchestrationResult.sources
-      })
+      return new Response(orchestrationResult.message, { status: 400 })
     }
 
     const headers: Record<string, string> = {}
