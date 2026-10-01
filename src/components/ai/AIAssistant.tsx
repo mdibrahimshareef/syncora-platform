@@ -27,8 +27,7 @@ export function AIAssistant() {
 
   const [inputValue, setInputValue] = React.useState('')
 
-  // @ts-ignore
-  const { messages, error, status, addToolResult, sendMessage, data, setMessages } = useChat({
+  const { messages, error, status, addToolResult, append, data, setMessages } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -58,14 +57,22 @@ export function AIAssistant() {
     setInputValue(text)
   }
 
-  const handleFormSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e?: React.FormEvent<HTMLFormElement>, manualText?: string) => {
     if (e) e.preventDefault()
-    if (!inputValue.trim() || isLoading || !activeWorkspaceId) return
-    const textToSubmit = inputValue
+    
+    const textToSubmit = manualText || inputValue
+    if (!textToSubmit.trim() || isLoading) return
+    
+    if (!activeWorkspaceId) {
+      toast.error('Please open a workspace first to use the AI Assistant.')
+      return
+    }
+
     setInputValue('')
     try {
-      await sendMessage({
-        text: textToSubmit
+      await append({
+        role: 'user',
+        content: textToSubmit
       })
     } catch (err: any) {
       console.error(err)
