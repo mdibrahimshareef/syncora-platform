@@ -14,6 +14,8 @@ import { ActionProposalCard } from './ActionProposalCard'
 import { AIToolActivity } from './AIToolActivity'
 import { AISourceList } from './AISourceList'
 import { usePathname } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export function AIAssistant() {
   const { isAIAssistantOpen, setAIAssistantOpen } = useUIStore()
@@ -25,7 +27,7 @@ export function AIAssistant() {
   const pathname = usePathname()
 
   // @ts-ignore
-  const { messages, error, status, addToolResult, sendMessage, data, setMessages } = useChat({
+  const { messages, error, status, addToolResult, append, data, setMessages } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -58,7 +60,7 @@ export function AIAssistant() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim()) return
-    sendMessage({ text: input })
+    append({ role: 'user', content: input })
     setInput('')
   }
 
@@ -211,8 +213,16 @@ export function AIAssistant() {
                     {msg.parts?.map((part: any, partIndex: number) => {
                       if (part.type === 'text' && part.text.trim()) {
                         return (
-                          <div key={partIndex} className={`flex flex-col gap-2 rounded-lg px-3 py-2 whitespace-pre-wrap w-fit ${msg.role === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted'}`}>
-                            {part.text}
+                          <div key={partIndex} className={`flex flex-col gap-2 rounded-lg px-3 py-2 w-fit text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted text-foreground'}`}>
+                            {msg.role === 'user' ? (
+                              <div className="whitespace-pre-wrap">{part.text}</div>
+                            ) : (
+                              <div className="ai-markdown [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>ul]:mb-2 [&>ol]:mb-2 [&_li]:mb-1 [&_strong]:font-semibold [&_a]:text-blue-500 [&_a:hover]:underline [&_pre]:bg-background/80 [&_pre]:p-3 [&_pre]:rounded-md [&_pre]:overflow-x-auto [&_pre]:text-xs [&_pre]:mt-2 [&_pre]:mb-2 [&_code]:bg-background/50 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded-sm [&_code]:text-[13px] [&_pre_code]:bg-transparent [&_pre_code]:p-0">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {part.text}
+                                </ReactMarkdown>
+                              </div>
+                            )}
                           </div>
                         )
                       }

@@ -93,6 +93,53 @@ export function getAiTools(workspaceId: string, userId?: string) {
       }
     }),
 
+    get_projects: tool({
+      description: 'Get a list of all active projects in the workspace.',
+      parameters: emptySchema,
+      // @ts-ignore
+      execute: async () => {
+        const supabase = await createClient()
+        const { data, error } = await supabase.from('projects').select('id, name, status, priority, due_date').eq('workspace_id', workspaceId)
+        if (error) return { success: false, errorCode: 'DB_ERROR', message: error.message }
+        
+        const sources: AISource[] = (data || []).map((p: any) => ({
+          id: `project-${p.id}`,
+          entityId: p.id,
+          type: 'project',
+          title: p.name,
+          workspaceId,
+          sourceKind: 'tool'
+        }))
+
+        return { success: true, data: data || [], sources }
+      }
+    }),
+
+    get_documents: tool({
+      description: 'Get a list of documents or wikis in the workspace, optionally filtering by title. Use this to find documentation, guidelines, or meeting notes.',
+      parameters: z.object({ query: z.string().optional().describe('Search query for document title.') }),
+      // @ts-ignore
+      execute: async (args) => {
+        const supabase = await createClient()
+        let query = supabase.from('documents').select('id, title, content, folder_id, updated_at').eq('workspace_id', workspaceId)
+        if (args.query) query = query.ilike('title', `%${args.query}%`)
+        
+        const { data, error } = await query.limit(20)
+        if (error) return { success: false, errorCode: 'DB_ERROR', message: error.message }
+        
+        const sources: AISource[] = (data || []).map((doc: any) => ({
+          id: `doc-${doc.id}`,
+          entityId: doc.id,
+          type: 'document',
+          title: doc.title,
+          workspaceId,
+          sourceKind: 'tool'
+        }))
+
+        return { success: true, data: data || [], sources }
+      }
+    }),
+
     search_tasks: tool({
       description: 'Search for tasks in the workspace based on status, priority, or project.',
       parameters: searchTasksSchema,
