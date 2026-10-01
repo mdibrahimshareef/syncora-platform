@@ -52,29 +52,8 @@ export function AIAssistant() {
 
   const isLoading = status === 'submitted' || status === 'streaming'
 
-  const onFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!input.trim()) return
-    const text = input
-    setInput('') // Clear immediately for UX
-    try {
-      await append({ role: 'user', content: text })
-    } catch (err: any) {
-      console.error(err)
-      toast.error('Failed to send: ' + (err.message || 'Unknown error'))
-      setInput(text) // Revert on failure
-    }
-  }
-
-  const handlePromptClick = async (text: string) => {
-    try {
-      setInput(text) // Fill the box visually
-      await append({ role: 'user', content: text })
-      setInput('') // Clear if success
-    } catch (err: any) {
-      console.error(err)
-      toast.error('Failed to send prompt: ' + (err.message || 'Unknown error'))
-    }
+  const handlePromptClick = (text: string) => {
+    setInput(text)
   }
 
   const handleNewChat = () => {
@@ -320,7 +299,7 @@ export function AIAssistant() {
         </div>
 
         <div className="p-4 border-t bg-background shrink-0">
-          <form onSubmit={onFormSubmit} className="flex items-center gap-2">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               placeholder={activeWorkspaceId ? "Ask anything about your workspace..." : "Select workspace..."}
               value={input}
