@@ -224,9 +224,10 @@ export function AIAssistant() {
                       let renderParts = msg.parts || []
                       if (!msg.parts || renderParts.length === 0) {
                         renderParts = []
-                        if (msg.content) renderParts.push({ type: 'text', text: msg.content })
-                        if (msg.toolInvocations) {
-                          renderParts.push(...msg.toolInvocations.map((t: any) => ({ ...t, type: 'tool-invocation', toolName: t.toolName, toolCallId: t.toolCallId, args: t.args })))
+                        const msgAny = msg as any
+                        if (msgAny.content) renderParts.push({ type: 'text', text: msgAny.content })
+                        if (msgAny.toolInvocations) {
+                          renderParts.push(...msgAny.toolInvocations.map((t: any) => ({ ...t, type: 'tool-invocation', toolName: t.toolName, toolCallId: t.toolCallId, args: t.args })))
                         }
                       }
                       return renderParts.map((part: any, partIndex: number) => {
