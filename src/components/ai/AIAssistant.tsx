@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
 import { AIToolActivity } from './AIToolActivity'
 import { AISourceList } from './AISourceList'
@@ -27,26 +28,33 @@ export function AIAssistant() {
 
   const [inputValue, setInputValue] = React.useState('')
 
+  const transport = React.useMemo(() => {
+    return new DefaultChatTransport({
+      api: '/api/ai/chat',
+      body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
+      fetch: async (input, init) => {
+        const response = await fetch(input, init)
+        const convId = response.headers.get('X-Conversation-Id')
+        if (convId && !conversationId) {
+          setConversationId(convId)
+        }
+        const initialSourcesJson = response.headers.get('X-Initial-Sources')
+        if (initialSourcesJson) {
+          try {
+            const parsed = JSON.parse(initialSourcesJson)
+            if (parsed.length > 0) {
+              setSources(parsed)
+            }
+          } catch (e) {}
+        }
+        return response
+      }
+    })
+  }, [activeWorkspaceId, pathname, conversationId])
+
   const { messages, error, status, addToolResult, sendMessage, setMessages } = useChat({
-    // @ts-ignore
-    api: '/api/ai/chat',
-    body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
-    onError: (err) => toast.error(err.message),
-    onResponse: (response: Response) => {
-      const convId = response.headers.get('X-Conversation-Id')
-      if (convId && !conversationId) {
-        setConversationId(convId)
-      }
-      const initialSourcesJson = response.headers.get('X-Initial-Sources')
-      if (initialSourcesJson) {
-        try {
-          const parsed = JSON.parse(initialSourcesJson)
-          if (parsed.length > 0) {
-            setSources(parsed)
-          }
-        } catch (e) {}
-      }
-    }
+    transport,
+    onError: (err) => toast.error(err.message)
   })
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
