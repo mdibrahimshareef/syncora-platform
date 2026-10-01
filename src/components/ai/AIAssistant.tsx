@@ -220,8 +220,17 @@ export function AIAssistant() {
                     {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
                   <div className="flex-1 space-y-2">
-                    {msg.parts?.map((part: any, partIndex: number) => {
-                      if (part.type === 'text' && part.text.trim()) {
+                    {(() => {
+                      let renderParts = msg.parts || []
+                      if (!msg.parts || renderParts.length === 0) {
+                        renderParts = []
+                        if (msg.content) renderParts.push({ type: 'text', text: msg.content })
+                        if (msg.toolInvocations) {
+                          renderParts.push(...msg.toolInvocations.map((t: any) => ({ ...t, type: 'tool-invocation', toolName: t.toolName, toolCallId: t.toolCallId, args: t.args })))
+                        }
+                      }
+                      return renderParts.map((part: any, partIndex: number) => {
+                        if (part.type === 'text' && part.text.trim()) {
                         return (
                           <div key={partIndex} className={`flex flex-col gap-2 rounded-lg px-3 py-2 w-fit text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted text-foreground'}`}>
                             {msg.role === 'user' ? (
@@ -279,7 +288,7 @@ export function AIAssistant() {
                         }
                       }
                       return null
-                    })}
+                    })})()}
                     
                     {/* Render Sources for assistant message natively */}
                     {msg.role === 'assistant' && sources && sources.length > 0 && i === messages.length - 1 && (
