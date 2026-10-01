@@ -64,6 +64,10 @@ export function AIAssistant() {
     setInput('')
   }
 
+  const handlePromptClick = (text: string) => {
+    append({ role: 'user', content: text })
+  }
+
   const handleNewChat = () => {
     setMessages([])
     setConversationId(undefined)
@@ -193,11 +197,11 @@ export function AIAssistant() {
                 <div className="w-full text-left space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Try asking:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("What needs my attention?")}>What needs my attention?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("Show overdue tasks")}>Show overdue tasks</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("What's blocking the team?")}>What's blocking the team?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("Which projects need attention?")}>Which projects need attention?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => setInput("How much time did I track this week?")}>How much time did I track this week?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What needs my attention?")}>What needs my attention?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Show overdue tasks")}>Show overdue tasks</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What's blocking the team?")}>What's blocking the team?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Which projects need attention?")}>Which projects need attention?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("How much time did I track this week?")}>How much time did I track this week?</Button>
                   </div>
                 </div>
               </div>
