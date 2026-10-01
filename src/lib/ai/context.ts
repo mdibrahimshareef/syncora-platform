@@ -28,7 +28,7 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
     
   // 3. Semantic Search (Hybrid RAG) if API key is present and query exists
   let semanticMatches: AISource[] = []
-  if (query && process.env.AI_API_KEY) {
+  if (query && process.env.OPENAI_API_KEY) {
     try {
       const embeddingModel = getEmbeddingModel()
       if (embeddingModel) {

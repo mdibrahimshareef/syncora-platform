@@ -4,13 +4,16 @@ import { LanguageModel, EmbeddingModel } from 'ai'
 export function getLanguageModel(): LanguageModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
   const modelName = process.env.AI_MODEL || 'gpt-4o-mini'
-  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY
+  const apiKey = process.env.OPENAI_API_KEY
 
-  if (provider === 'mock' || !apiKey) {
+  if (provider === 'mock') {
     return undefined // Indicates mock mode
   }
 
   if (provider === 'openai') {
+    if (!apiKey) {
+      throw new Error('OpenAI configuration error: OPENAI_API_KEY is missing.')
+    }
     const openai = createOpenAI({ apiKey })
     return openai(modelName)
   }
@@ -24,13 +27,16 @@ export function getLanguageModel(): LanguageModel | undefined {
 export function getEmbeddingModel(): EmbeddingModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
   const modelName = process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small'
-  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY
+  const apiKey = process.env.OPENAI_API_KEY
 
-  if (provider === 'mock' || !apiKey) {
+  if (provider === 'mock') {
     return undefined
   }
 
   if (provider === 'openai') {
+    if (!apiKey) {
+      throw new Error('OpenAI configuration error: OPENAI_API_KEY is missing.')
+    }
     const openai = createOpenAI({ apiKey })
     return openai.embedding(modelName)
   }

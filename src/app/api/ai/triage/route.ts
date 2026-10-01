@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     
     const provider = process.env.AI_PROVIDER || 'mock'
     
-    if (provider === 'mock' || !process.env.AI_API_KEY) {
+    if (provider === 'mock' || !process.env.OPENAI_API_KEY) {
        return NextResponse.json({
          suggestion: {
            priority: 'High',

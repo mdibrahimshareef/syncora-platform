@@ -60,15 +60,24 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     const systemPrompt = buildSystemPrompt(workspaceName, contextStr, userRole, temporalContext) + urlContextStr
 
     // 5. Resolve Model
-    const model = getLanguageModel()
+    const providerStr = process.env.AI_PROVIDER || 'mock'
     const modelName = process.env.AI_MODEL || 'gpt-4o-mini'
+    const apiKeyConfigured = Boolean(process.env.OPENAI_API_KEY)
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[AI Diagnostic] AI provider: ${providerStr}`)
+      console.log(`[AI Diagnostic] API key configured: ${apiKeyConfigured ? 'yes' : 'no'}`)
+      console.log(`[AI Diagnostic] Model: ${modelName}`)
+    }
+
+    const model = getLanguageModel()
 
     // 5. Mock / Development Mode
     if (!model) {
       logAITelemetry({ requestId, userId, workspaceId, model: 'mock', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: true })
       return {
         isDevMode: true,
-        message: `[DEVELOPMENT MODE] I am running in mock mode because no AI API key is configured.\n\nBased on the system prompt and workspace context, I can see your data, but I am unable to analyze it dynamically. To enable real AI, set AI_PROVIDER='openai' and configure AI_API_KEY.`,
+        message: `[DEVELOPMENT MODE] I am running in mock mode.\n\nBased on the system prompt and workspace context, I can see your data, but I am unable to analyze it dynamically. To enable real AI, set AI_PROVIDER='openai' and configure OPENAI_API_KEY.`,
         sources: contextData.semanticKnowledge,
         conversationId: activeConversationId
       }
