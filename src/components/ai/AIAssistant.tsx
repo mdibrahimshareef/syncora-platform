@@ -22,12 +22,11 @@ export function AIAssistant() {
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId)
   
   const [sources, setSources] = React.useState<any[]>([])
-  const [input, setInput] = React.useState('')
   const [conversationId, setConversationId] = React.useState<string | undefined>(undefined)
   const pathname = usePathname()
 
   // @ts-ignore
-  const { messages, error, status, addToolResult, append, data, setMessages } = useChat({
+  const { messages, error, status, addToolResult, append, data, setMessages, input, handleInputChange, handleSubmit, setInput } = useChat({
     // @ts-ignore
     api: '/api/ai/chat',
     body: { workspaceId: activeWorkspaceId, contextUrl: pathname, conversationId },
@@ -53,19 +52,8 @@ export function AIAssistant() {
 
   const isLoading = status === 'submitted' || status === 'streaming'
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value)
-  }
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!input.trim()) return
-    append({ role: 'user', content: input })
-    setInput('')
-  }
-
   const handlePromptClick = (text: string) => {
-    append({ role: 'user', content: text })
+    append({ id: Date.now().toString(), role: 'user', content: text })
   }
 
   const handleNewChat = () => {
