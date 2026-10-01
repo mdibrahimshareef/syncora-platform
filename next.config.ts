@@ -5,13 +5,15 @@ const withBundleAnalyzer = createBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
 
-const nextConfig = {
+const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  }
+  // Allow access from LAN / other devices on the same network during development
+  allowedDevOrigins: [
+    "192.168.1.102",
+    "192.168.1.*",
+  ],
 };
 
 export default withBundleAnalyzer(nextConfig);
