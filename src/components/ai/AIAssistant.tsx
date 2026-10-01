@@ -65,9 +65,7 @@ export function AIAssistant() {
     setInputValue('')
     try {
       await sendMessage({
-        id: crypto.randomUUID(),
-        role: 'user',
-        parts: [{ type: 'text', text: textToSubmit }]
+        text: textToSubmit
       })
     } catch (err: any) {
       console.error(err)

@@ -5,7 +5,7 @@ import { getLanguageModel } from '@/lib/ai/provider'
 import { getAiTools } from '@/lib/ai/tools'
 import { logAITelemetry } from '@/lib/ai/telemetry'
 // @ts-ignore
-import { streamText, isStepCount } from 'ai'
+import { streamText, isStepCount, convertToModelMessages } from 'ai'
 import { getTemporalContext } from '@/lib/ai/time'
 import { classifyIntent } from '@/lib/ai/intent'
 import { deduplicateSources, AISource } from './sources'
@@ -32,13 +32,23 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
   // Pre-generate conversationId so it can be sent via headers if needed
   const activeConversationId = conversationId || (userId ? crypto.randomUUID() : undefined)
 
-  // 2. Classify Intent
-  const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()?.content || ''
-  const intent = classifyIntent(lastUserMessage)
+  // 2. Map messages to CoreMessages
+  const coreMessages = await convertToModelMessages(messages)
+  const lastUserMessage = coreMessages.filter((m: any) => m.role === 'user').pop()?.content || ''
+  
+  // Extract string content if it's an array
+  let lastUserMessageStr = ''
+  if (typeof lastUserMessage === 'string') {
+    lastUserMessageStr = lastUserMessage
+  } else if (Array.isArray(lastUserMessage)) {
+    lastUserMessageStr = lastUserMessage.filter(p => p.type === 'text').map(p => p.text).join('\n')
+  }
+
+  const intent = classifyIntent(lastUserMessageStr)
   
   // 3. Retrieve Workspace Context & Temporal Context
   try {
-    const contextData = await getWorkspaceContext(workspaceId, lastUserMessage)
+    const contextData = await getWorkspaceContext(workspaceId, lastUserMessageStr)
     // Only pass semantic knowledge to the LLM to avoid eager loading entire tables
     const contextToPass = { semanticKnowledge: contextData.semanticKnowledge }
     const contextStr = JSON.stringify(contextToPass, null, 2)
@@ -70,7 +80,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     const result = streamText({
       model,
       system: systemPrompt,
-      messages,
+      messages: coreMessages,
       tools: getAiTools(workspaceId, userId) as any,
       stopWhen: isStepCount(5), // Allow multi-step tool execution
       onStepFinish: (event) => {
@@ -96,7 +106,10 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
 
         if (userId && activeConversationId) {
           // Append the final assistant message to the chain and save
-          const allMessages = [...messages, { role: 'assistant', content: event.text, parts: event.toolCalls || [] }]
+          const assistantParts = []
+          if (event.text) assistantParts.push({ type: 'text', text: event.text })
+          if (event.toolCalls) assistantParts.push(...event.toolCalls.map(tc => ({ ...tc, type: 'tool-invocation' })))
+          const allMessages = [...messages, { role: 'assistant', content: event.text, parts: assistantParts }]
           try {
             await saveConversation(workspaceId, userId, activeConversationId, 'Workspace Chat', allMessages)
           } catch (err) {
