@@ -15,6 +15,7 @@ import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePr
 import { GlobalTimer } from "@/components/time-tracking/GlobalTimer"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import { Logo } from "@/components/ui/logo"
 
 export function Header() {
   const { setCommandPaletteOpen } = useUIStore()
@@ -30,9 +31,7 @@ export function Header() {
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <div className="flex items-center gap-2 overflow-hidden ml-2">
-          <div className="size-6 bg-primary rounded-md flex items-center justify-center shrink-0">
-            <CheckCircle2 className="size-4 text-primary-foreground" />
-          </div>
+          <Logo className="size-6 text-primary" />
           <span className="font-semibold text-lg tracking-tight hidden sm:inline-block">
             SYNCORA
           </span>

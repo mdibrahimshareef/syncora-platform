@@ -1,5 +1,6 @@
 import Link from "next/link"
 import dynamic from "next/dynamic"
+import { Logo } from "@/components/ui/logo"
 
 const ParticleText = dynamic(() => import("./ParticleText").then(mod => mod.ParticleText), { 
   loading: () => <div className="w-full h-32 md:h-48 lg:h-64 relative flex justify-center items-center overflow-hidden my-4" />
@@ -57,10 +58,9 @@ export function MarketingFooter() {
           <div className="col-span-1">
             {/* The wrapper h-4 and mb-4 exactly matches the text-xs (h-4) and mb-4 of the other headings, ensuring perfect horizontal alignment */}
             <div className="h-4 mb-4 flex items-center">
-              <Link href="/" className="inline-block">
-                <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-primary-foreground font-extrabold text-sm leading-none">S</span>
-                </div>
+              <Link href="/" className="inline-block flex items-center gap-2">
+                <Logo className="w-6 h-6" />
+                <span className="font-bold tracking-tight">SYNCORA</span>
               </Link>
             </div>
             <ul className="space-y-2 text-sm text-muted-foreground font-medium">

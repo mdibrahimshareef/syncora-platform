@@ -22,6 +22,7 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import Image from "next/image"
+import { Logo } from "@/components/ui/logo"
 
 export function MarketingNavbar() {
   return (
@@ -29,9 +30,7 @@ export function MarketingNavbar() {
       <div className="container mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center space-x-2">
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg leading-none">S</span>
-            </div>
+            <Logo className="size-8 text-primary" />
             <span className="font-bold text-lg tracking-tight hidden sm:inline-block">
               SYNCORA
             </span>
@@ -150,9 +149,7 @@ export function MarketingNavbar() {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <SheetHeader className="text-left mb-8">
                 <SheetTitle className="flex items-center space-x-2">
-                  <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-lg leading-none">S</span>
-                  </div>
+                  <Logo className="w-8 h-8" />
                   <span className="font-bold text-lg tracking-tight">SYNCORA</span>
                 </SheetTitle>
               </SheetHeader>
