@@ -146,7 +146,7 @@ export function ProjectOverview({ project, tasks }: ProjectOverviewProps) {
                   .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
                   .slice(0, 5)
                   .map(t => (
-                    <div key={t.id} className="flex items-start justify-between cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded transition-colors" onClick={() => setSelectedTaskId(t.id)}>
+                    <button key={t.id} className="w-full text-left flex items-start justify-between cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setSelectedTaskId(t.id)}>
                       <div className="truncate pr-2">
                         <p className="text-sm font-medium truncate">{t.title}</p>
                         <p className="text-xs text-muted-foreground">{format(new Date(t.dueDate!), 'MMM d')}</p>
@@ -158,9 +158,8 @@ export function ProjectOverview({ project, tasks }: ProjectOverviewProps) {
                           <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">{t.status}</span>
                         )}
                       </div>
-                    </div>
-                  ))
-                }
+                    </button>
+                  ))}
                 
                 {tasks.filter(t => t.dueDate && t.status !== 'Done').length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines.</p>

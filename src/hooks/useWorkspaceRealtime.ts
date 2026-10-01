@@ -11,61 +11,79 @@ export function useWorkspaceRealtime(workspaceId: string) {
   useEffect(() => {
     if (!workspaceId) return
 
+    let isMounted = true;
+    let channel: any = null;
+    let notificationChannel: any = null;
     const supabase = createClient()
-    const channelName = getWorkspaceChannelName(workspaceId)
-    
-    const channel = setupRealtimeChannel(supabase, channelName)
 
-    // Listen to Activity changes
-    channel.on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'activities', filter: `workspace_id=eq.${workspaceId}` },
-      () => fetchActivity()
-    )
+    const setup = async () => {
+      // Await session so supabase client sets auth headers before Realtime websocket connects
+      await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      const channelName = getWorkspaceChannelName(workspaceId)
+      
+      channel = setupRealtimeChannel(supabase, channelName)
+
+      // Listen to Activity changes
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activities', filter: `workspace_id=eq.${workspaceId}` },
+        () => fetchActivity()
+      )
 
     // Listen to Projects
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'projects', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeProjectInsert(payload.new)
+      (payload: any) => {
+        console.log('CLIENT RECEIVED INSERT:', payload);
+        useDataStore.getState().applyRealtimeProjectInsert(payload.new)
+      }
     ).on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'projects', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeProjectUpdate(payload.new)
+      (payload: any) => {
+        console.log('CLIENT RECEIVED UPDATE:', payload);
+        useDataStore.getState().applyRealtimeProjectUpdate(payload.new)
+      }
     ).on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'projects', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeProjectDelete(payload.old)
+      (payload: any) => {
+        console.log('CLIENT RECEIVED DELETE:', payload);
+        useDataStore.getState().applyRealtimeProjectDelete(payload.old)
+      }
     )
 
     // Listen to Tasks
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeTaskInsert(payload.new)
+      (payload: any) => useDataStore.getState().applyRealtimeTaskInsert(payload.new)
     ).on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeTaskUpdate(payload.new)
+      (payload: any) => useDataStore.getState().applyRealtimeTaskUpdate(payload.new)
     ).on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeTaskDelete(payload.old)
+      (payload: any) => useDataStore.getState().applyRealtimeTaskDelete(payload.old)
     )
 
     // Listen to Milestones
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'milestones', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeMilestoneInsert(payload.new)
+      (payload: any) => useDataStore.getState().applyRealtimeMilestoneInsert(payload.new)
     ).on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'milestones', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeMilestoneUpdate(payload.new)
+      (payload: any) => useDataStore.getState().applyRealtimeMilestoneUpdate(payload.new)
     ).on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'milestones', filter: `workspace_id=eq.${workspaceId}` },
-      (payload) => useDataStore.getState().applyRealtimeMilestoneDelete(payload.old)
+      (payload: any) => useDataStore.getState().applyRealtimeMilestoneDelete(payload.old)
     )
 
     // Setup Presence
@@ -83,7 +101,8 @@ export function useWorkspaceRealtime(workspaceId: string) {
     })
 
     // Track user presence once subscribed
-    channel.subscribe(async (status) => {
+    channel.subscribe(async (status: any) => {
+      console.log('REALTIME_SUBSCRIPTION_STATUS:', status, 'WORKSPACE:', workspaceId)
       if (status === 'SUBSCRIBED') {
         const user = useDataStore.getState().currentUser
         if (user) {
@@ -100,7 +119,6 @@ export function useWorkspaceRealtime(workspaceId: string) {
 
     // Listen to current user's notifications globally
     const currentUser = useDataStore.getState().currentUser
-    let notificationChannel: any = null
     if (currentUser) {
       notificationChannel = supabase.channel(`global-notifications-${currentUser.id}`)
       notificationChannel
@@ -125,9 +143,13 @@ export function useWorkspaceRealtime(workspaceId: string) {
         )
         .subscribe()
     }
+    }; // end of setup
+
+    setup();
 
     return () => {
-      supabase.removeChannel(channel)
+      isMounted = false;
+      if (channel) supabase.removeChannel(channel)
       if (notificationChannel) supabase.removeChannel(notificationChannel)
     }
   }, [workspaceId, fetchActivity, setOnlineWorkspaceUsers])

@@ -81,6 +81,19 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
     },
   })
 
+  React.useEffect(() => {
+    if (defaultValues?.id && !form.formState.isDirty) {
+      form.reset({
+        name: defaultValues.name || "",
+        description: defaultValues.description || "",
+        status: defaultValues.status || "Active",
+        color: defaultValues.color || PROJECT_COLORS[0].value,
+        templateId: "none",
+        includeSampleData: true,
+      })
+    }
+  }, [defaultValues, form])
+
   const { isDirty } = form.formState;
 
   React.useEffect(() => {

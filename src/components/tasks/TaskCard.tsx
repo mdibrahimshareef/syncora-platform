@@ -5,11 +5,20 @@ import { Task } from "@/types"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, AlignLeft, MessageSquare, CheckSquare, Link as LinkIcon } from "lucide-react"
+import { Calendar, AlignLeft, MessageSquare, CheckSquare, Link as LinkIcon, MoreHorizontal } from "lucide-react"
 import { useUIStore } from "@/stores/ui-store"
 import { useDataStore } from "@/stores/data-store"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 
 interface TaskCardProps {
   task: Task
@@ -18,17 +27,22 @@ interface TaskCardProps {
 export function TaskCard({ task }: TaskCardProps) {
   const { setSelectedTaskId } = useUIStore()
   const tasks = useDataStore(s => s.tasks);
+  const moveTask = useDataStore(s => s.moveTask);
+  const projectStatuses = useDataStore(s => s.projectStatuses);
 
   const subtasks = React.useMemo(() => tasks.filter(t => t.parentId === task.id), [tasks, task.id])
   const subtasksCount = subtasks.length
   const completedSubtasksCount = subtasks.filter(t => t.status === 'Done').length
 
+  const DEFAULT_COLUMNS = ['Backlog', 'Todo', 'In Progress', 'Review', 'Done'];
+  const columns = projectStatuses && projectStatuses.length > 0 ? projectStatuses.map(s => s.name) : DEFAULT_COLUMNS;
+
   // Ensure priority color logic
   const priorityColor = {
-    'Low': 'text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400',
-    'Medium': 'text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-400',
-    'High': 'text-amber-600 bg-amber-100 dark:bg-amber-900/50 dark:text-amber-400',
-    'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-400',
+    'Low': 'text-slate-600 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300',
+    'Medium': 'text-blue-700 bg-blue-100 dark:bg-blue-900/60 dark:text-blue-300',
+    'High': 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-300',
+    'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-300',
   }[task.priority]
 
   const {
@@ -67,15 +81,47 @@ export function TaskCard({ task }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`cursor-grab active:cursor-grabbing border-border hover:border-primary/40 hover:shadow-sm transition-all select-none ${isDragging ? 'opacity-30' : ''}`}
+      tabIndex={0}
+      className={`cursor-grab active:cursor-grabbing border-border hover:border-primary/40 hover:shadow-sm transition-all select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isDragging ? 'opacity-30' : ''}`}
       onClick={(e) => {
         // Prevent click if we were dragging
         if (e.defaultPrevented) return
         setSelectedTaskId(task.id)
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          setSelectedTaskId(task.id)
+        }
+      }}
     >
-      <CardContent className="p-3 space-y-2.5">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <CardContent className="p-3 space-y-2.5 relative">
+        <div className="absolute right-2 top-2 z-10" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <span className="sr-only">Open task menu</span>
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Move to...</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {columns.map(status => (
+                <DropdownMenuItem 
+                  key={status} 
+                  disabled={task.status === status}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveTask(task.id, status as any);
+                  }}
+                >
+                  {status}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 pr-8">
           {task.taskType && task.taskType !== 'Task' && (
             <Badge variant="outline" className="text-[9px] px-1 h-4 font-medium uppercase tracking-wider text-muted-foreground">
               {task.taskType}

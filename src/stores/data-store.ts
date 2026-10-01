@@ -543,11 +543,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
   fetchNotifications: async () => {
     try {
       const supabase = createClient()
-      const { currentUser } = get()
-      if (!currentUser) return
+      const { currentUser, activeWorkspaceId } = get()
+      if (!currentUser || !activeWorkspaceId) return
       
-      const notifications = await notificationsApi.getNotifications(supabase, currentUser.id)
-      const count = await notificationsApi.getUnreadNotificationCount(supabase, currentUser.id)
+      const notifications = await notificationsApi.getNotifications(supabase, currentUser.id, activeWorkspaceId)
+      const count = await notificationsApi.getUnreadNotificationCount(supabase, currentUser.id, activeWorkspaceId)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ notifications, unreadNotificationCount: count })
     } catch (error: any) {
       console.error('Error fetching notifications:', error)

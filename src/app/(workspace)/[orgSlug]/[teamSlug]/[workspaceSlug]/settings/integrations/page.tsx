@@ -24,9 +24,7 @@ export default function IntegrationsPage() {
   }, [activeWorkspaceId, fetchIntegrations]);
 
   const handleConnect = (provider: string) => {
-    if (!activeWorkspaceId) return;
-    const returnTo = window.location.pathname;
-    window.location.href = `/api/oauth/${provider}?workspaceId=${activeWorkspaceId}&returnTo=${encodeURIComponent(returnTo)}`;
+    toast.info(`${provider} integration is not configured in this environment.`);
   };
 
   const handleDisconnect = async (integrationId: string) => {

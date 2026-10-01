@@ -12,6 +12,7 @@ import {
   closestCorners,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -60,6 +61,12 @@ export function TaskBoard({ tasks: initialTasks, projectStatuses }: TaskBoardPro
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 5, // 5px movement before drag starts to allow clicks
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // Require 250ms hold to start drag, allowing normal scrolling
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {

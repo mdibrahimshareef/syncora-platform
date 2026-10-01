@@ -169,43 +169,43 @@ export function DashboardClientWrapper() {
           <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Needs Your Attention</h3>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {myOverdue.length > 0 && (
-              <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors" onClick={() => router.push(`${baseUrl}/my-tasks`)}>
+              <Link href={`${baseUrl}/my-tasks`} className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <div className="flex items-center gap-3 text-destructive font-medium">
                   <div className="size-2 rounded-full bg-destructive" />
                   {myOverdue.length} Overdue tasks
                 </div>
                 <Badge variant="destructive" className="bg-destructive/20 text-destructive hover:bg-destructive/20 border-none shadow-none">Overdue</Badge>
-              </div>
+              </Link>
             )}
             
             {pendingRequests.length > 0 && (
-              <div className="flex items-center justify-between p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 cursor-pointer hover:bg-amber-500/15 transition-colors" onClick={() => router.push(`${baseUrl}/requests`)}>
+              <Link href={`${baseUrl}/requests`} className="flex items-center justify-between p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 cursor-pointer hover:bg-amber-500/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <div className="flex items-center gap-3 text-amber-700 font-medium">
                   <div className="size-2 rounded-full bg-amber-500" />
                   {pendingRequests.length} Incoming requests
                 </div>
                 <Badge className="bg-amber-500/20 text-amber-700 hover:bg-amber-500/20 border-none shadow-none">Waiting</Badge>
-              </div>
+              </Link>
             )}
 
             {myDueToday.length > 0 && (
-              <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => router.push(`${baseUrl}/my-tasks?filter=today`)}>
+              <Link href={`${baseUrl}/my-tasks?filter=today`} className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer hover:bg-primary/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <div className="flex items-center gap-3 text-primary font-medium">
                   <div className="size-2 rounded-full bg-primary" />
                   {myDueToday.length} Tasks due today
                 </div>
                 <Badge className="bg-primary/20 text-primary hover:bg-primary/20 border-none shadow-none">Due today</Badge>
-              </div>
+              </Link>
             )}
 
             {failingIntegrations.length > 0 && (
-              <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors" onClick={() => router.push(`${baseUrl}/settings/integrations`)}>
+              <Link href={`${baseUrl}/settings/integrations`} className="flex items-center justify-between p-4 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <div className="flex items-center gap-3 text-destructive font-medium">
                   <div className="size-2 rounded-full bg-destructive" />
                   {failingIntegrations.length} Integrations failing
                 </div>
                 <Badge variant="destructive" className="bg-destructive/20 text-destructive hover:bg-destructive/20 border-none shadow-none">Error</Badge>
-              </div>
+              </Link>
             )}
           </div>
         </section>
@@ -314,7 +314,7 @@ export function DashboardClientWrapper() {
                 }
 
                 return (
-                  <div key={project.id} className="flex items-center justify-between group cursor-pointer" onClick={() => router.push(`${baseUrl}/projects/${project.id}`)}>
+                  <Link href={`${baseUrl}/projects/${project.id}`} key={project.id} className="flex items-center justify-between group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || 'var(--primary)' }} />
                       <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{project.name}</span>
@@ -323,7 +323,7 @@ export function DashboardClientWrapper() {
                       <span className="text-xs font-bold w-8 text-right">{progress}%</span>
                       <span className={`text-xs w-24 text-right ${healthColor}`}>{healthStatus}</span>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
               

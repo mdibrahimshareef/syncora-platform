@@ -80,10 +80,10 @@ export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
 
   const getPriorityColor = (priority: string) => {
     return {
-      'Low': 'text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400',
-      'Medium': 'text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-400',
-      'High': 'text-amber-600 bg-amber-100 dark:bg-amber-900/50 dark:text-amber-400',
-      'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-400',
+      'Low': 'text-slate-600 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300',
+      'Medium': 'text-blue-700 bg-blue-100 dark:bg-blue-900/60 dark:text-blue-300',
+      'High': 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-300',
+      'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-300',
     }[priority]
   }
 

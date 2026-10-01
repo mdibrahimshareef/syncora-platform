@@ -107,6 +107,7 @@ test.describe.serial('16B.6 Task State Integrity & Collaborative Consistency', (
     const { data: taskData } = await adminDb.from('tasks').select('id').eq('title', 'New Collaborative Task').eq('project_id', proj.id).single();
     
     // B edits the task via API
+    if (!taskData) throw new Error('Task not found');
     await adminDb.from('tasks').update({ 
       title: 'Updated Title Realtime',
       updated_at: new Date().toISOString()
@@ -208,7 +209,7 @@ test.describe.serial('16B.6 Task State Integrity & Collaborative Consistency', (
     await pageA.locator('button[role="tab"]:has-text("List")').first().click();
     
     // Go to My Work in B
-    await pageB.goto(`${wsB.baseUrl}/my-work`);
+    await pageB.goto(`${wsB.baseUrl}/my-tasks`);
 
     // Wait for A to see it (via realtime)
     await expect(pageA.locator('text="Secret Workspace A Task"').first()).toBeVisible({ timeout: 10000 });

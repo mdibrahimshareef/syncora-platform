@@ -51,8 +51,6 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
     {
       label: "PLAN",
       items: [
-        { name: "Portfolios", href: `${baseUrl || "/app"}/portfolios`, icon: Briefcase },
-        { name: "Initiatives", href: `${baseUrl || "/app"}/initiatives`, icon: Target },
         { name: "Projects", href: `${baseUrl || "/app"}/projects`, icon: Folders },
       ]
     },
@@ -68,12 +66,6 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
       items: [
         { name: "Reports", href: `${baseUrl || "/app"}/reports`, icon: PieChart },
         { name: "Workload", href: `${baseUrl || "/app"}/workload`, icon: Users },
-      ]
-    },
-    {
-      label: "ORGANIZATION",
-      items: [
-        { name: "Automations", href: `${baseUrl || "/app"}/automations`, icon: Blocks },
       ]
     }
   ]

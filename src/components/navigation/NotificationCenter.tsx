@@ -32,12 +32,12 @@ export function NotificationCenter() {
     const supabase = createClient()
     
     // Initial fetch
-    getNotifications(supabase, currentUser.id)
+    getNotifications(supabase, currentUser.id, activeWorkspaceId)
       .then(data => setNotifications(data))
       .catch(console.error)
 
     // Listen to realtime notifications
-    const channel = supabase.channel(`notifications:${currentUser.id}`)
+    const channel = supabase.channel(`notifications:${currentUser.id}:${activeWorkspaceId}`)
       .on(
         'postgres_changes',
         {
@@ -46,9 +46,12 @@ export function NotificationCenter() {
           table: 'notifications',
           filter: `recipient_id=eq.${currentUser.id}`,
         },
-        async () => {
+        async (payload) => {
+          // Additional client-side filter for workspace
+          if (payload.new && payload.new.workspace_id !== activeWorkspaceId) return;
+          
           // Re-fetch to get actor relations easily
-          const data = await getNotifications(supabase, currentUser.id)
+          const data = await getNotifications(supabase, currentUser.id, activeWorkspaceId)
           setNotifications(data)
         }
       )
@@ -120,7 +123,7 @@ export function NotificationCenter() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger render={
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
           <Bell className="size-5" />
           {unreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 size-2.5 bg-red-500 rounded-full ring-2 ring-background animate-in zoom-in" />
@@ -147,9 +150,9 @@ export function NotificationCenter() {
               {notifications.map(notification => {
                 const { title, desc } = getNotificationText(notification)
                 return (
-                  <div 
+                  <button 
                     key={notification.id} 
-                    className={`flex gap-3 p-4 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${!notification.read_at ? 'bg-muted/20' : ''}`}
+                    className={`flex text-left w-full gap-3 p-4 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${!notification.read_at ? 'bg-muted/20' : ''}`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                   <Avatar className="size-8 shrink-0">
@@ -174,7 +177,7 @@ export function NotificationCenter() {
                     {!notification.read_at && (
                       <div className="size-2 bg-blue-500 rounded-full shrink-0 mt-1.5" />
                     )}
-                  </div>
+                  </button>
                 )
               })}
             </div>

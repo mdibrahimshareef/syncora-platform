@@ -78,7 +78,7 @@ export function UserProfile() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" className="relative size-8 rounded-full" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" className="relative size-8 rounded-full" aria-label="User profile" />}>
         <Avatar className="size-8">
           <AvatarImage src={currentUser?.avatarUrl} alt={currentUser?.name || "User"} />
           <AvatarFallback className="bg-primary/10 text-primary text-xs">

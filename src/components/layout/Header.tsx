@@ -50,12 +50,13 @@ export function Header() {
 
         <Button 
           variant="outline" 
-          className="w-full justify-start text-sm text-muted-foreground sm:w-64 sm:pr-12"
+          size="sm"
+          className="w-9 px-0 sm:w-64 sm:px-4 sm:justify-start text-sm text-muted-foreground sm:pr-12"
           onClick={() => setCommandPaletteOpen(true)}
+          title="Search workspace"
         >
-          <Search className="mr-2 size-4" />
-          <span className="hidden sm:inline-flex">Search workspace...</span>
-          <span className="inline-flex sm:hidden">Search...</span>
+          <Search className="size-4 sm:mr-2" />
+          <span className="sr-only sm:not-sr-only sm:inline-flex">Search workspace...</span>
           <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-6 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
             <span className="text-xs">⌘</span>K
           </kbd>
@@ -66,14 +67,17 @@ export function Header() {
         <Button 
           variant="outline" 
           size="sm" 
-          className="h-9 gap-2 text-indigo-500 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-800 dark:hover:bg-indigo-950 dark:hover:text-indigo-400"
+          className="h-9 w-9 px-0 sm:w-auto sm:px-3 gap-2 text-indigo-500 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-800 dark:hover:bg-indigo-950 dark:hover:text-indigo-400"
           onClick={() => useUIStore.getState().setAIAssistantOpen(true)}
+          title="Ask AI"
         >
           <Sparkles className="size-4" />
-          <span className="hidden sm:inline-block">Ask AI</span>
+          <span className="sr-only sm:not-sr-only sm:inline-block">Ask AI</span>
         </Button>
 
-        <UpgradePlanDialog />
+        <div className="hidden sm:block">
+          <UpgradePlanDialog />
+        </div>
 
         <NotificationCenter />
         

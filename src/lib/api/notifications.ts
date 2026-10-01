@@ -3,11 +3,12 @@ import { Database } from "@/types/supabase"
 
 export type Notification = Database['public']['Tables']['notifications']['Row']
 
-export async function getNotifications(supabase: SupabaseClient<Database>, userId: string, limit: number = 20) {
+export async function getNotifications(supabase: SupabaseClient<Database>, userId: string, workspaceId: string, limit: number = 20) {
   const { data, error } = await supabase
     .from('notifications')
     .select('*, actor:actor_id(id, full_name, avatar_url)')
     .eq('recipient_id', userId)
+    .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -15,11 +16,12 @@ export async function getNotifications(supabase: SupabaseClient<Database>, userI
   return data
 }
 
-export async function getUnreadNotificationCount(supabase: SupabaseClient<Database>, userId: string) {
+export async function getUnreadNotificationCount(supabase: SupabaseClient<Database>, userId: string, workspaceId: string) {
   const { count, error } = await supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('recipient_id', userId)
+    .eq('workspace_id', workspaceId)
     .is('read_at', null)
 
   if (error) throw error

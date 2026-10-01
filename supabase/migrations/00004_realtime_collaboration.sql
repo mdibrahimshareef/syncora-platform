@@ -70,3 +70,6 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.projects;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.comments;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.activities;
+
+ALTER TABLE public.projects REPLICA IDENTITY FULL;
+ALTER TABLE public.tasks REPLICA IDENTITY FULL;

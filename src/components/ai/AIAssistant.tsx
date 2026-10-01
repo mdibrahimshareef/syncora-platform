@@ -74,6 +74,11 @@ export function AIAssistant() {
     }
   }, [messages, isLoading, error])
 
+  // Phase 7: Clear context when workspace changes
+  React.useEffect(() => {
+    handleNewChat()
+  }, [activeWorkspaceId])
+
   React.useEffect(() => {
     // Extract dynamic sources from tool results
     let dynamicSources: any[] = []

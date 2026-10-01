@@ -142,6 +142,7 @@ export function GlobalTimer() {
           variant={activeTimer ? "default" : "outline"} 
           size="sm" 
           className={`h-9 gap-2 transition-all ${activeTimer ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
+          aria-label={activeTimer ? "Active timer" : "Time Tracker"}
         >
           {activeTimer ? (
             <div className="flex items-center gap-2">
@@ -160,7 +161,7 @@ export function GlobalTimer() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-sm">Time Tracker</h4>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)} aria-label="Close time tracker">
               <X className="size-4" />
             </Button>
           </div>
@@ -178,11 +179,11 @@ export function GlobalTimer() {
               }}
             />
             {activeTimer ? (
-              <Button size="icon" variant="destructive" className="h-9 w-9 shrink-0" onClick={handleStop}>
+              <Button size="icon" variant="destructive" className="h-9 w-9 shrink-0" onClick={handleStop} aria-label="Stop timer">
                 <Square className="size-4" fill="currentColor" />
               </Button>
             ) : (
-              <Button size="icon" className="h-9 w-9 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleStart}>
+              <Button size="icon" className="h-9 w-9 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleStart} aria-label="Start timer">
                 <Play className="size-4" fill="currentColor" />
               </Button>
             )}

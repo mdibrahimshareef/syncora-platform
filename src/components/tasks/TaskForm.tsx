@@ -97,6 +97,25 @@ export function TaskForm({ defaultValues, onSuccess }: TaskFormProps) {
     },
   })
 
+  React.useEffect(() => {
+    if (defaultValues?.id && !form.formState.isDirty) {
+      form.reset({
+        title: defaultValues.title || "",
+        description: defaultValues.description || "",
+        status: defaultValues.status || "Todo",
+        priority: defaultValues.priority || "Medium",
+        projectId: defaultValues.projectId || (projects.length > 0 ? projects[0].id : ""),
+        assigneeId: defaultValues.assignee?.id || "",
+        startDate: defaultValues.startDate ? new Date(defaultValues.startDate) : undefined,
+        dueDate: defaultValues.dueDate ? new Date(defaultValues.dueDate) : undefined,
+        estimatedTime: defaultValues.estimatedTime ? defaultValues.estimatedTime / 60 : undefined,
+        milestoneId: defaultValues.milestoneId || undefined,
+        documentId: defaultValues.documentId || undefined,
+        taskType: defaultValues.taskType || undefined,
+      })
+    }
+  }, [defaultValues, form, projects])
+
   async function onSubmit(data: TaskFormValues) {
     const selectedAssignee = workspaceMembers.find(m => m.id === data.assigneeId)
     

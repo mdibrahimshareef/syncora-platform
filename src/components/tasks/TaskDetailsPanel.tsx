@@ -149,7 +149,7 @@ export function TaskDetailsPanel() {
   return (
     <>
       <Dialog open={!!selectedTaskId && !isEditDialogOpen && !isCreateSubtaskDialogOpen} onOpenChange={(open) => !open && setSelectedTaskId(null)}>
-        <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-4xl overflow-y-auto max-h-[90vh]">
+        <DialogContent className="w-[95vw] sm:w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-4xl overflow-y-auto overflow-x-hidden max-h-[95vh] p-4 sm:p-6">
           <DialogHeader className="text-left space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -166,19 +166,19 @@ export function TaskDetailsPanel() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className={`size-8 ${task.watchers?.some(w => w.userId === currentUser?.id) ? 'text-primary' : 'text-muted-foreground'}`}
+                  className={`size-10 sm:size-8 ${task.watchers?.some(w => w.userId === currentUser?.id) ? 'text-primary' : 'text-muted-foreground'}`}
                   onClick={() => toggleWatcher(task.id, task.watchers?.some(w => w.userId === currentUser?.id) || false)}
                   title={task.watchers?.some(w => w.userId === currentUser?.id) ? "Unwatch task" : "Watch task"}
                 >
                   {task.watchers?.some(w => w.userId === currentUser?.id) ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                 </Button>
                 <ManualTimeEntryModal taskId={task.id} projectId={task.projectId || undefined} />
-                <Button variant="ghost" size="icon" className="size-8" onClick={() => setIsEditDialogOpen(true)}>
+                <Button variant="ghost" size="icon" className="size-10 sm:size-8" onClick={() => setIsEditDialogOpen(true)}>
                   <Edit2 className="size-4" />
                 </Button>
                 
                 <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10" />}>
+                  <AlertDialogTrigger render={<Button variant="ghost" size="icon" className="size-10 sm:size-8 text-destructive hover:text-destructive hover:bg-destructive/10" />}>
                     <Trash2 className="size-4" />
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -198,7 +198,7 @@ export function TaskDetailsPanel() {
                 </AlertDialog>
               </div>
             </div>
-            <DialogTitle className="text-2xl font-semibold leading-tight">{task.title}</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-semibold leading-tight">{task.title}</DialogTitle>
             <DialogDescription className="sr-only">Task details for {task.title}</DialogDescription>
           </DialogHeader>
 
@@ -243,7 +243,10 @@ export function TaskDetailsPanel() {
                     {task.description ? (
                       <div dangerouslySetInnerHTML={{ __html: task.description }} />
                     ) : (
-                      <span className="text-muted-foreground italic">No description provided.</span>
+                      <div className="flex flex-col items-center justify-center text-muted-foreground italic h-full min-h-[60px] opacity-70">
+                        <AlignLeft className="size-6 mb-2 opacity-20" />
+                        No description provided.
+                      </div>
                     )}
                   </div>
                 )}
@@ -275,7 +278,8 @@ export function TaskDetailsPanel() {
                 
                 <div className="space-y-2">
                   {subtasks.length === 0 ? (
-                    <div className="text-sm text-muted-foreground italic bg-muted/20 p-3 rounded-lg border border-border/50">
+                    <div className="flex flex-col items-center justify-center text-sm text-muted-foreground italic bg-muted/20 p-6 rounded-lg border border-border/50">
+                      <CheckCircle2 className="size-6 mb-2 opacity-20" />
                       No subtasks. Break down this task by adding one.
                     </div>
                   ) : (
@@ -283,16 +287,16 @@ export function TaskDetailsPanel() {
                       <div key={subtask.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors">
                         <button 
                           onClick={() => toggleSubtaskStatus(subtask)}
-                          className={`size-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${subtask.status === 'Done' ? 'bg-primary border-primary text-primary-foreground' : 'border-input hover:border-primary'}`}
+                          className={`size-5 rounded-full border flex items-center justify-center shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${subtask.status === 'Done' ? 'bg-primary border-primary text-primary-foreground' : 'border-input hover:border-primary'}`}
                         >
                           {subtask.status === 'Done' && <CheckCircle2 className="size-3" />}
                         </button>
-                        <span 
-                          className={`text-sm flex-1 cursor-pointer hover:underline ${subtask.status === 'Done' ? 'line-through text-muted-foreground' : ''}`}
+                        <button 
+                          className={`text-sm flex-1 text-left cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded px-1 -mx-1 ${subtask.status === 'Done' ? 'line-through text-muted-foreground' : ''}`}
                           onClick={() => setSelectedTaskId(subtask.id)}
                         >
                           {subtask.title}
-                        </span>
+                        </button>
                         {subtask.assignee && (
                           <Avatar className="size-5 shrink-0">
                             <AvatarFallback className="text-[10px] bg-secondary">{subtask.assignee.initials}</AvatarFallback>
@@ -562,7 +566,8 @@ export function TaskDetailsPanel() {
                 
                 <div className="space-y-2">
                   {!task.attachments || task.attachments.length === 0 ? (
-                    <div className="text-sm text-muted-foreground italic bg-muted/20 p-3 rounded-lg border border-border/50">
+                    <div className="flex flex-col items-center justify-center text-sm text-muted-foreground italic bg-muted/20 p-6 rounded-lg border border-border/50">
+                      <Paperclip className="size-6 mb-2 opacity-20" />
                       No attachments yet.
                     </div>
                   ) : (

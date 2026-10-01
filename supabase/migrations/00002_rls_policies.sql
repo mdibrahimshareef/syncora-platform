@@ -51,7 +51,9 @@ CREATE POLICY "Users can insert themselves" ON public.workspace_members FOR INSE
 
 -- Projects
 CREATE POLICY "Workspace members can view projects" ON public.projects FOR SELECT USING (
-  public.is_workspace_member(workspace_id)
+  workspace_id IN (
+    SELECT workspace_id FROM public.workspace_members WHERE user_id = auth.uid()
+  )
 );
 CREATE POLICY "Workspace members can insert projects" ON public.projects FOR INSERT WITH CHECK (
   public.is_workspace_member(workspace_id)
