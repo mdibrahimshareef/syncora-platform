@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { LanguageModel, EmbeddingModel } from 'ai'
 
 export function getLanguageModel(): LanguageModel | undefined {
@@ -10,6 +10,7 @@ export function getLanguageModel(): LanguageModel | undefined {
   }
 
   if (provider === 'openai') {
+    const openai = createOpenAI({ apiKey: process.env.AI_API_KEY })
     return openai(modelName)
   }
 
@@ -28,6 +29,7 @@ export function getEmbeddingModel(): EmbeddingModel | undefined {
   }
 
   if (provider === 'openai') {
+    const openai = createOpenAI({ apiKey: process.env.AI_API_KEY })
     return openai.embedding(modelName)
   }
 

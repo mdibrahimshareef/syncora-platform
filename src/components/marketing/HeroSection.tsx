@@ -141,14 +141,14 @@ export function HeroSection() {
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="size-4 text-primary" />
-              <span>Free forever plan</span>
+              <span>Unlimited core features</span>
             </div>
             <div className="flex items-center gap-1.5 hidden sm:flex">
               <span className="size-1 rounded-full bg-border" />
             </div>
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="size-4 text-primary" />
-              <span>SOC2 Certified</span>
+              <span>256-bit Encryption</span>
             </div>
           </div>
         </motion.div>

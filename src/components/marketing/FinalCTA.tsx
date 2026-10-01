@@ -31,7 +31,7 @@ export function FinalCTA() {
           Ready to sync your team?
         </h2>
         <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
-          Join thousands of teams who have already transformed the way they work. Free forever for small teams.
+          Join thousands of teams who have already transformed the way they work. Start with a generous free tier — no credit card needed.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/signup" className={buttonVariants({ variant: "secondary", size: "lg", className: "h-14 px-10 rounded-full text-lg font-bold shadow-xl hover:shadow-2xl transition-all w-full sm:w-auto" })}>
@@ -50,7 +50,7 @@ export function FinalCTA() {
           <div className="hidden sm:block size-1 rounded-full bg-primary-foreground/20" />
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-emerald-400" />
-            <span>SOC2 Type II Certified</span>
+            <span>AES-256 Encryption</span>
           </div>
           <div className="hidden sm:block size-1 rounded-full bg-primary-foreground/20" />
           <div className="flex items-center gap-2">
