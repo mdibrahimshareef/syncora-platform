@@ -4,7 +4,7 @@ import { LanguageModel, EmbeddingModel } from 'ai'
 
 export function getLanguageModel(): LanguageModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
-  const modelName = process.env.AI_MODEL || (provider === 'google' ? 'gemini-1.5-flash' : 'gpt-4o-mini')
+  const modelName = process.env.AI_MODEL || (provider === 'google' ? 'gemini-flash-latest' : 'gpt-4o-mini')
   const openaiApiKey = process.env.OPENAI_API_KEY
   const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
@@ -33,7 +33,7 @@ export function getLanguageModel(): LanguageModel | undefined {
 
 export function getEmbeddingModel(): EmbeddingModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
-  const modelName = process.env.AI_EMBEDDING_MODEL || (provider === 'google' ? 'text-embedding-004' : 'text-embedding-3-small')
+  const modelName = process.env.AI_EMBEDDING_MODEL || (provider === 'google' ? 'gemini-embedding-2' : 'text-embedding-3-small')
   const openaiApiKey = process.env.OPENAI_API_KEY
   const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
