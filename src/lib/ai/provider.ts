@@ -1,44 +1,60 @@
 import { createOpenAI } from '@ai-sdk/openai'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { LanguageModel, EmbeddingModel } from 'ai'
 
 export function getLanguageModel(): LanguageModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
-  const modelName = process.env.AI_MODEL || 'gpt-4o-mini'
-  const apiKey = process.env.OPENAI_API_KEY
+  const modelName = process.env.AI_MODEL || (provider === 'google' ? 'gemini-1.5-flash' : 'gpt-4o-mini')
+  const openaiApiKey = process.env.OPENAI_API_KEY
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
   if (provider === 'mock') {
     return undefined // Indicates mock mode
   }
 
   if (provider === 'openai') {
-    if (!apiKey) {
+    if (!openaiApiKey) {
       throw new Error('OpenAI configuration error: OPENAI_API_KEY is missing.')
     }
-    const openai = createOpenAI({ apiKey })
+    const openai = createOpenAI({ apiKey: openaiApiKey })
     return openai(modelName)
   }
 
-  // If we wanted to support Google/Anthropic, we'd add them here
-  // if (provider === 'google') return google(modelName)
+  if (provider === 'google') {
+    if (!googleApiKey) {
+      throw new Error('Google AI configuration error: GOOGLE_GENERATIVE_AI_API_KEY is missing.')
+    }
+    const google = createGoogleGenerativeAI({ apiKey: googleApiKey })
+    return google(modelName)
+  }
 
   throw new Error(`Unsupported AI Provider: ${provider}`)
 }
 
 export function getEmbeddingModel(): EmbeddingModel | undefined {
   const provider = process.env.AI_PROVIDER || 'mock'
-  const modelName = process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small'
-  const apiKey = process.env.OPENAI_API_KEY
+  const modelName = process.env.AI_EMBEDDING_MODEL || (provider === 'google' ? 'text-embedding-004' : 'text-embedding-3-small')
+  const openaiApiKey = process.env.OPENAI_API_KEY
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
   if (provider === 'mock') {
     return undefined
   }
 
   if (provider === 'openai') {
-    if (!apiKey) {
+    if (!openaiApiKey) {
       throw new Error('OpenAI configuration error: OPENAI_API_KEY is missing.')
     }
-    const openai = createOpenAI({ apiKey })
+    const openai = createOpenAI({ apiKey: openaiApiKey })
     return openai.embedding(modelName)
+  }
+
+  if (provider === 'google') {
+    if (!googleApiKey) {
+      throw new Error('Google AI configuration error: GOOGLE_GENERATIVE_AI_API_KEY is missing.')
+    }
+    const google = createGoogleGenerativeAI({ apiKey: googleApiKey })
+    return google.textEmbeddingModel(modelName)
   }
 
   throw new Error(`Unsupported Embedding Provider: ${provider}`)
