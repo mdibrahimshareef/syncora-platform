@@ -48,9 +48,9 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
   
   // 3. Retrieve Workspace Context & Temporal Context
   try {
-    const contextData = await getWorkspaceContext(workspaceId, lastUserMessageStr)
-    // Only pass semantic knowledge to the LLM to avoid eager loading entire tables
-    const contextToPass = { semanticKnowledge: contextData.semanticKnowledge }
+    const contextData = await getWorkspaceContext(workspaceId, lastUserMessageStr, userId)
+    // Pass the bounded context (projects, members, tasks, semantic knowledge) based on intent
+    const contextToPass = { ...contextData }
     const contextStr = JSON.stringify(contextToPass, null, 2)
     const temporalContext = getTemporalContext()
 
@@ -84,16 +84,27 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     }
 
     // 6. Execute via Vercel AI SDK
-    let collectedSources: AISource[] = [...contextData.semanticKnowledge]
+    let collectedSources: AISource[] = [...(contextData.semanticKnowledge || [])]
+
+    // R3.5: Conversation memory bounds
+    const boundedMessages = coreMessages.length > 15 ? 
+      [coreMessages[0], ...coreMessages.slice(-14)] : 
+      coreMessages;
+
+    // R3.8 Cost Controls
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), Number(process.env.AI_TIMEOUT_MS) || 45000)
 
     const result = streamText({
       model,
       system: systemPrompt,
-      messages: coreMessages,
+      messages: boundedMessages,
       tools: getAiTools(workspaceId, userId) as any,
-      stopWhen: isStepCount(5), // Allow multi-step tool execution
+      stopWhen: isStepCount(Number(process.env.AI_MAX_TOOL_CALLS) || 5), // R3.8 Max tool calls
+      // @ts-ignore
+      maxTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS) || 2000,
+      abortSignal: abortController.signal,
       onStepFinish: (event) => {
-        // Collect sources from tools
         for (const res of event.toolResults) {
           // @ts-ignore
           if (res.result?.sources) {
@@ -103,6 +114,8 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
         }
       },
       onFinish: async (event) => {
+        clearTimeout(timeoutId)
+        // R3.9 Observability Update
         logAITelemetry({
           requestId,
           userId,
@@ -110,7 +123,9 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
           model: modelName,
           latencyMs: Date.now() - startTime,
           toolCallsCount: event.toolCalls?.length || 0,
-          success: true
+          success: true,
+          // @ts-ignore
+          tokenUsage: event.usage
         })
 
         if (userId && activeConversationId) {

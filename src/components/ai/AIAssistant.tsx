@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
+import { WorkflowPlanCard } from './WorkflowPlanCard'
 import { AIToolActivity } from './AIToolActivity'
 import { AISourceList } from './AISourceList'
 import { usePathname } from 'next/navigation'
@@ -218,10 +219,10 @@ export function AIAssistant() {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Try asking:</p>
                   <div className="grid grid-cols-1 gap-2">
                     <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What needs my attention?")}>What needs my attention?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Show overdue tasks")}>Show overdue tasks</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What should I work on next?")}>What should I work on next?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What's due this week?")}>What's due this week?</Button>
+                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Which projects are at risk?")}>Which projects are at risk?</Button>
                     <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What's blocking the team?")}>What's blocking the team?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Which projects need attention?")}>Which projects need attention?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("How much time did I track this week?")}>How much time did I track this week?</Button>
                   </div>
                 </div>
               </div>
@@ -283,7 +284,20 @@ export function AIAssistant() {
 
                         if (!state) return null
 
-                        if (['call', 'partial-call', 'result', 'output-available', 'executed', 'already_executed', 'conflict', 'failed', 'denied'].includes(state)) {
+                        if (toolName === 'generate_workflow_plan') {
+                          return (
+                            <WorkflowPlanCard 
+                              key={partIndex}
+                              plan={part.args || part.input}
+                              result={part.result}
+                              onConfirm={() => onToolConfirm(toolCallId, toolName, part.args || part.input)}
+                              onCancel={() => onToolCancel(toolCallId, toolName)}
+                              workspaceId={activeWorkspaceId || undefined}
+                            />
+                          )
+                        }
+
+                        if (['call', 'partial-call', 'result', 'output-available', 'executed', 'already_executed', 'conflict', 'failed', 'denied', 'completed'].includes(state.toLowerCase())) {
                           return (
                             <AIToolActivity key={partIndex} toolName={toolName} state={state} />
                           )

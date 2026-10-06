@@ -41,8 +41,8 @@ export async function POST(req: Request) {
        return NextResponse.json({
          suggestion: {
            priority: 'High',
-           projectId: contextData.projects[0]?.id || null,
-           assigneeId: contextData.members[0]?.id || null,
+           projectId: contextData?.projects?.[0]?.id || null,
+           assigneeId: contextData?.members?.[0]?.id || null,
            reason: '[MOCK MODE] No AI API Key. Simulating triage based on first available project/member.'
          }
        })

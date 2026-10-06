@@ -4,31 +4,65 @@ import { getEmbeddingModel } from './provider'
 
 import { AISource, resolveSourceUrl } from './sources'
 
-export async function getWorkspaceContext(workspaceId: string, query: string = '') {
+export async function getWorkspaceContext(workspaceId: string, query: string = '', userId?: string) {
   const supabase = await createClient()
 
-  // 1. Fetch active projects (lightweight baseline)
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('id, name, status')
-    .eq('workspace_id', workspaceId)
-    .order('updated_at', { ascending: false })
-    .limit(15)
+  const q = query.toLowerCase()
+  const needsProjects = /project|health|progress|status/.test(q)
+  const needsTeam = /team|who|member|workload|assign/.test(q)
+  const needsOverdue = /overdue|late|deadline|due/.test(q)
+  const needsBlocked = /block|stuck|wait/.test(q)
+  const needsMyWork = /my|i |me/.test(q) && userId
 
-  // 2. Fetch workspace members (lightweight baseline)
-  const { data: members } = await supabase
-    .from('workspace_members')
-    .select(`
-      user_id,
-      role,
-      profiles:user_id ( full_name, email )
-    `)
-    .eq('workspace_id', workspaceId)
-    .limit(30)
+  let boundedProjects: any[] = []
+  if (needsProjects || (!needsTeam && !needsOverdue && !needsBlocked && !needsMyWork && q.length > 5)) {
+    const { data } = await supabase
+      .from('projects')
+      .select('id, name, status, priority, due_date')
+      .eq('workspace_id', workspaceId)
+      .order('updated_at', { ascending: false })
+      .limit(5)
+    boundedProjects = data || []
+  }
+
+  let boundedMembers: any[] = []
+  if (needsTeam) {
+    const { data } = await supabase
+      .from('workspace_members')
+      .select(`user_id, role, profiles:user_id ( full_name )`)
+      .eq('workspace_id', workspaceId)
+      .limit(10)
+    boundedMembers = data?.map(m => ({
+      id: m.user_id,
+      role: m.role,
+      name: (m.profiles as any)?.full_name || 'Unknown'
+    })) || []
+  }
+
+  let boundedTasks: any[] = []
+  if (needsOverdue || needsBlocked || needsMyWork) {
+    let tQuery = supabase
+      .from('tasks')
+      .select('id, title, status, priority, due_date, assignee_id, project_id')
+      .eq('workspace_id', workspaceId)
+      .neq('status', 'Done')
+
+    if (needsMyWork) {
+      tQuery = tQuery.eq('assignee_id', userId)
+    }
+    if (needsBlocked) {
+      tQuery = tQuery.eq('status', 'Blocked')
+    } else if (needsOverdue) {
+      tQuery = tQuery.lt('due_date', new Date().toISOString())
+    }
     
-  // 3. Semantic Search (Hybrid RAG) if API key is present and query exists
+    const { data } = await tQuery.limit(10)
+    boundedTasks = data || []
+  }
+    
+  // Semantic Search (Hybrid RAG) if API key is present and query exists
   let semanticMatches: AISource[] = []
-  if (query && process.env.OPENAI_API_KEY) {
+  if (query && (process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)) {
     try {
       const embeddingModel = getEmbeddingModel()
       if (embeddingModel) {
@@ -52,7 +86,7 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
               entityId: m.resource_id,
               type: m.resource_type,
               title: m.title || 'Unknown Resource',
-              description: m.content_text, // rename snippet to description for AISource parity
+              description: m.content_text, 
               workspaceId: workspaceId,
               sourceKind: 'semantic' as const,
               confidence: m.similarity,
@@ -63,19 +97,14 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
       }
     } catch (e) {
       console.error('Semantic search failed:', e)
-      // Fallback to structured context only
     }
   }
 
   return {
-    projects: projects || [],
-    members: members?.map(m => ({
-      id: m.user_id,
-      role: m.role,
-      name: (m.profiles as any)?.full_name || 'Unknown',
-      email: (m.profiles as any)?.email || 'Unknown'
-    })) || [],
-    semanticKnowledge: semanticMatches
+    ...(boundedProjects.length > 0 && { projects: boundedProjects }),
+    ...(boundedMembers.length > 0 && { members: boundedMembers }),
+    ...(boundedTasks.length > 0 && { attentionTasks: boundedTasks }),
+    ...(semanticMatches.length > 0 && { semanticKnowledge: semanticMatches })
   }
 }
 

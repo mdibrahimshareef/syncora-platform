@@ -92,6 +92,85 @@ export function getAiTools(workspaceId: string, userId?: string) {
         }
       }
     }),
+    get_workspace_insights: tool({
+      description: 'Get deterministic, proactive insights about workspace risks, such as workload imbalances, overdue tasks, and stale projects.',
+      parameters: z.object({}),
+      // @ts-ignore
+      execute: async () => {
+        const supabase = await createClient();
+        const insights = [];
+        
+        // Overdue Work
+        const { data: overdue } = await supabase.from('tasks').select('id, title, project_id').eq('workspace_id', workspaceId).lt('due_date', new Date().toISOString()).neq('status', 'Done');
+        if (overdue && overdue.length > 0) {
+          insights.push({
+            type: 'Deadline Risk',
+            severity: overdue.length > 5 ? 'High' : 'Medium',
+            title: 'Overdue Work Detected',
+            explanation: `${overdue.length} tasks are currently overdue.`,
+            timestamp: new Date().toISOString(),
+            workspaceId
+          });
+        }
+        
+        // Unassigned Work
+        const { data: unassigned } = await supabase.from('tasks').select('id').eq('workspace_id', workspaceId).is('assignee_id', null).neq('status', 'Done');
+        if (unassigned && unassigned.length > 0) {
+          insights.push({
+            type: 'Unassigned Work',
+            severity: unassigned.length > 10 ? 'High' : 'Low',
+            title: 'Unassigned Tasks Pending',
+            explanation: `${unassigned.length} active tasks currently have no assignee.`,
+            timestamp: new Date().toISOString(),
+            workspaceId
+          });
+        }
+
+        const sources: AISource[] = [{
+          id: `insights-${workspaceId}`,
+          entityId: workspaceId,
+          type: 'workspace',
+          title: 'Workspace Insights',
+          workspaceId,
+          sourceKind: 'analysis',
+          url: await resolveSourceUrl(workspaceId, 'workspace', workspaceId)
+        }];
+        
+        return { success: true, data: insights, sources };
+      }
+    }),
+
+    get_my_work: tool({
+      description: 'Get tasks assigned specifically to the authenticated user. Use this to answer questions about the user\'s own workload, priorities, and deadlines. Prioritizes active, overdue, and upcoming tasks.',
+      parameters: z.object({ limit: z.number().default(20) }),
+      // @ts-ignore
+      execute: async (args) => {
+        if (!userId) return { success: false, errorCode: 'UNAUTHORIZED', message: 'User context is missing.' }
+        const supabase = await createClient()
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('id, title, status, priority, due_date, project_id')
+          .eq('workspace_id', workspaceId)
+          .eq('assignee_id', userId)
+          .neq('status', 'Done')
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .limit(Math.min(args.limit, 50))
+          
+        if (error) return { success: false, errorCode: 'DB_ERROR', message: error.message }
+        
+        const sources: AISource[] = await Promise.all((data || []).map(async (task: any) => ({
+          id: `task-${task.id}`,
+          entityId: task.id,
+          type: 'task',
+          title: task.title,
+          workspaceId,
+          sourceKind: 'tool',
+          url: await resolveSourceUrl(workspaceId, 'task', task.id, task.project_id)
+        })))
+
+        return { success: true, data: data || [], sources }
+      }
+    }),
 
     get_projects: tool({
       description: 'Get a list of all active projects in the workspace.',
@@ -263,76 +342,19 @@ export function getAiTools(workspaceId: string, userId?: string) {
           sourceKind: 'tool',
           url: await resolveSourceUrl(workspaceId, 'project', data.id)
         }]
-        
+
         return { success: true, data, sources }
       }
     }),
 
     get_project_health: tool({
-      description: 'Get an analytical health summary of a specific project, including tasks, milestones, and budget utilization.',
+      description: 'Get a deterministic health analysis of a specific project (status, risks, blockers).',
       parameters: projectIdSchema,
       // @ts-ignore
       execute: async (args) => {
-        const supabase = await createClient()
-        const { data: project } = await supabase.from('projects').select('id, name, status').eq('id', args.projectId).eq('workspace_id', workspaceId).single()
-        if (!project) return { success: false, errorCode: 'NOT_FOUND', message: 'Project not found in this workspace.' }
-
-        const [tasks, budget, milestones] = await Promise.all([
-          supabase.from('tasks').select('id, title, status, due_date, estimated_hours').eq('project_id', args.projectId),
-          supabase.from('project_budgets').select('id, budget_minutes').eq('project_id', args.projectId).single(),
-          supabase.from('milestones').select('id, name, due_date, status').eq('project_id', args.projectId)
-        ])
-
-        const allTasks = tasks.data || []
-        const overdueTasks = allTasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'Done')
-        const blockedTasks = allTasks.filter(t => t.status === 'Blocked')
-        const doneTasks = allTasks.filter(t => t.status === 'Done')
-        
-        const projectSourceUrl = await resolveSourceUrl(workspaceId, 'project', project.id)
-
-        const sources: AISource[] = [{
-          id: `project-health-${project.id}`,
-          entityId: project.id,
-          type: 'project',
-          title: `${project.name} Health`,
-          workspaceId,
-          sourceKind: 'analysis',
-          url: projectSourceUrl
-        }]
-        
-        // Add sources for overdue tasks specifically since they affect health directly
-        for (const t of overdueTasks.slice(0, 5)) { // Max 5 to avoid bloating
-           sources.push({
-             id: `task-${t.id}`,
-             entityId: t.id,
-             type: 'task',
-             title: t.title,
-             workspaceId,
-             sourceKind: 'tool',
-             url: await resolveSourceUrl(workspaceId, 'task', t.id, project.id)
-           })
-        }
-
-        return {
-          success: true,
-          data: {
-            project,
-            metrics: {
-              totalTasks: allTasks.length,
-              completedTasks: doneTasks.length,
-              overdueTasks: overdueTasks.length,
-              blockedTasks: blockedTasks.length,
-              completionPercentage: allTasks.length > 0 ? Math.round((doneTasks.length / allTasks.length) * 100) : 0
-            },
-            milestones: milestones.data || [],
-            budget: budget.data || null,
-            indicators: [
-              ...(overdueTasks.length > 0 ? [`${overdueTasks.length} tasks are overdue.`] : []),
-              ...(blockedTasks.length > 0 ? [`${blockedTasks.length} tasks are blocked.`] : []),
-            ]
-          },
-          sources
-        }
+        const { calculateProjectHealth } = await import('./health');
+        const result = await calculateProjectHealth(args.projectId, workspaceId);
+        return { success: true, data: result.health, sources: result.sources };
       }
     }),
 
@@ -459,6 +481,29 @@ export function getAiTools(workspaceId: string, userId?: string) {
     }),
 
     // --- ACTION TOOLS (Proposal Pattern) ---
+    
+    generate_workflow_plan: tool({
+      description: 'Propose a structured multi-step workflow plan. Do NOT execute mutations. Use this to represent dependency chains (e.g. create_project -> create_task -> assign_task). Maximum 5 steps. LLM cannot dictate risk.',
+      parameters: z.object({
+        title: z.string(),
+        description: z.string(),
+        steps: z.array(z.object({
+          stepId: z.string(),
+          tool: z.string(),
+          args: z.record(z.any()),
+          dependsOn: z.array(z.string()).optional(),
+          expectedState: z.record(z.any()).optional(),
+        }))
+      }),
+      // @ts-ignore
+      execute: async (args) => {
+        return { 
+          status: 'workflow_proposal_ready',
+          message: 'Workflow plan proposed to user for confirmation.',
+          proposed_workflow: args 
+        }
+      }
+    }),
     
     create_task: tool({
       description: 'Propose creating a new task. Wait for the user to confirm before execution.',

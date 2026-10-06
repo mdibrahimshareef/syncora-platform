@@ -7,6 +7,24 @@ export type AITelemetry = {
   toolCallsCount: number;
   errorCategory?: string;
   success: boolean;
+  workflowId?: string;
+  planStepCount?: number;
+  workflowStatus?: string;
+  riskLevel?: string;
+  approvalRequired?: boolean;
+  approvalGranted?: boolean;
+  executionDurationMs?: number;
+  verificationFailures?: number;
+  completedStepCount?: number;
+  failedStepCount?: number;
+  cancelledStepCount?: number;
+  retryCount?: number;
+  recoveryCount?: number;
+  timeToApprovalMs?: number;
+  timePerStepMs?: number;
+  cancellationCount?: number;
+  resumeCount?: number;
+  realtimeReconnectCount?: number;
 };
 
 export function logAITelemetry(telemetry: AITelemetry) {

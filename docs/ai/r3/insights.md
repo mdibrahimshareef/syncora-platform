@@ -1,0 +1,2 @@
+# Insights
+Insights are deterministic (e.g. project health, overdue tasks, unassigned tasks). They originate from database facts, not LLM hallucinations. Structured via get_workspace_insights and get_project_health.
