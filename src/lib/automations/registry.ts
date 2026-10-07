@@ -219,7 +219,8 @@ export const ActionTypeSchema = z.enum([
   'task.add_comment',
   'notify.user',
   'request.update_status',
-  'webhook.send'
+  'webhook.send',
+  'ai.invoke_job'
 ]);
 
 export type ActionType = z.infer<typeof ActionTypeSchema>;
@@ -293,5 +294,12 @@ export const ActionDefinitions: Record<ActionType, {
     description: 'Trigger an external webhook.',
     icon: 'Webhook',
     requiredConfigFields: ['endpointId'],
+  },
+  'ai.invoke_job': {
+    id: 'ai.invoke_job',
+    label: 'Invoke AI Job',
+    description: 'Trigger an asynchronous governed AI job.',
+    icon: 'Sparkles',
+    requiredConfigFields: ['trigger_type', 'payload'],
   }
 };

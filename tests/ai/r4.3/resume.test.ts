@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resumeWorkflowPlan } from '../../../src/lib/ai/workflow-executor';
 
-const mockSupabase = {
-  from: vi.fn().mockReturnThis(),
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  in: vi.fn().mockReturnThis(),
-  update: vi.fn().mockReturnThis(),
-  single: vi.fn(),
-};
+import { createMockSupabase, createChainable } from '../mock-supabase';
 
 vi.mock('../../../src/lib/ai/workflow-events', () => ({
   publishWorkflowEvent: vi.fn(),
@@ -21,26 +14,36 @@ describe('Workflow Resume (R4.3)', () => {
   });
 
   it('A. Failed workflow resumes correctly', async () => {
-    mockSupabase.single
-      .mockResolvedValueOnce({ data: { status: 'FAILED', plan: { steps: [] } }, error: null }) // Initial fetch
-      .mockResolvedValueOnce({ data: { status: 'RECOVERING' }, error: null }); // Concurrency lock
+    const chain = createChainable({ status: 'FAILED', plan: { steps: [] } });
+    chain.update = vi.fn(() => createChainable({ status: 'RECOVERING' }));
+    
+    const mockSupabase = createMockSupabase({
+      ai_workflows: () => chain
+    });
 
     // We expect it to proceed to execution without throwing
-    const promise = resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1');
+    const promise = resumeWorkflowPlan(mockSupabase as unknown as import("@supabase/supabase-js").SupabaseClient, 'wf-1', 'ws-1', 'user-1');
     await expect(promise).resolves.not.toThrow();
   });
 
   it('G. Concurrent resume produces only one executor', async () => {
-    mockSupabase.single
-      .mockResolvedValueOnce({ data: { status: 'FAILED', plan: { steps: [] } }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { message: 'Row not found' } }); // Concurrency lock fails because another process changed status
+    const chain = createChainable({ status: 'FAILED', plan: { steps: [] } });
+    chain.update = vi.fn(() => createChainable(null, { message: 'Row not found' } as Error));
 
-    await expect(resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1')).rejects.toThrow('Workflow is currently executing or state changed. Cannot resume.');
+    const mockSupabase = createMockSupabase({
+      ai_workflows: () => chain
+    });
+
+    await expect(resumeWorkflowPlan(mockSupabase as unknown as import("@supabase/supabase-js").SupabaseClient, 'wf-1', 'ws-1', 'user-1')).rejects.toThrow('Workflow is currently executing or state changed. Cannot resume.');
   });
 
   it('M. Completed workflow cannot be resumed', async () => {
-    mockSupabase.single.mockResolvedValueOnce({ data: { status: 'COMPLETED' }, error: null });
+    const chain = createChainable({ status: 'COMPLETED' });
 
-    await expect(resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1')).rejects.toThrow('Cannot resume workflow in COMPLETED state');
+    const mockSupabase = createMockSupabase({
+      ai_workflows: () => chain
+    });
+
+    await expect(resumeWorkflowPlan(mockSupabase as unknown as import("@supabase/supabase-js").SupabaseClient, 'wf-1', 'ws-1', 'user-1')).rejects.toThrow('Cannot resume workflow in COMPLETED state');
   });
 });

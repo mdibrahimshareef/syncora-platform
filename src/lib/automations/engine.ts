@@ -69,7 +69,7 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
       let actionErrorMsg = '';
 
       try {
-        await executeAction(action, event, supabase, depth);
+        await executeAction(action, event, supabase, depth, automation);
         actionSuccess = true;
       } catch (err: any) {
         hasFailure = true;
@@ -131,7 +131,7 @@ function evaluateConditions(conditions: AutomationConditionGroup | undefined, ev
   return true; 
 }
 
-async function executeAction(action: AutomationActionConfig, event: SyncoraEvent, supabase: any, depth: number) {
+async function executeAction(action: AutomationActionConfig, event: SyncoraEvent, supabase: any, depth: number, automation: AutomationRecord) {
   const { type, config } = action;
 
   switch (type) {
@@ -265,6 +265,26 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
       if (finalRecord?.status !== 'delivered') {
         throw new Error(finalRecord?.error || 'Webhook delivery failed');
       }
+      break;
+    }
+    case 'ai.invoke_job': {
+      if (!config.trigger_type) throw new Error('Missing trigger_type for AI job');
+      
+      const { error: insertError } = await supabase
+        .from('ai_jobs')
+        .insert({
+          workspace_id: event.workspaceId,
+          user_id: event.actorId === 'system' ? automation.created_by : (event.actorId || automation.created_by), // Fallback to automation creator
+          job_type: 'EVENT_TRIGGERED',
+          trigger_type: config.trigger_type,
+          payload: config.payload || event.payload || {},
+          priority: config.priority || 0
+        });
+        
+      if (insertError) {
+        throw new Error(`Failed to invoke AI job: ${insertError.message}`);
+      }
+      
       break;
     }
     default:

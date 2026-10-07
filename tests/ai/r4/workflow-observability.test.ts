@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect} from 'vitest';
 import { isValidWorkflowTransition, isValidStepTransition } from '../../../src/lib/ai/workflow-state';
 
 describe('Workflow State Machine (R4.2)', () => {

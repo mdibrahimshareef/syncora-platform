@@ -43,7 +43,7 @@ export function isValidWorkflowTransition(current: WorkflowState, next: Workflow
     case 'AWAITING_APPROVAL':
       return ['EXECUTING', 'CANCELLED'].includes(next);
     case 'EXECUTING':
-      return ['VERIFYING', 'PAUSED', 'FAILED', 'CANCELLATION_REQUESTED', 'CANCELLED'].includes(next);
+      return ['VERIFYING', 'PAUSED', 'FAILED', 'CANCELLATION_REQUESTED', 'CANCELLED', 'PARTIALLY_COMPLETED', 'COMPLETED'].includes(next);
     case 'VERIFYING':
       return ['EXECUTING', 'COMPLETED', 'VERIFICATION_FAILED', 'PARTIALLY_COMPLETED'].includes(next);
     case 'FAILED':

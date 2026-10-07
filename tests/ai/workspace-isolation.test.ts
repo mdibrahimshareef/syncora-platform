@@ -3,7 +3,7 @@ import { getAiTools } from '../../src/lib/ai/tools'
 
 // Mock Supabase
 // Mock Supabase
-const mockChain: any = {}
+const mockChain = {} as import('./mock-supabase').ChainableMock
 mockChain.eq = vi.fn().mockReturnValue(mockChain)
 mockChain.ilike = vi.fn().mockReturnValue(mockChain)
 mockChain.lt = vi.fn().mockReturnValue(mockChain)
@@ -28,7 +28,7 @@ describe('Workspace Isolation', () => {
     
     // Execute a read-only tool
     mockChain.limit.mockResolvedValue({ data: [{ id: 'task-1' }], error: null })
-    await tools.search_tasks.execute({ limit: 10 }, {} as any)
+    await tools.search_tasks.execute({ limit: 10 }, {} as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)
     
     // Verify that the query explicitly filtered by workspaceA
     expect(mockChain.eq).toHaveBeenCalledWith('workspace_id', workspaceA)

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { classifyIntent } from '../../src/lib/ai/intent'
 import { getTemporalContext } from '../../src/lib/ai/time'
 import { getAiTools } from '../../src/lib/ai/tools'

@@ -1,14 +1,18 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { retryWorkflowStep } from '../../../src/lib/ai/workflow-executor';
 
-const mockSupabase = {
-  from: vi.fn().mockReturnThis(),
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  in: vi.fn().mockReturnThis(),
-  update: vi.fn().mockReturnThis(),
-  single: vi.fn(),
-};
+import { createMockSupabase, createChainable } from '../mock-supabase';
+
+vi.stubGlobal('crypto', {
+  randomUUID: () => 'test-executor'
+});
+
+const mockSupabase = createMockSupabase({
+  ai_workflows: () => {
+    return createChainable({ status: 'FAILED', plan: { steps: [{ stepId: 'step-1' }] }, executor_id: 'test-executor' });
+  }
+});
 
 vi.mock('../../../src/lib/ai/workflow-events', () => ({
   publishWorkflowEvent: vi.fn(),
@@ -21,21 +25,31 @@ describe('Workflow Retry (R4.3)', () => {
   });
 
   it('C. Failed step is retried exactly once', async () => {
-    mockSupabase.single
-      .mockResolvedValueOnce({ data: { status: 'FAILED', plan: { steps: [{ stepId: 'step-1' }] } }, error: null }) // Workflow check
-      .mockResolvedValueOnce({ data: { status: 'RECOVERING' }, error: null }) // Lock
-      .mockResolvedValueOnce({ data: { status: 'failed' }, error: null }); // Previous action log check
+    mockSupabase.from.mockImplementation((table: string) => {
+       if (table === 'ai_workflows') {
+          return createChainable({ status: 'FAILED', plan: { steps: [{ stepId: 'step-1' }] }, executor_id: 'test-executor' });
+       }
+       if (table === 'ai_action_logs') {
+          return createChainable({ status: 'failed', payload: { action: 'foo' }, action_type: 'create_task' });
+       }
+       return createMockSupabase().from(table);
+    });
 
-    const promise = retryWorkflowStep(mockSupabase as any, 'wf-1', 'step-1', 'ws-1', 'user-1');
+    const promise = retryWorkflowStep(mockSupabase  as SupabaseClient, 'wf-1', 'step-1', 'ws-1', 'user-1');
     await expect(promise).resolves.not.toThrow();
   });
 
   it('D. Duplicate retry cannot duplicate mutation', async () => {
-    mockSupabase.single
-      .mockResolvedValueOnce({ data: { status: 'FAILED', plan: { steps: [{ stepId: 'step-1' }] } }, error: null })
-      .mockResolvedValueOnce({ data: { status: 'RECOVERING' }, error: null })
-      .mockResolvedValueOnce({ data: { status: 'completed' }, error: null }); // Already completed
+    mockSupabase.from.mockImplementation((table: string) => {
+       if (table === 'ai_workflows') {
+          return createChainable({ status: 'FAILED', plan: { steps: [{ stepId: 'step-1' }] }, executor_id: 'test-executor' });
+       }
+       if (table === 'ai_action_logs') {
+          return createChainable({ status: 'completed' });
+       }
+       return createMockSupabase().from(table);
+    });
 
-    await expect(retryWorkflowStep(mockSupabase as any, 'wf-1', 'step-1', 'ws-1', 'user-1')).rejects.toThrow('Step is already completed and cannot be retried');
+    await expect(retryWorkflowStep(mockSupabase  as SupabaseClient, 'wf-1', 'step-1', 'ws-1', 'user-1')).rejects.toThrow('Step is already completed and cannot be retried');
   });
 });

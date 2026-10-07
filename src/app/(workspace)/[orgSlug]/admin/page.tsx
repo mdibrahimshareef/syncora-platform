@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Settings, ShieldAlert, Key, Users, Building2, Plus } from "lucide-react"
+import { Settings, ShieldAlert, Key, Users, Building2, Plus, Sparkles } from "lucide-react"
 import { useOrganizationStore } from "@/stores/organizationStore"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -79,6 +79,9 @@ export default function AdminPage() {
               Manage settings, teams, and access control for {currentOrg.name}.
             </p>
           </div>
+          <Button onClick={() => router.push(`/${orgSlug}/admin/ai`)} variant="outline">
+            <Sparkles className="w-4 h-4 mr-2" /> AI Governance
+          </Button>
         </div>
 
         <Tabs defaultValue="general" className="space-y-4">

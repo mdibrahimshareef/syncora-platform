@@ -1,16 +1,22 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { describe, it, expect, vi } from 'vitest';
 import { executeWorkflowPlan } from '../../../src/lib/ai/workflow-executor';
 import * as actionExecutor from '../../../src/lib/ai/action-executor';
+import { createMockSupabase, createChainable } from '../mock-supabase';
+
+vi.stubGlobal('crypto', {
+  randomUUID: () => 'test-executor'
+});
 
 // Mock Supabase
-const mockSupabase = {
-  from: vi.fn().mockReturnThis(),
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  single: vi.fn().mockResolvedValue({ data: null }), // By default, no existing action
-  insert: vi.fn().mockResolvedValue({}),
-  update: vi.fn().mockReturnThis()
-};
+const mockSupabase = createMockSupabase({
+  ai_workflows: () => {
+    const chain = createChainable({ status: 'PENDING', executor_id: 'test-executor' });
+    // When executing lease claim
+    chain.update = vi.fn(() => createChainable({ status: 'EXECUTING', executor_id: 'test-executor' }));
+    return chain;
+  }
+});
 
 vi.mock('../../../src/lib/ai/action-executor', () => ({
   executeAction: vi.fn()
@@ -25,7 +31,7 @@ describe('Workflow Executor (R4.1)', () => {
       ]
     };
     
-    const result = await executeWorkflowPlan(mockSupabase as any, 'ws', 'user', plan);
+    const result = await executeWorkflowPlan(mockSupabase  as SupabaseClient, 'ws', 'user', plan );
     expect(result.status).toBe('PARTIALLY_COMPLETED');
     expect(result.error).toContain('missing was not completed');
   });
@@ -41,7 +47,7 @@ describe('Workflow Executor (R4.1)', () => {
       ]
     };
     
-    const result = await executeWorkflowPlan(mockSupabase as any, 'ws', 'user', plan);
+    const result = await executeWorkflowPlan(mockSupabase  as SupabaseClient, 'ws', 'user', plan );
     expect(result.status).toBe('COMPLETED');
     expect(result.completedSteps).toEqual(['s1', 's2']);
   });
@@ -59,7 +65,7 @@ describe('Workflow Executor (R4.1)', () => {
       ]
     };
     
-    const result = await executeWorkflowPlan(mockSupabase as any, 'ws', 'user', plan);
+    const result = await executeWorkflowPlan(mockSupabase  as SupabaseClient, 'ws', 'user', plan );
     expect(result.status).toBe('PARTIALLY_COMPLETED');
     expect(result.failedStep).toBe('s1');
     expect(result.completedSteps).toEqual([]);

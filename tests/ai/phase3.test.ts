@@ -1,3 +1,4 @@
+import { createMockSupabase, createChainable } from './mock-supabase'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/ai/action/execute/route'
 import * as auth from '@/lib/ai/auth'
@@ -12,15 +13,15 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn()
 }))
 
-function createMockRequest(body: any) {
+function createMockRequest(body: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
   return {
     json: async () => body
   } as Request
 }
 
 describe('Phase 3 - Secure Action Execution', () => {
-  let mockSupabase: any
-  let mockVerifyWorkspaceAccess: any
+  let mockSupabase: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  let mockVerifyWorkspaceAccess: any // eslint-disable-line @typescript-eslint/no-explicit-any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -31,45 +32,16 @@ describe('Phase 3 - Secure Action Execution', () => {
       workspace: { id: 'ws-1' }
     })
 
-    const createChainable = (data: any, error: any = null) => {
-      const chain = {
-        select: vi.fn(() => chain),
-        eq: vi.fn(() => chain),
-        insert: vi.fn(() => chain),
-        update: vi.fn(() => chain),
-        order: vi.fn(() => chain),
-        limit: vi.fn(() => chain),
-        is: vi.fn(() => chain),
-        then: vi.fn((resolve) => resolve({ data: [data] })),
 
-        single: vi.fn().mockResolvedValue({ data, error }),
-        catch: vi.fn()
-      }
-      return chain
-    }
+    mockSupabase = createMockSupabase({
+      'ai_action_logs': () => createChainable(null), // default: no existing log
+      'projects': () => createChainable({ id: 'proj-1' }),
+      'tasks': () => createChainable({ id: 'task-1', status: 'Todo', assignee_id: 'user-1' }),
+      'workspace_members': () => createChainable({ user_id: 'user-2' }), // assignee exists
+      'activities': () => createChainable(null)
+    });
 
-    mockSupabase = {
-      from: vi.fn((table) => {
-        if (table === 'ai_action_logs') {
-          return createChainable(null) // default: no existing log
-        }
-        if (table === 'projects') {
-          return createChainable({ id: 'proj-1' })
-        }
-        if (table === 'tasks') {
-          return createChainable({ id: 'task-1', status: 'Todo', assignee_id: 'user-1' })
-        }
-        if (table === 'workspace_members') {
-          return createChainable({ user_id: 'user-2' }) // assignee exists
-        }
-        if (table === 'activities') {
-          return createChainable(null)
-        }
-        return createChainable(null)
-      })
-    }
-
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as any)
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)
   })
 
   it('R2-P3-A: Rejects unauthenticated/unauthorized execution', async () => {
@@ -112,7 +84,7 @@ describe('Phase 3 - Secure Action Execution', () => {
     const res = await POST(req)
     const json = await res.json()
     
-    expect(json.status).toBe('completed')
+        expect(json.status).toBe('completed')
     expect(json.data.id).toBe('task-1')
     
     // Verify it checked the project

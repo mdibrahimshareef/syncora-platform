@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { calculateProjectHealth } from '../../../src/lib/ai/health'
 
 vi.mock('@/lib/supabase/server', () => ({

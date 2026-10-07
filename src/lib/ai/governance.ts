@@ -121,3 +121,19 @@ export async function recordAIUsage(
     p_cost_inc: metrics.estimatedCost || 0
   });
 }
+
+export async function checkWorkspaceAdmin(supabase: SupabaseClient, workspaceId: string): Promise<boolean> {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return false;
+
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error || !data) return false;
+  return data.role === 'admin' || data.role === 'owner';
+}
+

@@ -1,3 +1,4 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { describe, it, expect, vi } from 'vitest';
 import { updateWorkflowState, publishWorkflowEvent } from '../../../src/lib/ai/workflow-events';
 
@@ -10,7 +11,7 @@ const mockSupabase = {
 
 describe('Workflow Realtime Security (R4.2)', () => {
   it('enforces workspace isolation when updating workflow state', async () => {
-    await updateWorkflowState(mockSupabase as any, 'wf-1', 'ws-locked', 'user-1', 'EXECUTING');
+    await updateWorkflowState(mockSupabase as unknown as SupabaseClient, 'wf-1', 'ws-locked', 'user-1', 'EXECUTING');
     
     // The eq('workspace_id', workspaceId) MUST be called to prevent cross-workspace tampering
     expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'wf-1');
@@ -18,7 +19,7 @@ describe('Workflow Realtime Security (R4.2)', () => {
   });
 
   it('enforces workspace isolation when publishing events', async () => {
-    await publishWorkflowEvent(mockSupabase as any, {
+    await publishWorkflowEvent(mockSupabase as unknown as SupabaseClient, {
       workflowId: 'wf-1',
       workspaceId: 'ws-locked',
       userId: 'user-1',

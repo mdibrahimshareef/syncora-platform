@@ -1,3 +1,4 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resumeWorkflowPlan, cancelWorkflowPlan } from '../../../src/lib/ai/workflow-executor';
 
@@ -27,7 +28,7 @@ describe('Workflow Recovery & Cancellation (R4.2)', () => {
       error: null
     });
 
-    await expect(resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1'))
+    await expect(resumeWorkflowPlan(mockSupabase as unknown as SupabaseClient, 'wf-1', 'ws-1', 'user-1'))
       .rejects.toThrow('Cannot resume workflow in COMPLETED state');
   });
 
@@ -37,7 +38,7 @@ describe('Workflow Recovery & Cancellation (R4.2)', () => {
       error: null
     });
 
-    await expect(resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1'))
+    await expect(resumeWorkflowPlan(mockSupabase as unknown as SupabaseClient, 'wf-1', 'ws-1', 'user-1'))
       .rejects.toThrow('Cannot resume workflow in CANCELLED state');
   });
 
@@ -47,7 +48,7 @@ describe('Workflow Recovery & Cancellation (R4.2)', () => {
       error: null
     });
 
-    await cancelWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1');
+    await cancelWorkflowPlan(mockSupabase as unknown as SupabaseClient, 'wf-1', 'ws-1', 'user-1');
     // If it throws, the test fails. It should just return.
     expect(mockSupabase.from).toHaveBeenCalledWith('ai_workflows');
   });
@@ -58,7 +59,7 @@ describe('Workflow Recovery & Cancellation (R4.2)', () => {
       error: { message: 'Not found' }
     });
 
-    await expect(resumeWorkflowPlan(mockSupabase as any, 'wf-1', 'ws-1', 'user-1'))
+    await expect(resumeWorkflowPlan(mockSupabase as unknown as SupabaseClient, 'wf-1', 'ws-1', 'user-1'))
       .rejects.toThrow('Workflow not found or access denied');
   });
 });

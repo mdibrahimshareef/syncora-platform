@@ -28,9 +28,9 @@ describe('AI Tools Registry', () => {
 
   it('action tools return a proposal state rather than executing', async () => {
     // Action tools must NOT execute directly to respect RLS and Confirmation flow
-    const result = (await (tools.create_task as any).execute({
+    const result = (await (tools.create_task as any /* eslint-disable-line @typescript-eslint/no-explicit-any */).execute({
       title: 'Test Task'
-    }, {} as any)) as any
+    }, {} as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)) as any /* eslint-disable-line @typescript-eslint/no-explicit-any */
     
     expect(result).toEqual({
       status: 'proposal_ready',
@@ -40,7 +40,7 @@ describe('AI Tools Registry', () => {
   })
 
   it('enforces schema parameters for search_tasks', () => {
-    const searchTaskSchema = (tools.search_tasks as any).parameters
+    const searchTaskSchema = (tools.search_tasks as any /* eslint-disable-line @typescript-eslint/no-explicit-any */).parameters
     
     const validParams = { status: 'Todo', limit: 5 }
     const result = searchTaskSchema.safeParse(validParams)

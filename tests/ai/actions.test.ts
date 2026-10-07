@@ -10,7 +10,8 @@ describe('Action Confirmation Boundary', () => {
     const tools = getAiTools('workspace-123')
     
     // User says "Create a task called Fix login bug"
-    const result = (await (tools.create_task as any).execute({ title: 'Fix login bug' }, {} as any)) as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = (await (tools.create_task as any).execute({ title: 'Fix login bug' }, { toolCallId: '', messages: [], context: {} } as any)) as any;
     
     // The action should NOT mutate anything, it should return a proposal
     expect(result.status).toBe('proposal_ready')
