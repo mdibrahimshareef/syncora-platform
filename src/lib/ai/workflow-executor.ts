@@ -3,6 +3,7 @@ import { WorkflowPlan, WorkflowState } from './workflow-schema';
 import { calculatePlanRisk } from './risk';
 import { executeAction, ActionExecutionResult } from './action-executor';
 import { publishWorkflowEvent, updateWorkflowState } from './workflow-events';
+import { validateAIRequest, recordAIUsage } from './governance';
 
 export type WorkflowExecutionResult = {
   status: WorkflowState;
@@ -18,8 +19,10 @@ export async function executeWorkflowPlan(
   plan: WorkflowPlan
 ): Promise<WorkflowExecutionResult> {
   const planId = plan.workflowId || crypto.randomUUID();
+  const executorId = crypto.randomUUID();
   
   try {
+    const policy = await validateAIRequest(supabase, workspaceId, userId, 'workflow_execute');
     const risk = calculatePlanRisk(plan);
     
     // Check if workflow exists, otherwise create it
@@ -37,7 +40,23 @@ export async function executeWorkflowPlan(
       });
     }
 
-    await updateWorkflowState(supabase, planId, workspaceId, userId, 'EXECUTING');
+    // Claim lease
+    const { data: leaseData, error: leaseError } = await supabase
+      .from('ai_workflows')
+      .update({ 
+         status: 'EXECUTING', 
+         executor_id: executorId,
+         lease_expires_at: new Date(Date.now() + 2 * 60000).toISOString(),
+         timeout_at: new Date(Date.now() + 15 * 60000).toISOString() // 15 min hard timeout
+      })
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (leaseError || !leaseData) {
+       throw new Error('Failed to acquire execution lease. Another process may be running.');
+    }
+
     await publishWorkflowEvent(supabase, {
       workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_STARTED', status: 'EXECUTING'
     });
@@ -45,8 +64,13 @@ export async function executeWorkflowPlan(
     const completedSteps = new Set<string>();
 
     for (const step of plan.steps) {
-      // 1.5 Check if workflow was cancelled mid-flight
-      const { data: currentWorkflow } = await supabase.from('ai_workflows').select('status').eq('id', planId).single();
+      // 1.5 Check if workflow was cancelled mid-flight, or if lease/timeout expired
+      const { data: currentWorkflow } = await supabase.from('ai_workflows').select('status, timeout_at, executor_id').eq('id', planId).single();
+      
+      if (currentWorkflow?.executor_id !== executorId) {
+        throw new Error('Execution lease was lost or hijacked.');
+      }
+
       if (currentWorkflow?.status === 'CANCELLED' || currentWorkflow?.status === 'CANCELLATION_REQUESTED') {
          await updateWorkflowState(supabase, planId, workspaceId, userId, 'CANCELLED');
          await publishWorkflowEvent(supabase, {
@@ -54,6 +78,18 @@ export async function executeWorkflowPlan(
          });
          return { status: 'CANCELLED', completedSteps: Array.from(completedSteps), error: 'Workflow was cancelled.' };
       }
+
+      if (currentWorkflow?.timeout_at && new Date() > new Date(currentWorkflow.timeout_at)) {
+         const finalStatus = 'PARTIALLY_COMPLETED';
+         await updateWorkflowState(supabase, planId, workspaceId, userId, finalStatus);
+         await publishWorkflowEvent(supabase, {
+           workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PAUSED', status: finalStatus, metadata: { error: 'Workflow hard timeout exceeded.' }
+         });
+         return { status: finalStatus, completedSteps: Array.from(completedSteps), error: 'Workflow hard timeout exceeded.' };
+      }
+
+      // Bump lease for next step
+      await supabase.from('ai_workflows').update({ lease_expires_at: new Date(Date.now() + 2 * 60000).toISOString() }).eq('id', planId);
 
       // 2. Validate dependencies
       if (step.dependsOn) {
@@ -142,16 +178,21 @@ export async function executeWorkflowPlan(
     }
 
     const finalStatus = 'COMPLETED';
-    await updateWorkflowState(supabase, planId, workspaceId, userId, finalStatus);
+    await supabase.from('ai_workflows').update({ status: finalStatus, completed_at: new Date().toISOString(), executor_id: null }).eq('id', planId);
     await publishWorkflowEvent(supabase, {
       workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_COMPLETED', status: finalStatus
     });
 
+    await recordAIUsage(supabase, workspaceId, userId, { requestType: 'workflow_execute' });
+
     return { status: finalStatus, completedSteps: Array.from(completedSteps) };
 
   } catch (error: any) {
+    if (error.name === 'AIGovernanceError') {
+      throw error;
+    }
     const errorMsg = error.message || 'Unexpected workflow execution failure';
-    await updateWorkflowState(supabase, planId, workspaceId, userId, 'FAILED');
+    await supabase.from('ai_workflows').update({ status: 'FAILED', executor_id: null }).eq('id', planId);
     await publishWorkflowEvent(supabase, {
       workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PAUSED', status: 'FAILED', metadata: { error: errorMsg }
     });
@@ -172,15 +213,22 @@ export async function resumeWorkflowPlan(
   }
 
   if (['COMPLETED', 'CANCELLED', 'EXECUTING', 'VERIFYING'].includes(workflow.status)) {
-    throw new Error(`Cannot resume workflow in ${workflow.status} state`);
+    // If it says EXECUTING, check lease. If lease is expired, we can actually resume!
+    if (workflow.status === 'EXECUTING' && workflow.lease_expires_at && new Date() > new Date(workflow.lease_expires_at)) {
+      // Lease expired, allow resume to take over
+    } else {
+      throw new Error(`Cannot resume workflow in ${workflow.status} state`);
+    }
   }
+
+  await validateAIRequest(supabase, workspaceId, userId, 'workflow_resume');
 
   // Concurrency lock (Atomic transition)
   const { data: updatedWorkflow, error: updateError } = await supabase
     .from('ai_workflows')
     .update({ status: 'RECOVERING' })
     .eq('id', workflowId)
-    .in('status', ['FAILED', 'VERIFICATION_FAILED', 'PARTIALLY_COMPLETED', 'PAUSED'])
+    .in('status', ['FAILED', 'VERIFICATION_FAILED', 'PARTIALLY_COMPLETED', 'PAUSED', 'EXECUTING'])
     .select()
     .single();
 
@@ -248,6 +296,8 @@ export async function retryWorkflowStep(
   if (['COMPLETED', 'CANCELLED'].includes(workflow.status)) {
     throw new Error(`Cannot retry step in ${workflow.status} state`);
   }
+
+  await validateAIRequest(supabase, workspaceId, userId, 'workflow_retry');
 
   // Concurrency lock (Atomic transition)
   const { data: updatedWorkflow, error: updateError } = await supabase

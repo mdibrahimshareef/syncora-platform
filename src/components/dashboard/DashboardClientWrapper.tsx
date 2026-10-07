@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useDataStore } from "@/stores/data-store"
 import { RecentActivity } from "@/components/dashboard/RecentActivity"
+import { AIWorkflowHistory } from "@/components/ai/AIWorkflowHistory"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -355,6 +356,10 @@ export function DashboardClientWrapper() {
                 <p className="text-sm text-muted-foreground py-2">No integrations connected.</p>
               )}
             </div>
+          </div>
+
+          <div className="pt-6">
+            <AIWorkflowHistory />
           </div>
         </div>
 

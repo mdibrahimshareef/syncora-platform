@@ -10,6 +10,7 @@ import { getTemporalContext } from '@/lib/ai/time'
 import { classifyIntent } from '@/lib/ai/intent'
 import { deduplicateSources, AISource } from './sources'
 import { saveConversation } from './persistence'
+import { validateAIRequest, recordAIUsage } from './governance'
 
 export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '', conversationId?: string) {
   const startTime = Date.now()
@@ -31,6 +32,15 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
 
   // Pre-generate conversationId so it can be sent via headers if needed
   const activeConversationId = conversationId || (userId ? crypto.randomUUID() : undefined)
+
+  // 1.5 Governance check
+  const supabase = (await import('@/lib/supabase/server')).createClient();
+  try {
+    await validateAIRequest(await supabase, workspaceId, userId as string, 'chat');
+  } catch (governanceError: any) {
+    logAITelemetry({ requestId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: governanceError.code || 'GOVERNANCE_ERROR' });
+    throw governanceError;
+  }
 
   // 2. Map messages to CoreMessages
   const coreMessages = await convertToModelMessages(messages)
@@ -139,6 +149,22 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
           } catch (err) {
             console.error('Failed to persist conversation', err)
           }
+        }
+
+        try {
+          const sbase = await (await import('@/lib/supabase/server')).createClient();
+          await recordAIUsage(sbase, workspaceId, userId as string, {
+            requestType: 'chat',
+            // @ts-ignore
+            inputTokens: event.usage?.promptTokens,
+            // @ts-ignore
+            outputTokens: event.usage?.completionTokens,
+            // Rough estimate mapping (e.g. $2.50 per 1M input, $10 per 1M output for gpt-4o)
+            // @ts-ignore
+            estimatedCost: ((event.usage?.promptTokens || 0) * 0.0000025) + ((event.usage?.completionTokens || 0) * 0.00001)
+          });
+        } catch (err) {
+          console.error('Failed to record AI usage', err);
         }
       }
     })

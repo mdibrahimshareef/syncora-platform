@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { createTaskSchema, updateTaskSchema, assignTaskSchema } from '@/lib/ai/tools'
 import { createTask, updateTask } from '@/lib/api/tasks'
+import { validateAIRequest, recordAIUsage } from './governance'
 
 export type ActionExecutionResult = 
   | { status: 'completed', data: any }
@@ -17,6 +18,26 @@ export async function executeAction(
   toolName: string,
   args: any
 ): Promise<ActionExecutionResult> {
+  
+  try {
+    const policy = await validateAIRequest(supabase, workspaceId, userId, 'action');
+
+    // Policy constraints based on tool
+    if (toolName === 'create_task' && !policy.allow_ai_task_creation) {
+      return { status: 'denied', error: 'AI task creation is disabled by workspace policy.' };
+    }
+    if (toolName === 'update_task' && !policy.allow_ai_task_updates) {
+      return { status: 'denied', error: 'AI task updates are disabled by workspace policy.' };
+    }
+    if (toolName === 'assign_task' && !policy.allow_ai_task_assignment) {
+      return { status: 'denied', error: 'AI task assignment is disabled by workspace policy.' };
+    }
+  } catch (governanceError: any) {
+    if (governanceError.name === 'AIGovernanceError') {
+      return { status: 'denied', error: governanceError.message };
+    }
+    throw governanceError;
+  }
   
   if (toolName === 'create_task') {
     const parsedArgs = createTaskSchema.parse(args)
@@ -79,6 +100,7 @@ export async function executeAction(
       return { status: 'executed_but_not_verified', data, error: 'Database verification check failed after task creation.' }
     }
 
+    await recordAIUsage(supabase, workspaceId, userId, { requestType: 'action' });
     return { status: 'completed', data }
 
   } else if (toolName === 'update_task') {
@@ -133,6 +155,7 @@ export async function executeAction(
       return { status: 'executed_but_not_verified', data, error: 'Task status did not match expected state after update.' }
     }
 
+    await recordAIUsage(supabase, workspaceId, userId, { requestType: 'action' });
     return { status: 'completed', data }
 
   } else if (toolName === 'assign_task') {
@@ -175,6 +198,7 @@ export async function executeAction(
        return { status: 'executed_but_not_verified', data, error: 'Task assignee did not match expected state after update.' }
     }
 
+    await recordAIUsage(supabase, workspaceId, userId, { requestType: 'action' });
     return { status: 'completed', data }
 
   } else {
