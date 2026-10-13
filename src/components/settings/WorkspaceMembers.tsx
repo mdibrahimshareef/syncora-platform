@@ -42,11 +42,12 @@ export function WorkspaceMembers() {
   const [members, setMembers] = React.useState<any[]>([])
   const [invitations, setInvitations] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
+  const [isInitialLoading, setIsInitialLoading] = React.useState(true)
   const [isInviteDialogOpen, setIsInviteDialogOpen] = React.useState(false)
 
-  const loadData = React.useCallback(async () => {
+  const loadData = React.useCallback(async (silent = false) => {
     if (!currentWorkspace) return
-    setIsLoading(true)
+    if (!silent) setIsLoading(true)
     try {
       const [membersData, invitationsData] = await Promise.all([
         getWorkspaceMembers(supabase, currentWorkspace.id),
@@ -59,6 +60,7 @@ export function WorkspaceMembers() {
       toast.error("Failed to load members")
     } finally {
       setIsLoading(false)
+      setIsInitialLoading(false)
     }
   }, [currentWorkspace, supabase])
 
@@ -84,7 +86,7 @@ export function WorkspaceMembers() {
     try {
       await updateMemberRole(supabase, currentWorkspace.id, userId, newRole)
       toast.success("Role updated successfully")
-      loadData()
+      loadData(true)
     } catch (error) {
       console.error(error)
       toast.error("Failed to update role")
@@ -97,7 +99,7 @@ export function WorkspaceMembers() {
     try {
       await removeMember(supabase, currentWorkspace.id, userId)
       toast.success("Member removed successfully")
-      loadData()
+      loadData(true)
     } catch (error) {
       console.error(error)
       toast.error("Failed to remove member")
@@ -109,7 +111,7 @@ export function WorkspaceMembers() {
     try {
       await cancelWorkspaceInvitation(supabase, invitationId)
       toast.success("Invitation cancelled successfully")
-      loadData()
+      loadData(true)
     } catch (error) {
       console.error(error)
       toast.error("Failed to cancel invitation")
@@ -127,8 +129,17 @@ export function WorkspaceMembers() {
     }
   }
 
-  if (isLoading) {
-    return <div className="flex justify-center p-8 text-muted-foreground">Loading members...</div>
+  if (isInitialLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center p-8 text-muted-foreground">Loading members...</div>
+        <InviteMemberDialog
+          open={isInviteDialogOpen}
+          onOpenChange={setIsInviteDialogOpen}
+          onSuccess={() => loadData(true)}
+        />
+      </div>
+    )
   }
 
   return (
@@ -282,7 +293,7 @@ export function WorkspaceMembers() {
       <InviteMemberDialog
         open={isInviteDialogOpen}
         onOpenChange={setIsInviteDialogOpen}
-        onSuccess={loadData}
+        onSuccess={() => loadData(true)}
       />
     </div>
   )

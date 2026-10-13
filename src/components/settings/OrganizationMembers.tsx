@@ -40,11 +40,12 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
   const [members, setMembers] = React.useState<any[]>([])
   const [invitations, setInvitations] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
+  const [isInitialLoading, setIsInitialLoading] = React.useState(true)
   const [isInviteDialogOpen, setIsInviteDialogOpen] = React.useState(false)
 
-  const loadData = React.useCallback(async () => {
+  const loadData = React.useCallback(async (silent = false) => {
     if (!orgId) return
-    setIsLoading(true)
+    if (!silent) setIsLoading(true)
     try {
       const [membersData, invitationsData] = await Promise.all([
         getOrganizationMembers(supabase, orgId),
@@ -57,6 +58,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
       toast.error("Failed to load members")
     } finally {
       setIsLoading(false)
+      setIsInitialLoading(false)
     }
   }, [orgId, supabase])
 
@@ -68,7 +70,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await updateOrganizationMemberRole(supabase, orgId, userId, newRole)
       toast.success("Role updated successfully")
-      loadData()
+      loadData(true)
     } catch (error: any) {
       toast.error(error.message || "Failed to update role")
     }
@@ -80,7 +82,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await removeOrganizationMember(supabase, orgId, userId)
       toast.success("Member removed successfully")
-      loadData()
+      loadData(true)
     } catch (error: any) {
       toast.error(error.message || "Failed to remove member")
     }
@@ -90,7 +92,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await cancelOrganizationInvitation(supabase, inviteId)
       toast.success("Invitation canceled")
-      loadData()
+      loadData(true)
     } catch (error: any) {
       toast.error(error.message || "Failed to cancel invitation")
     }
@@ -112,8 +114,18 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
   const isAdminOrOwner = currentUserMember?.role === 'admin' || currentUserMember?.role === 'owner'
   const isOwner = currentUserMember?.role === 'owner'
 
-  if (isLoading) {
-    return <div className="py-8 text-center text-muted-foreground">Loading members...</div>
+  if (isInitialLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="py-8 text-center text-muted-foreground">Loading members...</div>
+        <InviteOrgMemberDialog 
+          orgId={orgId} 
+          open={isInviteDialogOpen} 
+          onOpenChange={setIsInviteDialogOpen} 
+          onSuccess={() => loadData(true)}
+        />
+      </div>
+    )
   }
 
   return (
@@ -256,7 +268,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
         orgId={orgId} 
         open={isInviteDialogOpen} 
         onOpenChange={setIsInviteDialogOpen}
-        onSuccess={loadData}
+        onSuccess={() => loadData(true)}
       />
     </div>
   )
