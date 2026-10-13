@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
 import { WorkflowPlanCard } from './WorkflowPlanCard'
 import { AIToolActivity } from './AIToolActivity'
@@ -55,7 +55,11 @@ export function AIAssistant() {
 
   const { messages, error, status, addToolResult, sendMessage, setMessages } = useChat({
     transport,
-    onError: (err) => toast.error(err.message)
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    onError: (err) => {
+      console.error('[AI Chat Error]', err)
+      toast.error(err.message || 'Failed to communicate with AI Assistant')
+    }
   })
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -328,14 +332,14 @@ export function AIAssistant() {
               </div>
             ))}
             
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+            {isLoading && (
               <div className="flex gap-3 text-sm">
                 <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-background border-border shadow-sm text-indigo-500">
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-muted text-muted-foreground w-fit">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Thinking...
+                  {messages[messages.length - 1]?.role === 'assistant' ? 'Analyzing and synthesizing answer...' : 'Thinking...'}
                 </div>
               </div>
             )}
@@ -345,8 +349,23 @@ export function AIAssistant() {
                 <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-destructive/20 text-destructive shadow-sm">
                   <AlertCircle className="h-4 w-4" />
                 </div>
-                <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-destructive/10 text-destructive border border-destructive/20 text-balance">
-                  {error.message || 'Syncora AI is temporarily unavailable. Your existing workspace data is unaffected.'}
+                <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-destructive/10 text-destructive border border-destructive/20 text-balance flex-1">
+                  <span>{error.message || 'Syncora AI is temporarily unavailable. Your existing workspace data is unaffected.'}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-destructive hover:bg-destructive/20 shrink-0"
+                    onClick={() => {
+                      const lastUser = [...messages].reverse().find(m => m.role === 'user')
+                      const lastText = (lastUser as any)?.parts?.find((p: any) => p.type === 'text')?.text || (lastUser as any)?.content
+                      if (lastText) {
+                        handleFormSubmit(undefined, lastText)
+                      }
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
                 </div>
               </div>
             )}

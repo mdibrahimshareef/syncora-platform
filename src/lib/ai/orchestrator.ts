@@ -42,8 +42,18 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     throw governanceError;
   }
 
-  // 2. Map messages to CoreMessages
-  const coreMessages = await convertToModelMessages(messages)
+  // 2. Map messages to CoreMessages safely (handling missing parts or incomplete tool calls)
+  const normalizedMessages = (messages || []).map((m: any) => {
+    if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
+      return m
+    }
+    const text = typeof m.content === 'string' ? m.content : ''
+    return {
+      ...m,
+      parts: [{ type: 'text', text }]
+    }
+  })
+  const coreMessages = await convertToModelMessages(normalizedMessages, { ignoreIncompleteToolCalls: true })
   const lastUserMessage = coreMessages.filter((m: any) => m.role === 'user').pop()?.content || ''
   
   // Extract string content if it's an array
@@ -105,15 +115,20 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     const abortController = new AbortController()
     const timeoutId = setTimeout(() => abortController.abort(), Number(process.env.AI_TIMEOUT_MS) || 45000)
 
+    const maxSteps = Math.max(Number(process.env.AI_MAX_STEPS || process.env.AI_MAX_TOOL_CALLS) || 5, 3)
+
     const result = streamText({
       model,
       system: systemPrompt,
       messages: boundedMessages,
       tools: getAiTools(workspaceId, userId) as any,
-      stopWhen: isStepCount(Number(process.env.AI_MAX_TOOL_CALLS) || 5), // R3.8 Max tool calls
+      stopWhen: isStepCount(maxSteps), // Ensure enough steps for tool calls + final synthesis
       // @ts-ignore
       maxTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS) || 2000,
       abortSignal: abortController.signal,
+      onError: (event) => {
+        console.error('[AI Stream Error]', event.error)
+      },
       onStepFinish: (event) => {
         for (const res of event.toolResults) {
           // @ts-ignore
