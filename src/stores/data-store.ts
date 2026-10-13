@@ -161,6 +161,34 @@ type DataState = {
 
 const generateId = () => `temp-${Math.random().toString(36).substring(2, 9)}`
 
+function syncProjectsWithTasks(projects: Project[], tasks: Task[]): Project[] {
+  if (!projects || projects.length === 0) return projects
+  const statsMap: Record<string, { total: number; completed: number }> = {}
+  for (const t of tasks) {
+    if (!t.projectId) continue
+    if (!statsMap[t.projectId]) {
+      statsMap[t.projectId] = { total: 0, completed: 0 }
+    }
+    statsMap[t.projectId].total++
+    if (t.status === 'Done') {
+      statsMap[t.projectId].completed++
+    }
+  }
+
+  return projects.map(p => {
+    const stats = statsMap[p.id]
+    if (!stats) {
+      return tasks.length > 0 ? { ...p, taskCount: 0, progress: 0 } : p
+    }
+    const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+    return {
+      ...p,
+      taskCount: stats.total,
+      progress
+    }
+  })
+}
+
 export const useDataStore = create<DataState>()((set, get) => ({
   tasks: [],
   workspaceTasks: [],
@@ -304,7 +332,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const projects = await projectApi.getProjects(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
-      set({ projects, isLoading: false })
+      const { workspaceTasks } = get()
+      const synced = workspaceTasks.length > 0 ? syncProjectsWithTasks(projects, workspaceTasks) : projects
+      set({ projects: synced, isLoading: false })
     } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ error: (err as Error).message, isLoading: false })
@@ -316,7 +346,16 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const tasks = await taskApi.getTasks(supabase, projectId)
-      set({ tasks, isLoading: false })
+      set((state) => {
+        const otherWorkspaceTasks = state.workspaceTasks.filter(t => t.projectId !== projectId)
+        const nextWorkspaceTasks = [...otherWorkspaceTasks, ...tasks]
+        return {
+          tasks,
+          workspaceTasks: nextWorkspaceTasks,
+          projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks),
+          isLoading: false
+        }
+      })
     } catch (err: unknown) {
       set({ error: (err as Error).message, isLoading: false })
     }
@@ -330,7 +369,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const workspaceTasks = await taskApi.getWorkspaceTasks(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
-      set({ workspaceTasks, isLoading: false })
+      set((state) => ({ 
+        workspaceTasks, 
+        projects: syncProjectsWithTasks(state.projects, workspaceTasks),
+        isLoading: false 
+      }))
     } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ error: (err as Error).message, isLoading: false })
@@ -723,11 +766,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
       updatedAt: new Date().toISOString(),
     }
 
+    const optimisticWorkspaceTasks = [...workspaceTasks, optimisticTask]
     // Optimistic update
-    set({ 
+    set((state) => ({ 
       tasks: [...tasks, optimisticTask],
-      workspaceTasks: [...workspaceTasks, optimisticTask]
-    })
+      workspaceTasks: optimisticWorkspaceTasks,
+      projects: syncProjectsWithTasks(state.projects, optimisticWorkspaceTasks)
+    }))
 
     try {
       const supabase = createClient()
@@ -742,10 +787,14 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
       // The new task is already mapped with backend property names (snake_case).
       // Optimistic replacement: Replace the temp task with the actual task from the backend.
-      set((state) => ({ 
-        tasks: state.tasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t),
-        workspaceTasks: state.workspaceTasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t)
-      }))
+      set((state) => {
+        const nextWorkspaceTasks = state.workspaceTasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t)
+        return { 
+          tasks: state.tasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t),
+          workspaceTasks: nextWorkspaceTasks,
+          projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+        }
+      })
 
       // Log activity
       const { activeWorkspaceId } = get()
@@ -755,26 +804,35 @@ export const useDataStore = create<DataState>()((set, get) => ({
       }
     } catch (err: unknown) {
       // Rollback
-      set((state) => ({ 
-        tasks: state.tasks.filter(t => t.id !== tempId),
-        workspaceTasks: state.workspaceTasks.filter(t => t.id !== tempId)
-      }))
+      set((state) => {
+        const revertedWorkspaceTasks = state.workspaceTasks.filter(t => t.id !== tempId)
+        return { 
+          tasks: state.tasks.filter(t => t.id !== tempId),
+          workspaceTasks: revertedWorkspaceTasks,
+          projects: syncProjectsWithTasks(state.projects, revertedWorkspaceTasks)
+        }
+      })
       throw err
     }
   },
 
   updateTask: async (id, updates) => {
-    const { tasks, workspaceTasks, currentUser, activeWorkspaceId } = get()
+    const { tasks, workspaceTasks, currentUser, activeWorkspaceId, projects } = get()
     
     // Store original state for rollback
     const originalTasks = [...tasks]
     const originalWorkspaceTasks = [...workspaceTasks]
+    const originalProjects = [...projects]
+
+    const nextTasks = tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
+    const nextWorkspaceTasks = workspaceTasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
 
     // Optimistic update
-    set({
-      tasks: tasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t),
-      workspaceTasks: workspaceTasks.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
-    })
+    set((state) => ({
+      tasks: nextTasks,
+      workspaceTasks: nextWorkspaceTasks,
+      projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+    }))
 
     try {
       const supabase = createClient()
@@ -793,40 +851,52 @@ export const useDataStore = create<DataState>()((set, get) => ({
       // Rollback
       set({
         tasks: originalTasks,
-        workspaceTasks: originalWorkspaceTasks
+        workspaceTasks: originalWorkspaceTasks,
+        projects: originalProjects
       })
       throw err
     }
   },
 
   deleteTask: async (id) => {
-    const { tasks, workspaceTasks } = get()
+    const { tasks, workspaceTasks, projects } = get()
     const taskToDelete = tasks.find(t => t.id === id) || workspaceTasks.find(t => t.id === id)
     if (!taskToDelete) return
 
+    const originalTasks = [...tasks]
+    const originalWorkspaceTasks = [...workspaceTasks]
+    const originalProjects = [...projects]
+
+    const nextWorkspaceTasks = workspaceTasks.filter(t => t.id !== id)
+
     // Optimistic update
-    set({ 
+    set((state) => ({ 
       tasks: tasks.filter(t => t.id !== id),
-      workspaceTasks: workspaceTasks.filter(t => t.id !== id)
-    })
+      workspaceTasks: nextWorkspaceTasks,
+      projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+    }))
 
     try {
       const supabase = createClient()
       await taskApi.deleteTask(supabase, id)
     } catch (err: unknown) {
-      set({ tasks, workspaceTasks }) // Rollback
+      set({ tasks: originalTasks, workspaceTasks: originalWorkspaceTasks, projects: originalProjects }) // Rollback
       throw err
     }
   },
 
   bulkUpdateTasks: async (ids, updates) => {
-    const { tasks, workspaceTasks, currentUser, activeWorkspaceId } = get()
+    const { tasks, workspaceTasks, currentUser, activeWorkspaceId, projects } = get()
+    const originalProjects = [...projects]
+    const nextTasks = tasks.map(t => ids.includes(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
+    const nextWorkspaceTasks = workspaceTasks.map(t => ids.includes(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
     
     // Optimistic
-    set({
-      tasks: tasks.map(t => ids.includes(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t),
-      workspaceTasks: workspaceTasks.map(t => ids.includes(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)
-    })
+    set((state) => ({
+      tasks: nextTasks,
+      workspaceTasks: nextWorkspaceTasks,
+      projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+    }))
 
     try {
       const supabase = createClient()
@@ -838,6 +908,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
       }
     } catch (err) {
+      set({ tasks, workspaceTasks, projects: originalProjects })
       throw err
     }
   },
@@ -1361,9 +1432,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
         updatedAt: payload.updated_at
       }
 
+      const updatedWorkspaceTasks = state.workspaceTasks.map(t => t.id === payload.id ? updatedTask : t)
       return {
         tasks: state.tasks.map(t => t.id === payload.id ? updatedTask : t),
-        workspaceTasks: state.workspaceTasks.map(t => t.id === payload.id ? updatedTask : t)
+        workspaceTasks: updatedWorkspaceTasks,
+        projects: syncProjectsWithTasks(state.projects, updatedWorkspaceTasks)
       }
     })
   },
@@ -1397,18 +1470,25 @@ export const useDataStore = create<DataState>()((set, get) => ({
         updatedAt: payload.updated_at
       }
 
+      const nextWorkspaceTasks = [...state.workspaceTasks, newTask].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
       return {
         tasks: [...state.tasks, newTask].sort((a, b) => a.position - b.position),
-        workspaceTasks: [...state.workspaceTasks, newTask].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+        workspaceTasks: nextWorkspaceTasks,
+        projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
       }
     })
   },
 
   applyRealtimeTaskDelete: (payload) => {
-    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
-      tasks: state.tasks.filter(t => t.id !== payload.id),
-      workspaceTasks: state.workspaceTasks.filter(t => t.id !== payload.id)
-    } })
+    set((state) => { 
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; 
+      const nextWorkspaceTasks = state.workspaceTasks.filter(t => t.id !== payload.id)
+      return {
+        tasks: state.tasks.filter(t => t.id !== payload.id),
+        workspaceTasks: nextWorkspaceTasks,
+        projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+      }
+    })
   },
 
   applyRealtimeMilestoneInsert: (payload) => {

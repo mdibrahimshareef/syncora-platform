@@ -13,25 +13,57 @@ export async function getProjects(supabase: SupabaseClient<Database>, workspaceI
     .order('created_at', { ascending: false })
 
   if (error) throw error
+  if (!data || data.length === 0) return []
   
+  // Fetch tasks to calculate taskCount and progress for each project
+  const projectIds = data.map((p: Record<string, unknown>) => p.id as string)
+  const taskStatsByProject: Record<string, { total: number; completed: number }> = {}
+
+  try {
+    const { data: tasksData, error: tasksError } = await supabase
+      .from('tasks')
+      .select('id, project_id, status')
+      .in('project_id', projectIds)
+
+    if (!tasksError && tasksData) {
+      for (const t of tasksData) {
+        if (!t.project_id) continue
+        if (!taskStatsByProject[t.project_id]) {
+          taskStatsByProject[t.project_id] = { total: 0, completed: 0 }
+        }
+        taskStatsByProject[t.project_id].total++
+        if (t.status === 'Done') {
+          taskStatsByProject[t.project_id].completed++
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to calculate project progress from tasks:', err)
+  }
+
   // Transform to match application types
-  return data.map((p: Record<string, unknown>) => ({
-    id: p.id as string,
-    name: p.name as string,
-    description: (p.description as string) || '',
-    icon: (p.icon as string) || undefined,
-    color: (p.color as string) || undefined,
-    status: p.status as import("@/types").ProjectStatus,
-    progress: 0, // In a real app, calculate from tasks
-    taskCount: 0, // Calculate from tasks
-    members: [], // Connect to workspace_members in future
-    updatedAt: p.updated_at as any,
-    budget: p.budget as number,
-    spent: p.spent as number,
-    currency: p.currency as string,
-    health: p.health as string,
-    taskTypes: (p.task_types as string[]) || ['Task']
-  }))
+  return data.map((p: Record<string, unknown>) => {
+    const stats = taskStatsByProject[p.id as string] || { total: 0, completed: 0 }
+    const calculatedProgress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+
+    return {
+      id: p.id as string,
+      name: p.name as string,
+      description: (p.description as string) || '',
+      icon: (p.icon as string) || undefined,
+      color: (p.color as string) || undefined,
+      status: p.status as import("@/types").ProjectStatus,
+      progress: calculatedProgress,
+      taskCount: stats.total,
+      members: [], // Connect to workspace_members in future
+      updatedAt: p.updated_at as any,
+      budget: p.budget as number,
+      spent: p.spent as number,
+      currency: p.currency as string,
+      health: p.health as string,
+      taskTypes: (p.task_types as string[]) || ['Task']
+    }
+  })
 }
 
 export async function createProject(

@@ -13,14 +13,16 @@ export function ProjectsList() {
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
   const projects = useDataStore(s => s.projects);
   const fetchProjects = useDataStore(s => s.fetchProjects);
+  const fetchWorkspaceTasks = useDataStore(s => s.fetchWorkspaceTasks);
   const isLoading = useDataStore(s => s.isLoading);
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
 
   React.useEffect(() => {
     if (activeWorkspaceId) {
       fetchProjects()
+      fetchWorkspaceTasks()
     }
-  }, [activeWorkspaceId, fetchProjects])
+  }, [activeWorkspaceId, fetchProjects, fetchWorkspaceTasks])
 
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

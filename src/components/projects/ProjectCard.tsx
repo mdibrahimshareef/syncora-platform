@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useWorkspaceUrl } from "@/hooks/useWorkspaceUrl"
+import { useDataStore } from "@/stores/data-store"
 
 interface ProjectCardProps {
   project: Project
@@ -14,13 +15,39 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const baseUrl = useWorkspaceUrl()
-  
+  const workspaceTasks = useDataStore(s => s.workspaceTasks)
+
+  // Reactively calculate taskCount and progress from workspaceTasks if available in store,
+  // otherwise fallback to project properties from getProjects.
+  const { taskCount, progress } = React.useMemo(() => {
+    const projectTasks = workspaceTasks.filter(t => t.projectId === project.id)
+    if (projectTasks.length > 0) {
+      const completed = projectTasks.filter(t => t.status === 'Done').length
+      return {
+        taskCount: projectTasks.length,
+        progress: Math.round((completed / projectTasks.length) * 100)
+      }
+    }
+    if (workspaceTasks.length > 0) {
+      return {
+        taskCount: 0,
+        progress: 0
+      }
+    }
+    return {
+      taskCount: project.taskCount ?? 0,
+      progress: project.progress ?? 0
+    }
+  }, [workspaceTasks, project.id, project.taskCount, project.progress])
+
+  const colorClass = project.color || 'bg-primary'
+
   return (
     <Link href={`${baseUrl}/projects/${project.id}`} className="block group">
       <Card className="h-full border-border transition-colors hover:border-primary/50 hover:shadow-sm">
         <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
           <div className="flex items-center gap-2">
-            <div className={`size-3 rounded-full ${project.color}`} />
+            <div className={`size-3 rounded-full ${colorClass}`} />
             <h3 className="font-semibold text-base group-hover:text-primary transition-colors">
               {project.name}
             </h3>
@@ -37,12 +64,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="mt-4 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{project.progress}%</span>
+              <span className="font-medium">{progress}%</span>
             </div>
             <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
               <div 
-                className={`h-full ${project.color}`} 
-                style={{ width: `${project.progress}%` }} 
+                className={`h-full ${colorClass} transition-all duration-300`} 
+                style={{ width: `${progress}%` }} 
               />
             </div>
           </div>
@@ -61,7 +88,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             )}
           </div>
           <span className="text-xs text-muted-foreground font-mono">
-            {project.taskCount} tasks
+            {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
           </span>
         </CardFooter>
       </Card>
