@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     if (updateError) throw updateError;
 
     // 4. Log Human Attribution (Audit)
-    await supabase.from('ai_action_logs').insert({
+    await (supabase.from('ai_action_logs') as any).insert({
       workspace_id: job.workspace_id,
       action: 'APPROVE_AI_JOB',
       details: { job_id: jobId },

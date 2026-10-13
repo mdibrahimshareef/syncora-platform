@@ -24,7 +24,7 @@ describe('Workflow Verification (R4.1)', () => {
     const chain = createChainable(null);
     chain.single = vi.fn().mockResolvedValue({ data: null }); // Verification fails!
     
-    mockSupabase.from = vi.fn((table) => {
+    mockSupabase.from = vi.fn((table: any): any => {
       if (table === 'ai_workspace_policies') return createChainable({ ai_enabled: true, max_budget_usd: 1000, max_daily_requests: 1000, allow_ai_task_creation: true });
       if (table === 'ai_usage_metrics') return createChainable({ usage_usd: 10 });
       if (table === 'ai_action_logs') return createChainable(null);

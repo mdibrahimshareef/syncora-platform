@@ -41,7 +41,7 @@ describe('R4.5 Durable Dispatcher & Crash Recovery', () => {
   });
 
   it('processes a job successfully and marks it COMPLETED', async () => {
-    const job = { id: 'job-1', status: 'CLAIMED', job_type: 'PROACTIVE' as const, workspace_id: 'ws-1', trigger_type: 'cron', user_id: 'u-1', priority: 1, attempt_count: 0, max_attempts: 3, payload: null, scheduled_at: '', executor_id: 'w-1', created_at: '', updated_at: '', claimed_at: '', started_at: '', completed_at: null, failed_at: null, lease_expires_at: '', next_attempt_at: null };
+    const job = { id: 'job-1', status: 'CLAIMED' as const, job_type: 'PROACTIVE' as const, workspace_id: 'ws-1', workflow_id: null, trigger_type: 'cron', user_id: 'u-1', priority: 1, attempt_count: 0, max_attempts: 3, payload: null, scheduled_at: '', executor_id: 'w-1', created_at: '', updated_at: '', claimed_at: '', started_at: '', completed_at: null, failed_at: null, lease_expires_at: '', next_attempt_at: null };
     
     await dispatcher.processJob(job);
     
@@ -55,7 +55,7 @@ describe('R4.5 Durable Dispatcher & Crash Recovery', () => {
     const { validateAIRequest } = await import('../../../src/lib/ai/governance');
     (validateAIRequest as any).mockRejectedValueOnce(new Error('Rate limit exceeded'));
 
-    const job = { id: 'job-1', status: 'CLAIMED', job_type: 'PROACTIVE' as const, workspace_id: 'ws-1', trigger_type: 'cron', user_id: 'u-1', priority: 1, attempt_count: 0, max_attempts: 3, payload: null, scheduled_at: '', executor_id: 'w-1', created_at: '', updated_at: '', claimed_at: '', started_at: '', completed_at: null, failed_at: null, lease_expires_at: '', next_attempt_at: null };
+    const job = { id: 'job-1', status: 'CLAIMED' as const, job_type: 'PROACTIVE' as const, workspace_id: 'ws-1', workflow_id: null, trigger_type: 'cron', user_id: 'u-1', priority: 1, attempt_count: 0, max_attempts: 3, payload: null, scheduled_at: '', executor_id: 'w-1', created_at: '', updated_at: '', claimed_at: '', started_at: '', completed_at: null, failed_at: null, lease_expires_at: '', next_attempt_at: null };
     
     await dispatcher.processJob(job);
     
@@ -67,6 +67,6 @@ describe('R4.5 Durable Dispatcher & Crash Recovery', () => {
     mockSupabase.from = vi.fn().mockReturnValue(createChainable([{ id: 'job-stuck-1' }, { id: 'job-stuck-2' }]));
     
     const count = await dispatcher.recoverExpiredLeases();
-    expect(count).toBe(1);
+    expect(count).toBe(2);
   });
 });

@@ -63,32 +63,32 @@ export default async function WorkspaceLayout({
     metadata: (profile?.metadata as Record<string, any>) || {}
   }
 
-  const mappedWorkspaces = memberWorkspaces?.map(w => ({
-    id: w.workspaces.id,
-    name: w.workspaces.name,
-    slug: w.workspaces.slug,
-    organizationId: w.workspaces.organization_id,
-    teamId: w.workspaces.team_id,
-    orgSlug: w.workspaces.organizations?.slug,
-    teamSlug: w.workspaces.teams?.slug
+  const mappedWorkspaces = memberWorkspaces?.filter(w => w.workspaces).map(w => ({
+    id: w.workspaces!.id,
+    name: w.workspaces!.name,
+    slug: w.workspaces!.slug,
+    organizationId: w.workspaces!.organization_id,
+    teamId: w.workspaces!.team_id || undefined,
+    orgSlug: w.workspaces!.organizations?.slug,
+    teamSlug: w.workspaces!.teams?.slug
   })) || []
 
-  const mappedOrganizations = memberOrgs?.map(o => ({
-    id: o.organizations.id,
-    name: o.organizations.name,
-    slug: o.organizations.slug,
-    logoUrl: o.organizations.logo_url || undefined,
-    ownerId: o.organizations.owner_id || undefined,
+  const mappedOrganizations = memberOrgs?.filter(o => o.organizations).map(o => ({
+    id: o.organizations!.id,
+    name: o.organizations!.name,
+    slug: o.organizations!.slug,
+    logoUrl: o.organizations!.logo_url || undefined,
+    ownerId: o.organizations!.owner_id || undefined,
     role: o.role
   })) || []
 
-  const mappedTeams = memberTeams?.map(t => ({
-    id: t.teams.id,
-    orgId: t.teams.org_id,
-    name: t.teams.name,
-    slug: t.teams.slug,
-    description: t.teams.description || undefined,
-    icon: t.teams.icon || undefined,
+  const mappedTeams = memberTeams?.filter(t => t.teams).map(t => ({
+    id: t.teams!.id,
+    orgId: t.teams!.org_id,
+    name: t.teams!.name,
+    slug: t.teams!.slug,
+    description: t.teams!.description || undefined,
+    icon: t.teams!.icon || undefined,
     role: t.role
   })) || []
 
