@@ -12,7 +12,7 @@ import {
 } from "@/lib/api/workspaces"
 import { InviteMemberDialog } from "./InviteMemberDialog"
 import { toast } from "sonner"
-import { User, MoreHorizontal, Shield, Mail, Trash2 } from "lucide-react"
+import { User, MoreHorizontal, Shield, Mail, Trash2, Copy, Link as LinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -113,6 +113,17 @@ export function WorkspaceMembers() {
     } catch (error) {
       console.error(error)
       toast.error("Failed to cancel invitation")
+    }
+  }
+
+  const handleCopyInviteLink = async (token: string, email: string) => {
+    try {
+      const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+      const inviteLink = `${appUrl}/join?token=${token}&type=workspace`
+      await navigator.clipboard.writeText(inviteLink)
+      toast.success(`Copied invite link for ${email}`)
+    } catch {
+      toast.error("Failed to copy link to clipboard")
     }
   }
 
@@ -224,12 +235,32 @@ export function WorkspaceMembers() {
                       {inv.role}
                     </Badge>
                     <Badge variant="secondary">Pending</Badge>
+                    {(inv as any).token && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs font-normal"
+                        onClick={() => handleCopyInviteLink((inv as any).token, inv.email)}
+                        title="Copy invitation onboarding link"
+                      >
+                        <Copy className="size-3.5" />
+                        Copy Link
+                      </Button>
+                    )}
                     {isCurrentUserAdminOrOwner && (
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0 ml-2" />}>
+                        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0 ml-1" />}>
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {(inv as any).token && (
+                            <DropdownMenuItem
+                              onClick={() => handleCopyInviteLink((inv as any).token, inv.email)}
+                            >
+                              <LinkIcon className="mr-2 h-4 w-4" />
+                              Copy invite link
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => handleCancelInvitation(inv.id)}

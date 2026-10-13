@@ -76,6 +76,7 @@ export async function getOrganizationInvitations(supabase: SupabaseClient<Databa
       email,
       role,
       status,
+      token,
       created_at,
       expires_at
     `)
@@ -143,7 +144,11 @@ export async function createOrganizationInvitation(
     .single()
 
   if (error) throw error
-  return data
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+  const inviteLink = `${appUrl}/join?token=${data.token}&type=org`
+
+  return { ...data, inviteLink }
 }
 
 export async function cancelOrganizationInvitation(supabase: SupabaseClient<Database>, inviteId: string) {

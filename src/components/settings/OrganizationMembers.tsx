@@ -12,7 +12,7 @@ import {
   cancelOrganizationInvitation
 } from "@/lib/api/organizations"
 import { toast } from "sonner"
-import { User, MoreHorizontal, Shield, Mail, Trash2 } from "lucide-react"
+import { User, MoreHorizontal, Shield, Mail, Trash2, Copy, Link as LinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -93,6 +93,17 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
       loadData()
     } catch (error: any) {
       toast.error(error.message || "Failed to cancel invitation")
+    }
+  }
+
+  const handleCopyInviteLink = async (token: string, email: string) => {
+    try {
+      const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+      const inviteLink = `${appUrl}/join?token=${token}&type=org`
+      await navigator.clipboard.writeText(inviteLink)
+      toast.success(`Copied invite link for ${email}`)
+    } catch {
+      toast.error("Failed to copy link to clipboard")
     }
   }
 
@@ -207,16 +218,30 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="w-[120px] px-3">
+                <div className="w-[100px] px-2">
                   <span className="text-sm capitalize text-muted-foreground">{invite.role}</span>
                 </div>
                 
+                {(invite as any).token && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs font-normal"
+                    onClick={() => handleCopyInviteLink((invite as any).token, invite.email)}
+                    title="Copy organization invite link"
+                  >
+                    <Copy className="size-3.5" />
+                    Copy Link
+                  </Button>
+                )}
+
                 {isAdminOrOwner && (
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     className="size-8 text-muted-foreground hover:text-destructive"
                     onClick={() => handleCancelInvite(invite.id)}
+                    title="Cancel invitation"
                   >
                     <Trash2 className="size-4" />
                   </Button>

@@ -97,6 +97,7 @@ export async function getWorkspaceInvitations(supabase: SupabaseClient<Database>
       email,
       role,
       status,
+      token,
       created_at,
       expires_at
     `)
