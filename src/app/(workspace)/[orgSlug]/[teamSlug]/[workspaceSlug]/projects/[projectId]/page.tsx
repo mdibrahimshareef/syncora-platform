@@ -139,24 +139,20 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   return (
     <Tabs defaultValue="overview" className="flex-1 flex flex-col h-full overflow-hidden">
       <div className="px-6 md:px-8 py-5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className={`size-8 rounded-md flex items-center justify-center ${project.color}`}>
-            <span className="text-white font-semibold text-sm">{project.name.substring(0, 2).toUpperCase()}</span>
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className={`size-3 rounded-full shrink-0 ${project.color || 'bg-primary'}`} />
+            <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
+            {project.templateId && templates.find(t => t.id === project.templateId) && (
+              <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                {templates.find(t => t.id === project.templateId)?.name} Template
+              </div>
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
-              {project.templateId && templates.find(t => t.id === project.templateId) && (
-                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                  {templates.find(t => t.id === project.templateId)?.name} Template
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
-              <span>{projectTasks.length} tasks</span>
-              <span className="w-1 h-1 rounded-full bg-border" />
-              <PresenceAvatars projectId={project.id} />
-            </div>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+            <span>{projectTasks.length} {projectTasks.length === 1 ? 'task' : 'tasks'}</span>
+            <span className="w-1 h-1 rounded-full bg-border" />
+            <PresenceAvatars projectId={project.id} />
           </div>
         </div>
 
