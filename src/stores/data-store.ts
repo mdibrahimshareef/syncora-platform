@@ -785,15 +785,70 @@ export const useDataStore = create<DataState>()((set, get) => ({
       if (!res.ok) throw new Error('Failed to create task')
       const created = await res.json()
 
-      // The new task is already mapped with backend property names (snake_case).
-      // Optimistic replacement: Replace the temp task with the actual task from the backend.
+      // Normalize created task from backend
+      const normalizedCreated: Task = {
+        ...optimisticTask,
+        ...created,
+        id: created.id,
+        projectId: created.projectId || created.project_id || taskData.projectId,
+        title: created.title || taskData.title,
+        description: created.description ?? taskData.description,
+        status: created.status || taskData.status,
+        priority: created.priority || taskData.priority,
+        dueDate: created.dueDate || created.due_date || taskData.dueDate,
+        startDate: created.startDate || created.start_date || taskData.startDate,
+        assignee: created.assignee || taskData.assignee || (taskData.assigneeId ? get().workspaceMembers.find(m => m.id === taskData.assigneeId) : undefined),
+        assigneeId: created.assigneeId || created.assignee_id || taskData.assigneeId || null,
+        milestoneId: created.milestoneId || created.milestone_id || taskData.milestoneId || null,
+        documentId: created.documentId || created.document_id || taskData.documentId,
+        taskType: created.taskType || created.task_type || taskData.taskType || 'Task',
+        position: created.position ?? taskData.position ?? 0,
+        createdAt: created.createdAt || created.created_at || optimisticTask.createdAt,
+        updatedAt: created.updatedAt || created.updated_at || optimisticTask.updatedAt,
+      }
+
+      // Optimistic replacement & deduplication
       set((state) => {
-        const nextWorkspaceTasks = state.workspaceTasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t)
-        return { 
-          tasks: state.tasks.map(t => t.id === tempId ? { ...t, ...created, id: created.id } : t),
-          workspaceTasks: nextWorkspaceTasks,
-          projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+        const alreadyInTasks = state.tasks.some(t => t.id === created.id);
+        const alreadyInWorkspace = state.workspaceTasks.some(t => t.id === created.id);
+
+        let nextTasks: Task[];
+        if (alreadyInTasks) {
+          nextTasks = state.tasks
+            .filter(t => t.id !== tempId)
+            .map(t => t.id === created.id ? { ...t, ...normalizedCreated, assignee: t.assignee || normalizedCreated.assignee } : t);
+        } else {
+          nextTasks = state.tasks.map(t => t.id === tempId ? { ...t, ...normalizedCreated, id: created.id } : t);
         }
+
+        let nextWorkspaceTasks: Task[];
+        if (alreadyInWorkspace) {
+          nextWorkspaceTasks = state.workspaceTasks
+            .filter(t => t.id !== tempId)
+            .map(t => t.id === created.id ? { ...t, ...normalizedCreated, assignee: t.assignee || normalizedCreated.assignee } : t);
+        } else {
+          nextWorkspaceTasks = state.workspaceTasks.map(t => t.id === tempId ? { ...t, ...normalizedCreated, id: created.id } : t);
+        }
+
+        const seenTasks = new Set<string>();
+        const dedupedTasks = nextTasks.filter(t => {
+          if (seenTasks.has(t.id)) return false;
+          seenTasks.add(t.id);
+          return true;
+        });
+
+        const seenWorkspaceTasks = new Set<string>();
+        const dedupedWorkspaceTasks = nextWorkspaceTasks.filter(t => {
+          if (seenWorkspaceTasks.has(t.id)) return false;
+          seenWorkspaceTasks.add(t.id);
+          return true;
+        });
+
+        return { 
+          tasks: dedupedTasks,
+          workspaceTasks: dedupedWorkspaceTasks,
+          projects: syncProjectsWithTasks(state.projects, dedupedWorkspaceTasks)
+        };
       })
 
       // Log activity
@@ -1415,7 +1470,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
         return state
       }
 
-      const updatedTask = {
+      const member = payload.assignee_id !== undefined
+        ? (payload.assignee_id ? state.workspaceMembers.find(m => m.id === payload.assignee_id) : undefined)
+        : undefined;
+
+      const updatedTask: Task = {
         ...existing,
         title: payload.title ?? existing.title,
         description: payload.description ?? existing.description,
@@ -1428,7 +1487,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
         nextOccurrence: payload.next_occurrence !== undefined ? payload.next_occurrence : existing.nextOccurrence,
         recurringParentId: payload.recurring_parent_id !== undefined ? payload.recurring_parent_id : existing.recurringParentId,
         dueDate: payload.due_date !== undefined ? payload.due_date : existing.dueDate,
-        assignee: payload.assignee_id !== undefined ? (payload.assignee_id ? { id: payload.assignee_id } as User : undefined) : existing.assignee,
+        startDate: payload.start_date !== undefined ? payload.start_date : existing.startDate,
+        assignee: payload.assignee_id !== undefined 
+          ? (member || (payload.assignee_id ? ({ id: payload.assignee_id, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined))
+          : existing.assignee,
+        assigneeId: payload.assignee_id !== undefined ? (payload.assignee_id || null) : existing.assigneeId,
+        milestoneId: payload.milestone_id !== undefined ? payload.milestone_id : existing.milestoneId,
+        estimatedTime: payload.estimated_time !== undefined ? payload.estimated_time : existing.estimatedTime,
         updatedAt: payload.updated_at
       }
 
@@ -1444,15 +1509,39 @@ export const useDataStore = create<DataState>()((set, get) => ({
   applyRealtimeTaskInsert: (payload) => {
     set((state) => {
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      // Check if it already exists (e.g. from an optimistic insert that finally resolved, although our create logic replaces tempId)
-      if (state.tasks.some(t => t.id === payload.id)) return state
+      
+      // Check if it already exists by ID
+      if (state.tasks.some(t => t.id === payload.id) || state.workspaceTasks.some(t => t.id === payload.id)) {
+        return state;
+      }
+
+      // Check if there is an in-flight optimistic task matching this newly inserted task
+      const matchingOptimisticTask = state.tasks.find(t => 
+        t.id.startsWith('temp-') && 
+        t.projectId === payload.project_id && 
+        t.title === payload.title
+      ) || state.workspaceTasks.find(t => 
+        t.id.startsWith('temp-') && 
+        t.projectId === payload.project_id && 
+        t.title === payload.title
+      );
+
+      // Resolve member from workspaceMembers
+      const member = payload.assignee_id 
+        ? state.workspaceMembers.find(m => m.id === payload.assignee_id)
+        : undefined;
+
+      const assignee = member 
+        || (matchingOptimisticTask?.assignee 
+            ? matchingOptimisticTask.assignee 
+            : (payload.assignee_id ? ({ id: payload.assignee_id, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined));
 
       const newTask: Task = {
         id: payload.id,
         projectId: payload.project_id,
         workspaceId: payload.workspace_id,
         title: payload.title,
-        description: payload.description,
+        description: payload.description || undefined,
         status: payload.status,
         priority: payload.priority,
         position: payload.position,
@@ -1461,20 +1550,63 @@ export const useDataStore = create<DataState>()((set, get) => ({
         isRecurring: payload.is_recurring || false,
         nextOccurrence: payload.next_occurrence || null,
         recurringParentId: payload.recurring_parent_id || null,
-        dueDate: payload.due_date,
-        assignee: payload.assignee_id ? { id: payload.assignee_id } as User : undefined,
-        dependencies: [],
-        blockedBy: [],
-        attachments: [],
+        dueDate: payload.due_date || undefined,
+        startDate: payload.start_date || undefined,
+        assignee,
+        assigneeId: payload.assignee_id || null,
+        milestoneId: payload.milestone_id || matchingOptimisticTask?.milestoneId || null,
+        documentId: payload.document_id || matchingOptimisticTask?.documentId || undefined,
+        taskType: payload.task_type || matchingOptimisticTask?.taskType || 'Task',
+        estimatedTime: payload.estimated_time || matchingOptimisticTask?.estimatedTime || null,
+        dependencies: matchingOptimisticTask?.dependencies || [],
+        blockedBy: matchingOptimisticTask?.blockedBy || [],
+        attachments: matchingOptimisticTask?.attachments || [],
+        watchers: matchingOptimisticTask?.watchers || [],
         createdAt: payload.created_at,
         updatedAt: payload.updated_at
       }
 
-      const nextWorkspaceTasks = [...state.workspaceTasks, newTask].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+      const belongsToTasks = state.tasks.length === 0 || state.tasks.some(t => t.projectId === payload.project_id);
+
+      let nextTasks: Task[];
+      if (matchingOptimisticTask) {
+        const hadMatchingInTasks = state.tasks.some(t => t.id === matchingOptimisticTask.id);
+        if (hadMatchingInTasks) {
+          nextTasks = state.tasks.map(t => t.id === matchingOptimisticTask.id ? newTask : t);
+        } else if (belongsToTasks) {
+          nextTasks = [...state.tasks, newTask].sort((a, b) => a.position - b.position);
+        } else {
+          nextTasks = state.tasks;
+        }
+      } else {
+        nextTasks = belongsToTasks ? [...state.tasks, newTask].sort((a, b) => a.position - b.position) : state.tasks;
+      }
+
+      let nextWorkspaceTasks: Task[];
+      if (matchingOptimisticTask) {
+        nextWorkspaceTasks = state.workspaceTasks.map(t => t.id === matchingOptimisticTask.id ? newTask : t);
+      } else {
+        nextWorkspaceTasks = [...state.workspaceTasks, newTask].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+      }
+
+      const seenT = new Set<string>();
+      const uniqueTasks = nextTasks.filter(t => {
+        if (seenT.has(t.id)) return false;
+        seenT.add(t.id);
+        return true;
+      });
+
+      const seenW = new Set<string>();
+      const uniqueWorkspaceTasks = nextWorkspaceTasks.filter(t => {
+        if (seenW.has(t.id)) return false;
+        seenW.add(t.id);
+        return true;
+      });
+
       return {
-        tasks: [...state.tasks, newTask].sort((a, b) => a.position - b.position),
-        workspaceTasks: nextWorkspaceTasks,
-        projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+        tasks: uniqueTasks,
+        workspaceTasks: uniqueWorkspaceTasks,
+        projects: syncProjectsWithTasks(state.projects, uniqueWorkspaceTasks)
       }
     })
   },

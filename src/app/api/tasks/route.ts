@@ -22,7 +22,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform authoritative database mutation
-    const createdTask = await createTask(supabase, projectId, taskData);
+    const assigneeId = taskData.assigneeId || (typeof taskData.assignee === 'string' ? taskData.assignee : taskData.assignee?.id) || null;
+    const createdTask = await createTask(supabase, projectId, {
+      ...taskData,
+      userId: user.id,
+      assigneeId,
+    });
 
     // Fetch the workspaceId from the project to construct the event
     const { data: project } = await supabase

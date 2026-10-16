@@ -13,6 +13,8 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
 import { ActionProposalCard } from './ActionProposalCard'
 import { WorkflowPlanCard } from './WorkflowPlanCard'
+import { DecisionComparisonCard } from './DecisionComparisonCard'
+import { MemoryProposalCard } from './MemoryProposalCard'
 import { AIToolActivity } from './AIToolActivity'
 import { AISourceList } from './AISourceList'
 import { usePathname } from 'next/navigation'
@@ -299,6 +301,41 @@ export function AIAssistant() {
                               workspaceId={activeWorkspaceId || undefined}
                             />
                           )
+                        }
+
+                        if (toolName === 'get_decision_comparison') {
+                          const comparison = part.result?.decisionComparison || part.args || part.input;
+                          if (comparison) {
+                            return (
+                              <DecisionComparisonCard 
+                                key={partIndex}
+                                decisionId={comparison.decisionId}
+                                situationSummary={comparison.situationSummary}
+                                mainConstraints={comparison.mainConstraints || []}
+                                options={comparison.options || []}
+                                recommendedOptionId={comparison.recommendedOptionId}
+                                recommendationRationale={comparison.recommendationRationale}
+                                uncertaintyNotes={comparison.uncertaintyNotes}
+                                workspaceId={activeWorkspaceId || undefined}
+                              />
+                            );
+                          }
+                        }
+
+                        if (toolName === 'propose_memory_update') {
+                          const mem = part.result?.proposed_memory || part.args || part.input;
+                          if (mem) {
+                            return (
+                              <MemoryProposalCard 
+                                key={partIndex}
+                                workspaceId={activeWorkspaceId || ''}
+                                scope={mem.scope || 'workspace'}
+                                category={mem.category || 'decision_rationale'}
+                                content={mem.content || ''}
+                                reason={mem.reason}
+                              />
+                            );
+                          }
                         }
 
                         if (['call', 'partial-call', 'result', 'output-available', 'executed', 'already_executed', 'conflict', 'failed', 'denied', 'completed'].includes(state.toLowerCase())) {

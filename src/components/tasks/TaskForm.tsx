@@ -144,6 +144,7 @@ export function TaskForm({ defaultValues, onSuccess, onCancel, onDirtyChange }: 
       projectId: data.projectId,
       workspaceId: activeWorkspaceId || defaultValues?.workspaceId || "",
       assignee: selectedAssignee || undefined,
+      assigneeId: data.assigneeId || selectedAssignee?.id || null,
       startDate: data.startDate ? data.startDate.toISOString() : undefined,
       dueDate: data.dueDate ? data.dueDate.toISOString() : undefined,
       labels: defaultValues?.labels || [],

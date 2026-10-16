@@ -2,6 +2,10 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { AISource, resolveSourceUrl } from './sources'
+import { getScopedMemories } from './memory'
+import { getProjectDependencyChain, getWorkloadConcentration } from './relationships'
+import { analyzeTemporalProjectRisks } from './temporal-reasoning'
+import { buildDecisionComparison } from './decision-support'
 
 const emptySchema = z.object({})
 const searchTasksSchema = z.object({
@@ -541,6 +545,195 @@ export function getAiTools(workspaceId: string, userId?: string) {
           message: 'Action proposed to user for confirmation.',
           proposed_action: args 
         }
+      }
+    }),
+
+    // --- RELEASE 4.6 CONTEXTUAL INTELLIGENCE & ORGANIZATIONAL MEMORY TOOLS ---
+
+    get_organizational_memories: tool({
+      description: 'Retrieve permission-scoped organizational memory records (goals, working agreements, past decisions, recurring blockers, user preferences).',
+      parameters: z.object({
+        category: z.enum([
+          'goal_priority',
+          'project_objective',
+          'decision_rationale',
+          'recurring_blocker',
+          'historical_outcome',
+          'working_agreement',
+          'user_preference',
+          'milestone_lesson',
+          'operational_pattern',
+          'risk_resolution'
+        ]).optional().describe('Specific memory category to filter by.'),
+        scope: z.enum(['workspace', 'user']).optional().describe('Filter by workspace-shared or user-private scope.'),
+        limit: z.number().default(10).describe('Maximum number of memories to return.')
+      }),
+      // @ts-ignore
+      execute: async (args) => {
+        const supabase = await createClient();
+        const memories = await getScopedMemories(supabase, workspaceId, {
+          userId,
+          categories: args.category ? [args.category] : undefined,
+          scope: args.scope,
+          limit: args.limit
+        });
+
+        const sources: AISource[] = memories.map(m => ({
+          id: `memory-${m.id}`,
+          entityId: m.id,
+          type: 'workspace',
+          title: `Memory [${m.category}]: ${m.summary || m.content.slice(0, 40)}`,
+          description: m.content,
+          workspaceId,
+          sourceKind: 'analysis',
+          confidence: m.confidence
+        }));
+
+        return {
+          success: true,
+          count: memories.length,
+          memories: memories.map(m => ({
+            id: m.id,
+            category: m.category,
+            scope: m.scope,
+            content: m.content,
+            verificationStatus: m.verification_status,
+            confidence: m.confidence,
+            lastReviewed: m.last_reviewed_at
+          })),
+          sources
+        };
+      }
+    }),
+
+    propose_memory_update: tool({
+      description: 'Propose storing or updating an organizational memory (decision rationale, goal, working agreement, or user preference). Requires user confirmation before persisting.',
+      parameters: z.object({
+        scope: z.enum(['workspace', 'user']).describe('Workspace memory is shared across members; user memory is private.'),
+        category: z.enum([
+          'goal_priority',
+          'project_objective',
+          'decision_rationale',
+          'recurring_blocker',
+          'historical_outcome',
+          'working_agreement',
+          'user_preference',
+          'milestone_lesson',
+          'operational_pattern',
+          'risk_resolution'
+        ]).describe('Category for the memory.'),
+        content: z.string().describe('Concise description of the fact, agreement, or decision.'),
+        reason: z.string().optional().describe('Why this memory should be retained.')
+      }),
+      // @ts-ignore
+      execute: async (args) => {
+        return {
+          status: 'proposal_ready',
+          message: 'Organizational memory proposal prepared for user review.',
+          proposed_memory: {
+            workspaceId,
+            userId: args.scope === 'user' ? userId : null,
+            ...args
+          }
+        };
+      }
+    }),
+
+    get_dependency_graph: tool({
+      description: 'Analyze task dependency chains, critical paths, and root blockers for a project.',
+      parameters: projectIdSchema,
+      // @ts-ignore
+      execute: async (args) => {
+        const supabase = await createClient();
+        const result = await getProjectDependencyChain(supabase, workspaceId, args.projectId);
+        return {
+          success: true,
+          projectName: result.projectName,
+          totalTasks: result.totalTasks,
+          blockedTasksCount: result.blockedTasksCount,
+          rootBlockers: result.rootBlockers,
+          criticalChains: result.criticalChains,
+          sources: result.sources
+        };
+      }
+    }),
+
+    get_temporal_risk_analysis: tool({
+      description: 'Perform time-aware temporal risk analysis for a project, evaluating deadline slippage, milestone risk propagation, and predictive uncertainty.',
+      parameters: projectIdSchema,
+      // @ts-ignore
+      execute: async (args) => {
+        const supabase = await createClient();
+        const result = await analyzeTemporalProjectRisks(supabase, workspaceId, args.projectId);
+        return {
+          success: true,
+          projectName: result.projectName,
+          projectDueDate: result.projectDueDate,
+          daysRemaining: result.daysRemaining,
+          completionRatePercent: result.completionRatePercent,
+          deterministicSignals: result.deterministicSignals,
+          predictiveEstimates: result.predictiveEstimates,
+          sources: result.sources
+        };
+      }
+    }),
+
+    get_workload_concentration_analysis: tool({
+      description: 'Analyze team workload concentration and identify single points of failure / bottlenecked assignees.',
+      parameters: z.object({
+        projectId: z.string().optional().describe('Optional project filter.')
+      }),
+      // @ts-ignore
+      execute: async (args) => {
+        const supabase = await createClient();
+        const result = await getWorkloadConcentration(supabase, workspaceId, args.projectId);
+        return {
+          success: true,
+          totalActiveTasks: result.totalActiveTasks,
+          totalEstimatedHours: result.totalEstimatedHours,
+          concentrationRisk: result.concentrationRisk,
+          recommendation: result.recommendation,
+          members: result.members,
+          sources: result.sources
+        };
+      }
+    }),
+
+    get_decision_comparison: tool({
+      description: 'Generate a structured decision comparison evaluating realistic strategic options (e.g., reassigning vs moving milestone vs reducing scope) with explicit trade-offs.',
+      parameters: z.object({
+        situationSummary: z.string().describe('Clear summary of the current problem or bottleneck.'),
+        mainConstraints: z.array(z.string()).describe('Primary constraints (e.g. deadline fixed, team capacity limit).'),
+        options: z.array(z.object({
+          id: z.string(),
+          title: z.string(),
+          description: z.string(),
+          expectedBenefits: z.array(z.string()),
+          risksAndTradeOffs: z.array(z.string()),
+          requiredHumanApprovals: z.array(z.string()),
+          confidenceLevel: z.enum(['High', 'Medium', 'Low'])
+        })).describe('Available actionable options.'),
+        recommendedOptionId: z.string().describe('The ID of the recommended option.'),
+        recommendationRationale: z.string().describe('Grounded explanation of why this option is superior.'),
+        uncertaintyNotes: z.string().optional().describe('Known assumptions and uncertainty limitations.')
+      }),
+      // @ts-ignore
+      execute: async (args) => {
+        const comparison = buildDecisionComparison(
+          args.situationSummary,
+          [],
+          args.mainConstraints,
+          args.options,
+          args.recommendedOptionId,
+          args.recommendationRationale,
+          [],
+          args.uncertaintyNotes
+        );
+        return {
+          success: true,
+          status: 'decision_comparison_ready',
+          decisionComparison: comparison
+        };
       }
     })
   }

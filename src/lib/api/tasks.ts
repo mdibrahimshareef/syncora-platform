@@ -251,7 +251,29 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
 export async function createTask(
   supabase: SupabaseClient<Database>, 
   projectId: string, 
-  payload: { title: string, description?: string, status: string, priority: string, assigneeId?: string | null, startDate?: string | null, dueDate?: string | null, userId: string, parentId?: string | null, workspaceId?: string | null, taskType?: string, reporterId?: string | null, customerId?: string | null, requestId?: string | null, approvalId?: string | null, documentId?: string | null, estimatedHours?: number, storyPoints?: number }
+  payload: { 
+    title: string, 
+    description?: string, 
+    status: string, 
+    priority: string, 
+    assigneeId?: string | null, 
+    assignee?: any, 
+    startDate?: string | null, 
+    dueDate?: string | null, 
+    userId?: string, 
+    parentId?: string | null, 
+    workspaceId?: string | null, 
+    taskType?: string, 
+    reporterId?: string | null, 
+    customerId?: string | null, 
+    requestId?: string | null, 
+    approvalId?: string | null, 
+    documentId?: string | null, 
+    estimatedHours?: number, 
+    storyPoints?: number,
+    milestoneId?: string | null,
+    estimatedTime?: number | null
+  }
 ) {
   // Get max position for the status
   let positionQuery = supabase
@@ -272,6 +294,10 @@ export async function createTask(
   
   const position = (existingTasks && existingTasks.length > 0) ? existingTasks[0].position + 65536 : 65536
 
+  const assigneeId = payload.assigneeId || 
+    (typeof payload.assignee === 'string' ? payload.assignee : payload.assignee?.id) || 
+    null
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const insertPayload: any = {
     project_id: projectId,
@@ -279,30 +305,82 @@ export async function createTask(
     description: payload.description || null,
     status: payload.status,
     priority: payload.priority,
-    assignee_id: payload.assigneeId || null,
+    assignee_id: assigneeId,
     start_date: payload.startDate || null,
     due_date: payload.dueDate || null,
     parent_id: payload.parentId || null,
     position,
-    created_by: payload.userId,
+    created_by: payload.userId || null,
     task_type: payload.taskType || 'Task',
     reporter_id: payload.reporterId || null,
     customer_id: payload.customerId || null,
     request_id: payload.requestId || null,
     approval_id: payload.approvalId || null,
     document_id: payload.documentId || null,
+    milestone_id: payload.milestoneId || (payload as any).milestone_id || null,
+    estimated_time: payload.estimatedTime || (payload as any).estimated_time || null,
     estimated_hours: payload.estimatedHours || 0,
     story_points: payload.storyPoints || 0
+  }
+
+  if (payload.workspaceId) {
+    insertPayload.workspace_id = payload.workspaceId
   }
 
   const { data, error } = await supabase
     .from('tasks')
     .insert([insertPayload])
-    .select()
+    .select(`
+      *,
+      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+    `)
     .single()
 
   if (error) throw error
-  return data
+
+  return {
+    id: data.id,
+    projectId: data.project_id,
+    title: data.title,
+    description: data.description || undefined,
+    status: data.status as TaskStatus,
+    priority: data.priority as import("@/types").TaskPriority,
+    assignee: data.assignee ? {
+      id: (data.assignee as any).id,
+      name: (data.assignee as any).full_name || 'Unknown User',
+      initials: ((data.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+      email: '',
+      role: 'Member',
+      avatarUrl: (data.assignee as any).avatar_url || undefined
+    } : undefined,
+    assigneeId: data.assignee_id || null,
+    dueDate: data.due_date || undefined,
+    startDate: data.start_date || undefined,
+    position: data.position,
+    parentId: data.parent_id || null,
+    workspaceId: data.workspace_id || payload.workspaceId || '',
+    taskType: data.task_type || 'Task',
+    reporterId: data.reporter_id || null,
+    customerId: data.customer_id || null,
+    requestId: data.request_id || null,
+    approvalId: data.approval_id || undefined,
+    documentId: data.document_id || undefined,
+    milestoneId: data.milestone_id || null,
+    estimatedTime: data.estimated_time || null,
+    estimatedHours: data.estimated_hours || undefined,
+    storyPoints: data.story_points || undefined,
+    recurrenceRule: data.recurrence_rule || null,
+    isRecurring: data.is_recurring || false,
+    nextOccurrence: data.next_occurrence || null,
+    recurringParentId: data.recurring_parent_id || null,
+    labels: [], 
+    dependencies: [],
+    blockedBy: [],
+    attachments: [],
+    watchers: [],
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  }
 }
 
 export async function updateTask(
@@ -314,7 +392,7 @@ export async function updateTask(
     slaPriority: string, slaSeverity: string, responseTarget: string, resolutionTarget: string, slaStatus: string,
     estimatedTime: number, trackedTime: number, estimatedCost: number, actualCost: number,
     taskType: string, reporterId: string | null, customerId: string | null, requestId: string | null, approvalId: string | null, documentId: string | null,
-    estimatedHours: number, storyPoints: number
+    estimatedHours: number, storyPoints: number, milestoneId: string | null
   }>
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -322,6 +400,16 @@ export async function updateTask(
   if (updateData.assigneeId !== undefined) {
     updateData.assignee_id = updateData.assigneeId
     delete updateData.assigneeId
+  }
+  if (updateData.assignee !== undefined) {
+    if (updateData.assignee_id === undefined) {
+      updateData.assignee_id = updateData.assignee ? (typeof updateData.assignee === 'string' ? updateData.assignee : updateData.assignee.id) : null
+    }
+    delete updateData.assignee
+  }
+  if (updateData.milestoneId !== undefined) {
+    updateData.milestone_id = updateData.milestoneId === 'none' ? null : (updateData.milestoneId || null)
+    delete updateData.milestoneId
   }
   if (updateData.startDate !== undefined) {
     updateData.start_date = updateData.startDate

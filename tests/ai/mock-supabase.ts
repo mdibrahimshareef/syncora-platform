@@ -14,7 +14,9 @@ export interface ChainableMock {
   is: Mock;
   update: Mock;
   insert: Mock;
+  delete: Mock;
   single: Mock;
+  maybeSingle: Mock;
   then: Mock;
 }
 
@@ -32,7 +34,9 @@ export const createChainable = (data: Record<string, unknown> | any[] | null, er
   chain.is = vi.fn(() => chain);
   chain.update = vi.fn(() => chain);
   chain.insert = vi.fn(() => chain);
+  chain.delete = vi.fn(() => chain);
   chain.single = vi.fn().mockResolvedValue({ data, error });
+  chain.maybeSingle = vi.fn().mockResolvedValue({ data, error });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   chain.then = vi.fn((resolve: any) => resolve({ data: Array.isArray(data) ? data : (data ? [data] : []), count, error }));
   return chain;

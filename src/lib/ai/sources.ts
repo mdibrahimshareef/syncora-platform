@@ -19,6 +19,8 @@ export type AISource = {
     | 'activity'
     | 'workspace'
     | 'semantic'
+    | 'goal'
+    | 'memory'
   title: string
   description?: string
   workspaceId: string
@@ -35,9 +37,17 @@ export async function resolveSourceUrl(
   workspaceId: string,
   type: AISource['type'],
   entityId: string,
-  projectId?: string
+  projectId?: string,
+  supabaseClient?: any
 ): Promise<string | undefined> {
-  const supabase = await createClient()
+  let supabase = supabaseClient
+  if (!supabase) {
+    try {
+      supabase = await createClient()
+    } catch {
+      return undefined
+    }
+  }
   
   // Fetch workspace routing slugs
   const { data: workspace } = await supabase

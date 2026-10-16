@@ -106,6 +106,7 @@ export type Task = {
   estimatedHours?: number;
   storyPoints?: number;
   assignee?: User;
+  assigneeId?: string | null;
   labels?: Label[];
   position: number;
   startDate?: string;

@@ -87,11 +87,29 @@ export class AIDispatcher {
   }
 
   /**
-   * Mock execution of a workflow job (to be expanded).
+   * Execution of a workflow job using the established R4.1-R4.3 workflow executor.
    */
   private async executeWorkflowJob(job: AIJob): Promise<void> {
-    // This would initialize or continue a workflow from R4.1
     console.log(`Executing workflow job ${job.id}`);
+    
+    let plan = job.payload?.plan;
+    if (!plan && job.workflow_id) {
+      const { data: workflow } = await this.supabase
+        .from('ai_workflows')
+        .select('plan')
+        .eq('id', job.workflow_id)
+        .eq('workspace_id', job.workspace_id)
+        .single();
+      plan = workflow?.plan;
+    }
+
+    if (plan) {
+      const { executeWorkflowPlan } = await import('./workflow-executor');
+      const result = await executeWorkflowPlan(this.supabase, job.workspace_id, job.user_id, plan);
+      if (result.status === 'FAILED') {
+        throw new Error(result.error || `Workflow execution failed at step ${result.failedStep}`);
+      }
+    }
   }
 
   /**
