@@ -126,6 +126,7 @@ ALTER TABLE public.ai_decision_outcomes ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: Workspace memory is visible to all workspace members.
 -- User memory is ONLY visible to the user who owns it within that workspace.
+DROP POLICY IF EXISTS "Workspace members can view active workspace memories" ON public.ai_memories;
 CREATE POLICY "Workspace members can view active workspace memories"
 ON public.ai_memories
 FOR SELECT
@@ -143,6 +144,7 @@ USING (
 
 -- INSERT: Authenticated workspace members can insert memories for their workspace.
 -- User memories must have user_id = auth.uid().
+DROP POLICY IF EXISTS "Workspace members can insert scoped memories" ON public.ai_memories;
 CREATE POLICY "Workspace members can insert scoped memories"
 ON public.ai_memories
 FOR INSERT
@@ -160,6 +162,7 @@ WITH CHECK (
 
 -- UPDATE: User memories can only be updated by the owner.
 -- Workspace memories can be updated by workspace members.
+DROP POLICY IF EXISTS "Authorized users can update scoped memories" ON public.ai_memories;
 CREATE POLICY "Authorized users can update scoped memories"
 ON public.ai_memories
 FOR UPDATE
@@ -187,6 +190,7 @@ WITH CHECK (
 
 -- DELETE: User memories can be deleted by owner.
 -- Workspace memories can only be deleted by workspace owners/admins.
+DROP POLICY IF EXISTS "Authorized users can delete memories" ON public.ai_memories;
 CREATE POLICY "Authorized users can delete memories"
 ON public.ai_memories
 FOR DELETE
@@ -204,6 +208,7 @@ USING (
 
 -- 5. RLS Policies for ai_decision_outcomes
 
+DROP POLICY IF EXISTS "Workspace members can view decision outcomes" ON public.ai_decision_outcomes;
 CREATE POLICY "Workspace members can view decision outcomes"
 ON public.ai_decision_outcomes
 FOR SELECT
@@ -214,6 +219,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Authenticated users can record their decision outcomes" ON public.ai_decision_outcomes;
 CREATE POLICY "Authenticated users can record their decision outcomes"
 ON public.ai_decision_outcomes
 FOR INSERT
@@ -225,6 +231,7 @@ WITH CHECK (
     AND user_id = auth.uid()
 );
 
+DROP POLICY IF EXISTS "Authenticated users can update their decision outcomes" ON public.ai_decision_outcomes;
 CREATE POLICY "Authenticated users can update their decision outcomes"
 ON public.ai_decision_outcomes
 FOR UPDATE

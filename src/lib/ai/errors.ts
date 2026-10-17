@@ -1,11 +1,14 @@
 export type AIErrorCategory = 
   | 'AUTH_REQUIRED'
+  | 'AUTH_FAILURE'
+  | 'AUTH_FORBIDDEN'
   | 'WORKSPACE_FORBIDDEN'
   | 'CONTEXT_UNAVAILABLE'
   | 'MODEL_ERROR'
   | 'RATE_LIMITED'
   | 'TOOL_ERROR'
   | 'VALIDATION_ERROR'
+  | 'VALIDATION_FAILURE'
   | 'STALE_STATE'
   | 'ACTION_DENIED'
   | 'ACTION_CONFLICT'
@@ -22,7 +25,19 @@ export type AIErrorCategory =
   | 'WORKFLOW_PARTIAL_FAILURE'
   | 'WORKFLOW_VERIFICATION_FAILED'
   | 'WORKFLOW_STALE_STATE'
-  | 'WORKFLOW_IDEMPOTENCY_CONFLICT';
+  | 'WORKFLOW_IDEMPOTENCY_CONFLICT'
+  | 'QUOTA_EXCEEDED'
+  | 'PROVIDER_TIMEOUT'
+  | 'PROVIDER_RATE_LIMIT'
+  | 'PROVIDER_AUTH_ERROR'
+  | 'PROVIDER_UNAVAILABLE'
+  | 'INVALID_MODEL_OUTPUT'
+  | 'TOOL_EXECUTION_FAILURE'
+  | 'DATABASE_FAILURE'
+  | 'CONCURRENCY_CONFLICT'
+  | 'LEASE_EXPIRATION'
+  | 'RECOVERY_FAILURE'
+  | 'INTERNAL_UNEXPECTED_ERROR';
 
 export type RecoveryClassification =
   | 'RECOVERABLE'
@@ -48,18 +63,44 @@ export class AIError extends Error {
 export function getUserFacingMessage(category: AIErrorCategory): string {
   switch (category) {
     case 'AUTH_REQUIRED':
+    case 'AUTH_FAILURE':
       return 'You must be logged in to use the AI assistant.';
     case 'WORKSPACE_FORBIDDEN':
+    case 'AUTH_FORBIDDEN':
       return 'You do not have access to this workspace.';
     case 'CONTEXT_UNAVAILABLE':
       return 'Unable to retrieve workspace context at this time.';
     case 'MODEL_ERROR':
       return 'The AI model encountered an unexpected error. Please try again.';
     case 'RATE_LIMITED':
+    case 'PROVIDER_RATE_LIMIT':
       return 'You have reached the request limit. Please wait a moment before trying again.';
+    case 'QUOTA_EXCEEDED':
+      return 'The daily AI quota for this workspace has been reached. Please contact your workspace administrator.';
+    case 'PROVIDER_TIMEOUT':
+    case 'TIMEOUT':
+      return 'The AI provider request timed out. Please try a simpler request.';
+    case 'PROVIDER_AUTH_ERROR':
+      return 'The AI provider authentication failed. Please check provider credentials.';
+    case 'PROVIDER_UNAVAILABLE':
+      return 'The AI model service is temporarily unavailable. Please try again in a few moments.';
+    case 'INVALID_MODEL_OUTPUT':
+      return 'The AI model returned an unparseable or schema-invalid response.';
     case 'TOOL_ERROR':
-      return 'An error occurred while fetching data from the workspace.';
+    case 'TOOL_EXECUTION_FAILURE':
+      return 'An error occurred while fetching or modifying data in the workspace.';
+    case 'DATABASE_FAILURE':
+      return 'A database error occurred while persisting AI state.';
+    case 'CONCURRENCY_CONFLICT':
+      return 'A concurrency conflict occurred. Another operation modified the target resource.';
+    case 'LEASE_EXPIRATION':
+      return 'The execution lease for this task expired.';
+    case 'RECOVERY_FAILURE':
+      return 'The automated workflow recovery could not complete.';
+    case 'INTERNAL_UNEXPECTED_ERROR':
+      return 'An internal error occurred. Our engineering team has been notified.';
     case 'VALIDATION_ERROR':
+    case 'VALIDATION_FAILURE':
       return 'The provided information was invalid or incomplete.';
     case 'STALE_STATE':
       return 'The workspace data changed while processing your request. Please review and try again.';
@@ -69,8 +110,6 @@ export function getUserFacingMessage(category: AIErrorCategory): string {
       return 'This action conflicts with another recent change.';
     case 'ACTION_FAILED':
       return 'The action failed to execute. Please try again.';
-    case 'TIMEOUT':
-      return 'The request took too long to complete. Please try a simpler request.';
     case 'WORKFLOW_INVALID':
       return 'The generated workflow plan is invalid.';
     case 'WORKFLOW_TOO_LARGE':

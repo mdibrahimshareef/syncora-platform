@@ -3,7 +3,7 @@ import { getWorkspaceContext } from '@/lib/ai/context'
 import { buildSystemPrompt } from '@/lib/ai/prompts'
 import { getLanguageModel } from '@/lib/ai/provider'
 import { getAiTools } from '@/lib/ai/tools'
-import { logAITelemetry } from '@/lib/ai/telemetry'
+import { logAITelemetry, createTraceContext } from '@/lib/ai/telemetry'
 // @ts-ignore
 import { streamText, isStepCount, convertToModelMessages } from 'ai'
 import { getTemporalContext } from '@/lib/ai/time'
@@ -11,10 +11,13 @@ import { classifyIntent } from '@/lib/ai/intent'
 import { deduplicateSources, AISource } from './sources'
 import { saveConversation } from './persistence'
 import { validateAIRequest, recordAIUsage } from './governance'
+import { calculateModelCost } from './cost'
 
 export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '', conversationId?: string) {
   const startTime = Date.now()
-  const requestId = crypto.randomUUID()
+  const traceCtx = createTraceContext({ workspaceId })
+  const requestId = traceCtx.requestId || crypto.randomUUID()
+  const traceId = traceCtx.traceId
   
   // 1. Authenticate & Authorize
   let workspaceName = 'Workspace'
@@ -26,7 +29,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
     userId = user.id
     userRole = user.role // Assume role exists or it's safely undefined
   } catch (authError: any) {
-    logAITelemetry({ requestId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'AUTH_ERROR' })
+    logAITelemetry({ requestId, traceId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'AUTH_ERROR' })
     throw new Error(`Auth Error: ${authError.message}`)
   }
 
@@ -38,7 +41,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
   try {
     await validateAIRequest(await supabase, workspaceId, userId as string, 'chat');
   } catch (governanceError: any) {
-    logAITelemetry({ requestId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: governanceError.code || 'GOVERNANCE_ERROR' });
+    logAITelemetry({ requestId, traceId, workspaceId, model: 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: governanceError.code || 'GOVERNANCE_ERROR' });
     throw governanceError;
   }
 
@@ -143,6 +146,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
         // R3.9 Observability Update
         logAITelemetry({
           requestId,
+          traceId,
           userId,
           workspaceId,
           model: modelName,
@@ -168,15 +172,20 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
 
         try {
           const sbase = await (await import('@/lib/supabase/server')).createClient();
-          await recordAIUsage(sbase, workspaceId, userId as string, {
-            requestType: 'chat',
+          const costData = calculateModelCost({
+            model: modelName,
+            provider: providerStr,
             // @ts-ignore
             inputTokens: event.usage?.promptTokens,
             // @ts-ignore
             outputTokens: event.usage?.completionTokens,
-            // Rough estimate mapping (e.g. $2.50 per 1M input, $10 per 1M output for gpt-4o)
-            // @ts-ignore
-            estimatedCost: ((event.usage?.promptTokens || 0) * 0.0000025) + ((event.usage?.completionTokens || 0) * 0.00001)
+            isProviderReported: Boolean(event.usage)
+          });
+          await recordAIUsage(sbase, workspaceId, userId as string, {
+            requestType: 'chat',
+            inputTokens: costData.inputTokens,
+            outputTokens: costData.outputTokens,
+            estimatedCost: costData.estimatedCost
           });
         } catch (err) {
           console.error('Failed to record AI usage', err);
@@ -191,7 +200,7 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
       conversationId: activeConversationId
     }
   } catch (error: any) {
-    logAITelemetry({ requestId, userId, workspaceId, model: process.env.AI_MODEL || 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'EXECUTION_ERROR' })
+    logAITelemetry({ requestId, traceId, userId, workspaceId, model: process.env.AI_MODEL || 'unknown', latencyMs: Date.now() - startTime, toolCallsCount: 0, success: false, errorCategory: 'EXECUTION_ERROR' })
     throw error
   }
 }
