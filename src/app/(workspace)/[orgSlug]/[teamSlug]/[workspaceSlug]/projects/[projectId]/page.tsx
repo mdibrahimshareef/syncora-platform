@@ -138,137 +138,167 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
 
   return (
     <Tabs defaultValue="overview" className="flex-1 flex flex-col h-full overflow-hidden">
-      <div className="px-6 md:px-8 py-5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className={`size-3 rounded-full shrink-0 ${project.color || 'bg-primary'}`} />
-            <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
-            {project.templateId && templates.find(t => t.id === project.templateId) && (
-              <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                {templates.find(t => t.id === project.templateId)?.name} Template
-              </div>
-            )}
+      <div className="px-6 md:px-8 pt-5 pb-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 space-y-4">
+        {/* Top row: Project Title on Left, Action Toolbar on Right */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`size-3 rounded-full shrink-0 ${project.color || 'bg-primary'}`} />
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate" title={project.name}>
+                {project.name}
+              </h2>
+              {project.templateId && templates.find(t => t.id === project.templateId) && (
+                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                  {templates.find(t => t.id === project.templateId)?.name} Template
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1.5">
+              <span className="shrink-0">{projectTasks.length} {projectTasks.length === 1 ? 'task' : 'tasks'}</span>
+              <span className="w-1 h-1 rounded-full bg-border shrink-0" />
+              <PresenceAvatars projectId={project.id} />
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-            <span>{projectTasks.length} {projectTasks.length === 1 ? 'task' : 'tasks'}</span>
-            <span className="w-1 h-1 rounded-full bg-border" />
-            <PresenceAvatars projectId={project.id} />
+
+          {/* Action Toolbar: Single horizontal row for Search, Filters, Saved Filters, New Task, and More */}
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap overflow-x-auto pb-1 lg:pb-0">
+            <TaskFilters filters={filters} setFilters={setFilters} />
+            
+            <Button size="sm" className="h-9 shrink-0 gap-1.5" onClick={() => setIsCreateTaskOpen(true)}>
+              <Plus className="size-3.5" />
+              <span>New Task</span>
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-9 shrink-0" />}>
+                <MoreHorizontal className="size-4 text-muted-foreground" />
+                <span className="sr-only">More options</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {isAdminOrOwner ? (
+                  <>
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Edit className="mr-2 size-4" />
+                      <span>Edit Project</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      <span>Delete Project</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem disabled>
+                    <span className="text-muted-foreground text-sm">No actions available</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {isAdminOrOwner && (
+              <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+                setIsDeleteDialogOpen(open)
+                if (!open) setDeleteConfirmationText("")
+              }}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the 
+                      <span className="font-semibold text-foreground mx-1">{project.name}</span> 
+                      project, including all tasks, milestones, and settings associated with it.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <div className="py-4">
+                    <Label htmlFor="confirm-delete" className="text-sm font-medium">
+                      Please type <span className="font-bold select-all">{project.name}</span> to confirm.
+                    </Label>
+                    <Input 
+                      id="confirm-delete"
+                      value={deleteConfirmationText}
+                      onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                      className="mt-2"
+                      placeholder={project.name}
+                    />
+                  </div>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                    <Button 
+                      variant="destructive" 
+                      disabled={deleteConfirmationText !== project.name || isDeleting}
+                      onClick={async () => {
+                        setIsDeleting(true)
+                        try {
+                          await deleteProject(project.id)
+                          toast.success("Project deleted successfully")
+                          router.push(`${baseUrl}/projects`)
+                        } catch (error: any) {
+                          console.error("Delete error:", error)
+                          toast.error(`Failed to delete project: ${error?.message || error?.details || JSON.stringify(error)}`)
+                          setIsDeleting(false)
+                        }
+                      }}
+                    >
+                      {isDeleting ? "Deleting..." : "Delete Project"}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <TabsList className="hidden sm:flex h-9 mr-2">
-            <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-            <TabsTrigger value="board" className="text-xs">Board</TabsTrigger>
-            <TabsTrigger value="list" className="text-xs">List</TabsTrigger>
-            <TabsTrigger value="calendar" className="text-xs">Calendar</TabsTrigger>
-            <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs">Settings</TabsTrigger>
+        {/* View Navigation Tabs: Left-aligned beneath project info with active underline indicator */}
+        <div className="flex items-center -mb-[1px] overflow-x-auto scrollbar-none">
+          <TabsList variant="line" className="h-auto p-0 gap-2 sm:gap-4 bg-transparent border-none">
+            <TabsTrigger 
+              value="overview" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="board" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              Board
+            </TabsTrigger>
+            <TabsTrigger 
+              value="list" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              List
+            </TabsTrigger>
+            <TabsTrigger 
+              value="calendar" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger 
+              value="timeline" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings" 
+              className="relative h-9 px-2 sm:px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-none bg-transparent data-active:bg-transparent dark:data-active:bg-transparent data-active:text-foreground data-[state=active]:text-foreground after:hidden border-b-2 border-transparent data-active:border-primary data-[state=active]:border-primary shrink-0"
+            >
+              Settings
+            </TabsTrigger>
           </TabsList>
-
-          <TaskFilters filters={filters} setFilters={setFilters} />
-          
-          <Button size="sm" onClick={() => setIsCreateTaskOpen(true)}>
-            <Plus className="mr-2 size-3.5" /> New Task
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-9 ml-1" />}>
-              <MoreHorizontal className="size-4 text-muted-foreground" />
-              <span className="sr-only">More options</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {isAdminOrOwner ? (
-                <>
-                  <DropdownMenuItem 
-                    className="cursor-pointer"
-                    onClick={() => setIsEditDialogOpen(true)}
-                  >
-                    <Edit className="mr-2 size-4" />
-                    <span>Edit Project</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="mr-2 size-4" />
-                    <span>Delete Project</span>
-                  </DropdownMenuItem>
-                </>
-              ) : (
-                <DropdownMenuItem disabled>
-                  <span className="text-muted-foreground text-sm">No actions available</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {isAdminOrOwner && (
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
-            setIsDeleteDialogOpen(open)
-            if (!open) setDeleteConfirmationText("")
-          }}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the 
-                  <span className="font-semibold text-foreground mx-1">{project.name}</span> 
-                  project, including all tasks, milestones, and settings associated with it.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              
-              <div className="py-4">
-                <Label htmlFor="confirm-delete" className="text-sm font-medium">
-                  Please type <span className="font-bold select-all">{project.name}</span> to confirm.
-                </Label>
-                <Input 
-                  id="confirm-delete"
-                  value={deleteConfirmationText}
-                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                  className="mt-2"
-                  placeholder={project.name}
-                />
-              </div>
-
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                <Button 
-                  variant="destructive" 
-                  disabled={deleteConfirmationText !== project.name || isDeleting}
-                  onClick={async () => {
-                    setIsDeleting(true)
-                    try {
-                      await deleteProject(project.id)
-                      toast.success("Project deleted successfully")
-                      router.push(`${baseUrl}/projects`)
-                    } catch (error: any) {
-                      console.error("Delete error:", error)
-                      toast.error(`Failed to delete project: ${error?.message || error?.details || JSON.stringify(error)}`)
-                      setIsDeleting(false)
-                    }
-                  }}
-                >
-                  {isDeleting ? "Deleting..." : "Delete Project"}
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          )}
         </div>
       </div>
       
       <div className="flex-1 overflow-hidden px-6 md:px-8 pb-6 flex flex-col">
-        <div className="sm:hidden mb-4 mt-4 shrink-0">
-          <TabsList className="w-full h-9 flex overflow-x-auto">
-            <TabsTrigger value="overview" className="text-xs shrink-0">Overview</TabsTrigger>
-            <TabsTrigger value="board" className="text-xs shrink-0">Board</TabsTrigger>
-            <TabsTrigger value="list" className="text-xs shrink-0">List</TabsTrigger>
-            <TabsTrigger value="calendar" className="text-xs shrink-0">Calendar</TabsTrigger>
-            <TabsTrigger value="timeline" className="text-xs shrink-0">Timeline</TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs shrink-0">Settings</TabsTrigger>
-          </TabsList>
-        </div>
         
         <TabsContent value="overview" className="flex-1 mt-0 h-full data-[state=inactive]:hidden outline-none pb-4 pt-6 sm:pt-4">
           <ProjectOverview project={project} tasks={projectTasks} />

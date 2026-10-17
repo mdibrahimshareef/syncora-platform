@@ -86,23 +86,23 @@ export function TaskFilters({ filters, setFilters }: TaskFiltersProps) {
   const activeFilterCount = filters.priorities.length + filters.assignees.length + filters.statuses.length
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2 size-4 text-muted-foreground" />
+    <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+      <div className="relative shrink-0">
+        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
         <Input
           placeholder="Search tasks..."
-          className="pl-8 h-9 w-[200px] lg:w-[250px]"
+          className="pl-8 h-9 w-[160px] sm:w-[185px] lg:w-[220px] text-sm bg-background"
           value={filters.search}
           onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
         />
       </div>
 
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-9 border-dashed" />}>
-          <Filter className="mr-2 size-3.5" />
-          Filters
+        <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5" />}>
+          <Filter className="size-3.5" />
+          <span>Filters</span>
           {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-2 px-1 rounded-sm text-xs font-normal">
+            <Badge variant="secondary" className="ml-1 px-1.5 py-0 rounded-sm text-[11px] font-normal">
               {activeFilterCount}
             </Badge>
           )}
@@ -137,9 +137,9 @@ export function TaskFilters({ filters, setFilters }: TaskFiltersProps) {
       </DropdownMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-9 border-dashed" />}>
-          <Bookmark className="mr-2 size-3.5" />
-          Saved Filters
+        <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5" />}>
+          <Bookmark className="size-3.5" />
+          <span>Saved Filters</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuGroup>
