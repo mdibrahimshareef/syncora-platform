@@ -11,6 +11,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -87,18 +88,15 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
                       tooltip={item.name}
                       render={<Link href={item.href} />} 
                       isActive={pathname === item.href}
-                      className="justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-                          {item.badge > 99 ? '99+' : item.badge}
-                        </span>
-                      )}
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.name}</span>
                     </SidebarMenuButton>
+                    {item.badge && (
+                      <SidebarMenuBadge className="right-2 h-5 min-w-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums leading-none bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20 shadow-2xs transition-colors">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
