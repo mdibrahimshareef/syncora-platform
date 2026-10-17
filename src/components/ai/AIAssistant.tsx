@@ -5,9 +5,10 @@ import { useUIStore } from "@/stores/ui-store"
 import { useDataStore } from "@/stores/data-store"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw } from "lucide-react"
+import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw, X } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
@@ -30,6 +31,14 @@ export function AIAssistant() {
   const pathname = usePathname()
 
   const [inputValue, setInputValue] = React.useState('')
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+
+  React.useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`
+    }
+  }, [inputValue])
 
   const transport = React.useMemo(() => {
     return new DefaultChatTransport({
@@ -84,6 +93,9 @@ export function AIAssistant() {
     }
 
     setInputValue('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     try {
       await sendMessage({
         text: textToSubmit
@@ -189,32 +201,48 @@ export function AIAssistant() {
 
   return (
     <Sheet open={isAIAssistantOpen} onOpenChange={setAIAssistantOpen}>
-      <SheetContent className="w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-[100dvh] max-h-screen border-l border-border/80 p-0 shadow-2xl overflow-hidden bg-background/95 backdrop-blur-xl">
-        <SheetHeader className="p-4 border-b border-border/60 bg-muted/40 backdrop-blur-sm flex-row items-center justify-between space-y-0 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center shadow-xs">
-              <Sparkles className="size-4.5 text-indigo-500" />
+      <SheetContent 
+        showCloseButton={false}
+        overlayClassName="bg-black/10 backdrop-blur-none"
+        className="w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-[100dvh] max-h-screen border-l border-border/80 p-0 shadow-2xl overflow-hidden bg-background"
+      >
+        <SheetHeader className="px-4 py-3 border-b border-border/60 bg-muted/30 flex-row items-center justify-between space-y-0 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="size-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center">
+              <Sparkles className="size-4 text-indigo-500" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <SheetTitle className="text-base font-semibold tracking-tight text-foreground">
-                  SYNCORA AI
-                </SheetTitle>
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  Chief of Staff • R4.8
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Autonomous workspace governance & intelligence</p>
+            <div className="flex items-center gap-2">
+              <SheetTitle className="text-sm font-semibold tracking-tight text-foreground">
+                Syncora AI
+              </SheetTitle>
+              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground bg-muted/40 py-0 px-1.5 h-4">
+                Assistant
+              </Badge>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" onClick={handleNewChat} title="Start new conversation">
-              <MessageSquarePlus className="size-4" />
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="size-7 rounded-md text-muted-foreground hover:text-foreground" 
+              onClick={handleNewChat} 
+              title="Start new conversation"
+            >
+              <MessageSquarePlus className="size-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="size-7 rounded-md text-muted-foreground hover:text-foreground" 
+              onClick={() => setAIAssistantOpen(false)} 
+              title="Close"
+            >
+              <X className="size-3.5" />
             </Button>
           </div>
         </SheetHeader>
         
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0 [scrollbar-width:thin] [scrollbar-color:hsl(var(--muted-foreground)/0.2)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
           <div className="space-y-6">
             {!activeWorkspaceId && (
               <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/20 flex gap-2">
@@ -225,33 +253,49 @@ export function AIAssistant() {
             
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-                <div className="size-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center mb-4 shadow-sm">
-                  <Sparkles className="size-6 text-indigo-500 animate-pulse" />
+                <div className="size-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center mb-3 shadow-xs">
+                  <Sparkles className="size-5 text-indigo-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-1 tracking-tight text-foreground">Your Intelligent Work Assistant</h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                <h3 className="text-lg font-semibold mb-1 tracking-tight text-foreground">How can I help with your work?</h3>
+                <p className="text-xs text-muted-foreground mb-6 max-w-sm">
                   Deeply analyze projects, investigate overdue deadlines, resolve bottlenecks, and orchestrate verified actions.
                 </p>
                 
                 <div className="w-full text-left space-y-2 max-w-md">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Suggested Prompts:</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Suggested Prompts:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("What are the upcoming deadlines or overdue tasks in this project?")}>
-                      <span className="flex-1 truncate">What are the upcoming deadlines or overdue tasks?</span>
-                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
-                    </Button>
-                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Plan a sprint triage for all overdue tasks and assign next steps.")}>
-                      <span className="flex-1 truncate">Plan a sprint triage for overdue tasks</span>
-                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
-                    </Button>
-                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Which projects are at risk and what are the bottlenecks?")}>
-                      <span className="flex-1 truncate">Which projects are at risk and what are the bottlenecks?</span>
-                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
-                    </Button>
-                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Analyze team workload and recommend rebalancing.")}>
-                      <span className="flex-1 truncate">Analyze team workload and recommend rebalancing</span>
-                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
-                    </Button>
+                    <button 
+                      type="button"
+                      className="w-full flex items-center justify-between text-left text-xs sm:text-sm py-2.5 px-3.5 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-indigo-500/30 transition-all group whitespace-normal text-foreground cursor-pointer shadow-2xs" 
+                      onClick={() => handlePromptClick("What are the upcoming deadlines or overdue tasks in this project?")}
+                    >
+                      <span className="font-medium flex-1 pr-2">List overdue tasks and upcoming deadlines</span>
+                      <span className="text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs shrink-0">→</span>
+                    </button>
+                    <button 
+                      type="button"
+                      className="w-full flex items-center justify-between text-left text-xs sm:text-sm py-2.5 px-3.5 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-indigo-500/30 transition-all group whitespace-normal text-foreground cursor-pointer shadow-2xs" 
+                      onClick={() => handlePromptClick("Plan a sprint triage for all overdue tasks and assign next steps.")}
+                    >
+                      <span className="font-medium flex-1 pr-2">Plan a sprint triage for overdue tasks</span>
+                      <span className="text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs shrink-0">→</span>
+                    </button>
+                    <button 
+                      type="button"
+                      className="w-full flex items-center justify-between text-left text-xs sm:text-sm py-2.5 px-3.5 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-indigo-500/30 transition-all group whitespace-normal text-foreground cursor-pointer shadow-2xs" 
+                      onClick={() => handlePromptClick("Which projects are at risk and what are the bottlenecks?")}
+                    >
+                      <span className="font-medium flex-1 pr-2">Identify at-risk projects and team bottlenecks</span>
+                      <span className="text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs shrink-0">→</span>
+                    </button>
+                    <button 
+                      type="button"
+                      className="w-full flex items-center justify-between text-left text-xs sm:text-sm py-2.5 px-3.5 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-indigo-500/30 transition-all group whitespace-normal text-foreground cursor-pointer shadow-2xs" 
+                      onClick={() => handlePromptClick("Analyze team workload and recommend rebalancing.")}
+                    >
+                      <span className="font-medium flex-1 pr-2">Analyze team workload and recommend rebalancing</span>
+                      <span className="text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs shrink-0">→</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -435,10 +479,11 @@ export function AIAssistant() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-border/60 bg-card/40 backdrop-blur-sm shrink-0">
+        <div className="p-4 border-t border-border/60 bg-background shrink-0">
           <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
-            <div className="relative flex items-center rounded-xl border border-border/80 bg-background shadow-xs focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+            <div className="relative flex flex-col rounded-2xl border border-border/80 bg-background shadow-xs focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all p-3 pb-2.5">
               <textarea
+                ref={textareaRef}
                 placeholder={activeWorkspaceId ? "Ask anything about your workspace (e.g. overdue tasks, plan triage)..." : "Select workspace..."}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -449,15 +494,15 @@ export function AIAssistant() {
                   }
                 }}
                 rows={1}
-                className="flex-1 w-full resize-none bg-transparent px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60 min-h-[44px] max-h-32 text-foreground"
+                className="w-full resize-none bg-transparent pr-10 text-sm outline-none placeholder:text-muted-foreground/60 min-h-[38px] max-h-36 text-foreground overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 disabled={isLoading || !activeWorkspaceId}
                 aria-label="Chat input"
               />
-              <div className="pr-2 shrink-0">
+              <div className="absolute right-2.5 bottom-2.5">
                 <Button 
                   type="submit" 
                   size="icon" 
-                  className="size-8 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-xs transition-all disabled:opacity-40"
+                  className="size-7 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-xs transition-all disabled:opacity-40 flex items-center justify-center cursor-pointer"
                   disabled={!inputValue.trim() || isLoading || !activeWorkspaceId} 
                   aria-label="Send message"
                 >
@@ -465,9 +510,14 @@ export function AIAssistant() {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
-              <span>Shift + Enter for new line</span>
-              <span>Grounded on live workspace data</span>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground/70 px-1 pt-1 select-none">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-border/70 bg-muted/60 text-muted-foreground shadow-2xs">Shift</kbd>
+                <span>+</span>
+                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-border/70 bg-muted/60 text-muted-foreground shadow-2xs">Enter</kbd>
+                <span className="ml-1 text-muted-foreground/60 text-[10px]">for new line</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground/50">Grounded on live workspace data</span>
             </div>
           </form>
         </div>
