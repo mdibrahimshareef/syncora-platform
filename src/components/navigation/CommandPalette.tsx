@@ -124,6 +124,7 @@ export function CommandPalette() {
                   {searchResults.map(result => (
                     <CommandItem 
                       key={result.id}
+                      value={`${result.title} ${result.description || ''} ${result.type}`}
                       onSelect={() => runCommand(() => {
                         if (result.type === 'project') {
                           router.push(`${baseUrl}${result.link}`)

@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/sidebar"
 import { useDataStore } from "@/stores/data-store"
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher"
-import { GlobalSearch } from "@/components/navigation/GlobalSearch"
 
 export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>) {
   const pathname = usePathname()
@@ -72,11 +71,8 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
 
   return (
     <ShadcnSidebar {...props}>
-      <SidebarHeader className="flex flex-col gap-1 border-b p-2 border-border">
+      <SidebarHeader className="border-b p-2 border-border">
         <WorkspaceSwitcher />
-        <div className="pb-2 pt-1">
-          {currentWorkspace && <GlobalSearch workspaceId={currentWorkspace.id} />}
-        </div>
       </SidebarHeader>
 
       <SidebarContent>
