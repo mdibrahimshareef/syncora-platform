@@ -1,5 +1,5 @@
 import React from 'react'
-import { Loader2, Check, X, Search, Database, Clock, Calendar, CheckCircle2, FileText, BarChart3 } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, Search, Database, Clock, Calendar, CheckCircle, FileText, BarChart3, AlertTriangle, Users, Layers, AlertCircle } from 'lucide-react'
 
 export interface AIToolActivityProps {
   toolName: string
@@ -15,57 +15,82 @@ export function AIToolActivity({ toolName, state }: AIToolActivityProps) {
   if (state === 'input-available') return null // handled by ActionProposalCard
 
   let Icon = Search
-  let runningLabel = 'Running...'
+  let runningLabel = 'Investigating...'
   let completedLabel = 'Completed'
 
   switch (toolName) {
     case 'search_tasks':
       Icon = Search
-      runningLabel = 'Searching tasks'
-      completedLabel = 'Searched tasks'
+      runningLabel = 'Searching tasks...'
+      completedLabel = 'Tasks analyzed'
+      break
+    case 'get_overdue_tasks':
+      Icon = Clock
+      runningLabel = 'Checking overdue deadlines...'
+      completedLabel = 'Overdue tasks checked'
+      break
+    case 'get_projects':
+      Icon = Layers
+      runningLabel = 'Loading projects...'
+      completedLabel = 'Projects retrieved'
+      break
+    case 'get_project':
+      Icon = Layers
+      runningLabel = 'Fetching project context...'
+      completedLabel = 'Project context loaded'
+      break
+    case 'get_workspace_insights':
+      Icon = BarChart3
+      runningLabel = 'Scanning workspace insights...'
+      completedLabel = 'Executive signals gathered'
+      break
+    case 'get_team_members':
+      Icon = Users
+      runningLabel = 'Checking team roster...'
+      completedLabel = 'Team roster loaded'
       break
     case 'search_knowledge':
       Icon = Database
-      runningLabel = 'Searching knowledge base'
-      completedLabel = 'Searched knowledge base'
+      runningLabel = 'Searching knowledge base...'
+      completedLabel = 'Knowledge base consulted'
       break
     case 'get_project_health':
       Icon = BarChart3
-      runningLabel = 'Checking project health'
-      completedLabel = 'Reviewed project health'
+      runningLabel = 'Evaluating project health...'
+      completedLabel = 'Project health evaluated'
       break
     case 'get_timesheet':
       Icon = Clock
-      runningLabel = 'Checking time entries'
-      completedLabel = 'Reviewed time entries'
+      runningLabel = 'Checking time entries...'
+      completedLabel = 'Time entries reviewed'
       break
     case 'get_workload':
       Icon = Calendar
-      runningLabel = 'Analyzing workload'
-      completedLabel = 'Analyzed workload'
+      runningLabel = 'Analyzing team workload...'
+      completedLabel = 'Workload analyzed'
       break
     case 'create_task':
     case 'update_task':
     case 'assign_task':
-      Icon = CheckCircle2
-      runningLabel = 'Preparing action proposal'
-      completedLabel = 'Prepared action proposal'
+      Icon = CheckCircle
+      runningLabel = 'Drafting action proposal...'
+      completedLabel = 'Action proposal prepared'
       break
     default:
       Icon = FileText
-      runningLabel = `Running ${toolName.replace(/_/g, ' ')}`
-      completedLabel = `Completed ${toolName.replace(/_/g, ' ')}`
+      runningLabel = `Running ${toolName.replace(/_/g, ' ')}...`
+      completedLabel = toolName.replace(/^(get_|search_)/, '').replace(/_/g, ' ')
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs py-1.5 px-3 rounded-full bg-muted/30 border border-muted-foreground/20 shadow-sm w-fit my-1">
-      {isRunning && <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />}
-      {isCompleted && <Check className="h-3 w-3 text-green-500" />}
-      {isConflict && <X className="h-3 w-3 text-amber-500" />}
-      {isError && <X className="h-3 w-3 text-destructive" />}
+    <div className="inline-flex items-center gap-1.5 text-[11px] py-1 px-2.5 rounded-md bg-muted/50 border border-border/70 shadow-2xs transition-all hover:bg-muted/80">
+      {isRunning && <Loader2 className="h-3 w-3 animate-spin text-indigo-500 shrink-0" />}
+      {isCompleted && <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-400 shrink-0" />}
+      {isConflict && <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />}
+      {isError && <XCircle className="h-3 w-3 text-destructive shrink-0" />}
       
-      <span className={isRunning ? 'text-indigo-600 dark:text-indigo-400 font-medium' : isConflict ? 'text-amber-600 dark:text-amber-400 font-medium' : isError ? 'text-destructive font-medium' : 'text-muted-foreground'}>
-        {isRunning ? runningLabel : isConflict ? `Conflict during ${toolName}` : isError ? `Failed to run ${toolName}` : completedLabel}
+      <span className={isRunning ? 'text-indigo-600 dark:text-indigo-400 font-medium' : isConflict ? 'text-amber-600 dark:text-amber-400 font-medium' : isError ? 'text-destructive font-medium' : 'text-muted-foreground capitalize'}>
+        {isRunning ? runningLabel : isConflict ? `Conflict: ${toolName}` : isError ? `Error: ${toolName}` : completedLabel}
       </span>
     </div>
   )

@@ -189,15 +189,27 @@ export function AIAssistant() {
 
   return (
     <Sheet open={isAIAssistantOpen} onOpenChange={setAIAssistantOpen}>
-      <SheetContent className="w-full sm:max-w-md md:max-w-lg flex flex-col h-[100dvh] max-h-screen border-l p-0 shadow-2xl overflow-hidden">
-        <SheetHeader className="p-4 border-b bg-muted/30 flex-row items-center justify-between space-y-0 shrink-0">
-          <SheetTitle className="flex items-center gap-2 text-lg relative">
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-            SYNCORA AI
-          </SheetTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleNewChat} title="New Chat">
-              <MessageSquarePlus className="h-4 w-4" />
+      <SheetContent className="w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-[100dvh] max-h-screen border-l border-border/80 p-0 shadow-2xl overflow-hidden bg-background/95 backdrop-blur-xl">
+        <SheetHeader className="p-4 border-b border-border/60 bg-muted/40 backdrop-blur-sm flex-row items-center justify-between space-y-0 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center shadow-xs">
+              <Sparkles className="size-4.5 text-indigo-500" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <SheetTitle className="text-base font-semibold tracking-tight text-foreground">
+                  SYNCORA AI
+                </SheetTitle>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                  Chief of Staff • R4.8
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Autonomous workspace governance & intelligence</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" onClick={handleNewChat} title="Start new conversation">
+              <MessageSquarePlus className="size-4" />
             </Button>
           </div>
         </SheetHeader>
@@ -205,7 +217,7 @@ export function AIAssistant() {
         <div className="flex-1 overflow-y-auto p-4 min-h-0">
           <div className="space-y-6">
             {!activeWorkspaceId && (
-              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex gap-2">
+              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/20 flex gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <p>No active workspace selected. Please select a workspace to use the AI Assistant.</p>
               </div>
@@ -213,22 +225,33 @@ export function AIAssistant() {
             
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-                <div className="h-12 w-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-4">
-                  <Sparkles className="h-6 w-6" />
+                <div className="size-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center mb-4 shadow-sm">
+                  <Sparkles className="size-6 text-indigo-500 animate-pulse" />
                 </div>
-                <h3 className="text-xl font-semibold mb-1">Your Syncora work assistant</h3>
-                <p className="text-sm text-muted-foreground mb-6 text-balance">
-                  Search your workspace, understand project status, analyze workload, and help execute confirmed actions.
+                <h3 className="text-xl font-semibold mb-1 tracking-tight text-foreground">Your Intelligent Work Assistant</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                  Deeply analyze projects, investigate overdue deadlines, resolve bottlenecks, and orchestrate verified actions.
                 </p>
                 
-                <div className="w-full text-left space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Try asking:</p>
+                <div className="w-full text-left space-y-2 max-w-md">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Suggested Prompts:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What needs my attention?")}>What needs my attention?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What should I work on next?")}>What should I work on next?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What's due this week?")}>What's due this week?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("Which projects are at risk?")}>Which projects are at risk?</Button>
-                    <Button variant="outline" className="justify-start text-sm h-auto py-2.5 font-normal" onClick={() => handlePromptClick("What's blocking the team?")}>What's blocking the team?</Button>
+                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("What are the upcoming deadlines or overdue tasks in this project?")}>
+                      <span className="flex-1 truncate">What are the upcoming deadlines or overdue tasks?</span>
+                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
+                    </Button>
+                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Plan a sprint triage for all overdue tasks and assign next steps.")}>
+                      <span className="flex-1 truncate">Plan a sprint triage for overdue tasks</span>
+                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
+                    </Button>
+                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Which projects are at risk and what are the bottlenecks?")}>
+                      <span className="flex-1 truncate">Which projects are at risk and what are the bottlenecks?</span>
+                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
+                    </Button>
+                    <Button variant="outline" className="justify-start text-xs sm:text-sm h-auto py-2.5 px-3.5 font-normal border-border/80 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all text-left group" onClick={() => handlePromptClick("Analyze team workload and recommend rebalancing.")}>
+                      <span className="flex-1 truncate">Analyze team workload and recommend rebalancing</span>
+                      <span className="text-muted-foreground group-hover:translate-x-0.5 group-hover:text-indigo-500 transition-all text-xs">→</span>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -237,10 +260,10 @@ export function AIAssistant() {
             {messages.map((msg, i) => (
               <div key={msg.id} className="space-y-4">
                 <div className={`flex gap-3 text-sm ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-indigo-500'}`}>
-                    {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                  <div className={`flex size-8 shrink-0 select-none items-center justify-center rounded-xl border shadow-2xs ${msg.role === 'user' ? 'bg-primary text-primary-foreground border-primary/80' : 'bg-card border-border/70 text-indigo-500'}`}>
+                    {msg.role === 'user' ? <User className="size-4" /> : <Bot className="size-4" />}
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2 min-w-0">
                     {(() => {
                       let renderParts = msg.parts || []
                       if (!msg.parts || renderParts.length === 0) {
@@ -254,14 +277,18 @@ export function AIAssistant() {
                       return renderParts.map((part: any, partIndex: number) => {
                         if (part.type === 'text' && part.text.trim()) {
                         return (
-                          <div key={partIndex} className={`flex flex-col gap-2 rounded-lg px-3 py-2 w-fit text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted text-foreground'}`}>
+                          <div key={partIndex} className={msg.role === 'user' ? 'flex justify-end' : 'w-full'}>
                             {msg.role === 'user' ? (
-                              <div className="whitespace-pre-wrap">{part.text}</div>
+                              <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tr-xs px-4 py-2.5 max-w-[85%] text-sm shadow-sm leading-relaxed whitespace-pre-wrap">
+                                {part.text}
+                              </div>
                             ) : (
-                              <div className="ai-markdown [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>ul]:mb-2 [&>ol]:mb-2 [&_li]:mb-1 [&_strong]:font-semibold [&_a]:text-blue-500 [&_a:hover]:underline [&_pre]:bg-background/80 [&_pre]:p-3 [&_pre]:rounded-md [&_pre]:overflow-x-auto [&_pre]:text-xs [&_pre]:mt-2 [&_pre]:mb-2 [&_code]:bg-background/50 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded-sm [&_code]:text-[13px] [&_pre_code]:bg-transparent [&_pre_code]:p-0">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {part.text}
-                                </ReactMarkdown>
+                              <div className="bg-card border border-border/80 shadow-xs rounded-2xl rounded-tl-xs p-4 w-full text-sm">
+                                <div className="ai-markdown text-sm leading-relaxed text-foreground [&>h1]:text-base [&>h1]:font-bold [&>h1]:mb-2 [&>h2]:text-sm [&>h2]:font-bold [&>h2]:mb-2 [&>h3]:text-xs [&>h3]:font-bold [&>h3]:uppercase [&>h3]:tracking-wider [&>h3]:mb-1 [&>p]:mb-3 [&>p:last-child]:mb-0 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>ul]:mb-3 [&>ol]:mb-3 [&_li]:mb-1.5 [&_strong]:font-semibold [&_a]:text-indigo-500 [&_a]:font-medium [&_a:hover]:underline [&_pre]:bg-muted/80 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/60 [&_pre]:overflow-x-auto [&_pre]:text-xs [&_pre]:mt-2 [&_pre]:mb-2 [&_code]:bg-muted/80 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-[12px] [&_code]:font-mono [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_hr]:my-4 [&_hr]:border-border/60">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {part.text}
+                                  </ReactMarkdown>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -269,20 +296,15 @@ export function AIAssistant() {
                       }
                       
                       if (part.type.startsWith('tool-') || part.type === 'dynamic-tool' || part.type === 'tool-invocation') {
-                        // Compatibility logic for AI SDK 3
                         const toolName = part.toolName || (part.type.startsWith('tool-') ? part.type.replace('tool-', '') : '')
                         const toolCallId = part.toolCallId || part.toolInvocationId
                         
-                        // Extract state based on AI SDK version
-                        // Usually Vercel AI sdk injects toolInvocations array directly into message object,
-                        // but if we are mapping over parts, state might be handled natively.
                         let state = part.state
                         if (!state) {
                            if ('result' in part) state = 'result'
                            else if ('args' in part) state = 'call'
                         }
                         
-                        // Add mapping logic based on our custom status outputs
                         const resultStatus = part.result?.status
                         if (resultStatus) {
                            state = resultStatus
@@ -340,10 +362,11 @@ export function AIAssistant() {
 
                         if (['call', 'partial-call', 'result', 'output-available', 'executed', 'already_executed', 'conflict', 'failed', 'denied', 'completed'].includes(state.toLowerCase())) {
                           return (
-                            <AIToolActivity key={partIndex} toolName={toolName} state={state} />
+                            <div key={partIndex} className="inline-block mr-1.5 mb-1">
+                              <AIToolActivity toolName={toolName} state={state} />
+                            </div>
                           )
                         } else if (state === 'input-available' || state === 'requires-confirmation' || (state === 'call' && ['create_task', 'update_task', 'assign_task'].includes(toolName))) {
-                          // Tool needs confirmation. We show the action proposal if result is undefined
                           if (!part.result) {
                             return (
                               <ActionProposalCard 
@@ -371,23 +394,25 @@ export function AIAssistant() {
             
             {isLoading && (
               <div className="flex gap-3 text-sm">
-                <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-background border-border shadow-sm text-indigo-500">
-                  <Bot className="h-4 w-4" />
+                <div className="flex size-8 shrink-0 select-none items-center justify-center rounded-xl border bg-card border-border/80 shadow-2xs text-indigo-500">
+                  <Bot className="size-4" />
                 </div>
-                <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-muted text-muted-foreground w-fit">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {messages[messages.length - 1]?.role === 'assistant' ? 'Analyzing and synthesizing answer...' : 'Thinking...'}
+                <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-xs px-4 py-3 bg-card border border-border/80 shadow-xs text-muted-foreground w-fit">
+                  <Loader2 className="size-4 animate-spin text-indigo-500" />
+                  <span className="text-xs font-medium">
+                    {messages[messages.length - 1]?.role === 'assistant' ? 'Synthesizing verified answer...' : 'Analyzing workspace signals...'}
+                  </span>
                 </div>
               </div>
             )}
 
             {error && (
               <div className="flex gap-3 text-sm">
-                <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border bg-destructive/20 text-destructive shadow-sm">
-                  <AlertCircle className="h-4 w-4" />
+                <div className="flex size-8 shrink-0 select-none items-center justify-center rounded-xl border bg-destructive/20 text-destructive shadow-2xs">
+                  <AlertCircle className="size-4" />
                 </div>
-                <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-destructive/10 text-destructive border border-destructive/20 text-balance flex-1">
-                  <span>{error.message || 'Syncora AI is temporarily unavailable. Your existing workspace data is unaffected.'}</span>
+                <div className="flex items-center justify-between gap-3 rounded-2xl rounded-tl-xs p-3.5 bg-destructive/10 text-destructive border border-destructive/20 text-balance flex-1">
+                  <span className="text-xs">{error.message || 'Syncora AI is temporarily unavailable. Your existing workspace data is unaffected.'}</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -410,19 +435,40 @@ export function AIAssistant() {
           </div>
         </div>
 
-        <div className="p-4 border-t bg-background shrink-0">
-          <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
-            <Input
-              placeholder={activeWorkspaceId ? "Ask anything about your workspace..." : "Select workspace..."}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className="flex-1"
-              disabled={isLoading || !activeWorkspaceId}
-              aria-label="Chat input"
-            />
-            <Button type="submit" size="icon" disabled={!inputValue.trim() || isLoading || !activeWorkspaceId} aria-label="Send message">
-              <Send className="h-4 w-4" />
-            </Button>
+        <div className="p-4 border-t border-border/60 bg-card/40 backdrop-blur-sm shrink-0">
+          <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
+            <div className="relative flex items-center rounded-xl border border-border/80 bg-background shadow-xs focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+              <textarea
+                placeholder={activeWorkspaceId ? "Ask anything about your workspace (e.g. overdue tasks, plan triage)..." : "Select workspace..."}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleFormSubmit();
+                  }
+                }}
+                rows={1}
+                className="flex-1 w-full resize-none bg-transparent px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60 min-h-[44px] max-h-32 text-foreground"
+                disabled={isLoading || !activeWorkspaceId}
+                aria-label="Chat input"
+              />
+              <div className="pr-2 shrink-0">
+                <Button 
+                  type="submit" 
+                  size="icon" 
+                  className="size-8 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-xs transition-all disabled:opacity-40"
+                  disabled={!inputValue.trim() || isLoading || !activeWorkspaceId} 
+                  aria-label="Send message"
+                >
+                  <Send className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+              <span>Shift + Enter for new line</span>
+              <span>Grounded on live workspace data</span>
+            </div>
           </form>
         </div>
       </SheetContent>

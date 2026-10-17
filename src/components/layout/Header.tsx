@@ -50,7 +50,7 @@ export function Header() {
         <Button 
           variant="outline" 
           size="sm"
-          className="w-9 px-0 sm:w-64 sm:px-4 sm:justify-start text-sm text-muted-foreground sm:pr-12"
+          className="relative w-9 px-0 sm:w-64 sm:px-4 sm:justify-start text-sm text-muted-foreground sm:pr-12"
           onClick={() => setCommandPaletteOpen(true)}
           title="Search workspace"
         >
