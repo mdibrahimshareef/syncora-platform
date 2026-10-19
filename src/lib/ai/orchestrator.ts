@@ -12,6 +12,7 @@ import { deduplicateSources, AISource } from './sources'
 import { saveConversation } from './persistence'
 import { validateAIRequest, recordAIUsage } from './governance'
 import { calculateModelCost } from './cost'
+import { getUserAIPreferences, resolveEffectivePreferences } from './preferences'
 
 export async function orchestrateChatRequest(workspaceId: string, messages: any[], contextUrl: string = '', conversationId?: string) {
   const startTime = Date.now()
@@ -69,18 +70,21 @@ export async function orchestrateChatRequest(workspaceId: string, messages: any[
 
   const intent = classifyIntent(lastUserMessageStr)
   
-  // 3. Retrieve Workspace Context & Temporal Context
+  // 3. Retrieve Workspace Context, Temporal Context & User Preferences
   try {
+    const savedPreferences = await getUserAIPreferences(await supabase, workspaceId, userId)
+    const { effectivePreferences } = resolveEffectivePreferences(savedPreferences, lastUserMessageStr)
+
     const contextData = await getWorkspaceContext(workspaceId, lastUserMessageStr, userId)
     // Pass the bounded context (projects, members, tasks, semantic knowledge) based on intent
     const contextToPass = { ...contextData }
     const contextStr = JSON.stringify(contextToPass, null, 2)
     const temporalContext = getTemporalContext()
 
-    // 4. Build Prompt with Injection Protections
+    // 4. Build Prompt with Injection Protections & User Personalization
     // Append contextUrl to the prompt so the AI knows where the user is looking.
     const urlContextStr = contextUrl ? `\nThe user is currently viewing this URL path: ${contextUrl}` : ''
-    const systemPrompt = buildSystemPrompt(workspaceName, contextStr, userRole, temporalContext) + urlContextStr
+    const systemPrompt = buildSystemPrompt(workspaceName, contextStr, userRole, temporalContext, effectivePreferences) + urlContextStr
 
     // 5. Resolve Model
     const providerStr = process.env.AI_PROVIDER || 'mock'

@@ -6,6 +6,13 @@ import {
   MemoryScope
 } from '@/types/ai-memory';
 
+export type {
+  AIMemoryRecord,
+  CreateMemoryInput,
+  MemoryCategory,
+  MemoryScope
+};
+
 export class MemoryAuthorizationError extends Error {
   constructor(message: string) {
     super(message);
@@ -18,6 +25,173 @@ export class MemoryValidationError extends Error {
     super(message);
     this.name = 'MemoryValidationError';
   }
+}
+
+export interface MemoryRelevanceScore {
+  totalScore: number;
+  components: {
+    queryRelevance: number;
+    freshnessScore: number;
+    confidenceWeight: number;
+    verificationBoost: number;
+  };
+  isEligible: boolean;
+  exclusionReason?: string;
+}
+
+const STOPWORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
+  'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
+  'will', 'with', 'what', 'when', 'where', 'which', 'who', 'how', 'can', 'should',
+  'please', 'tell', 'show', 'list', 'give', 'me', 'my', 'our', 'we', 'this',
+  'about', 'there', 'their', 'them', 'then', 'any', 'all', 'some'
+]);
+
+const CATEGORY_KEYWORDS: Record<MemoryCategory, string[]> = {
+  goal_priority: ['goal', 'priority', 'target', 'objective', 'milestone', 'okr', 'aim'],
+  project_objective: ['project', 'objective', 'scope', 'deliverable', 'roadmap', 'vision'],
+  decision_rationale: ['decision', 'rationale', 'why', 'decided', 'tradeoff', 'choice', 'chose'],
+  recurring_blocker: ['blocker', 'blocked', 'stuck', 'impediment', 'issue', 'delay', 'obstacle'],
+  historical_outcome: ['outcome', 'result', 'history', 'retrospective', 'learned', 'past', 'previous'],
+  working_agreement: ['agreement', 'rule', 'convention', 'standard', 'workflow', 'policy', 'guideline'],
+  user_preference: ['preference', 'prefer', 'favorite', 'format', 'style', 'concise', 'detailed', 'detail'],
+  milestone_lesson: ['lesson', 'postmortem', 'retrospective', 'learn', 'mistake', 'finding'],
+  operational_pattern: ['pattern', 'cadence', 'frequency', 'operation', 'process', 'routine'],
+  risk_resolution: ['risk', 'mitigation', 'resolution', 'hazard', 'vulnerability', 'resolved']
+};
+
+export function extractMeaningfulTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9_\s-]/g, ' ')
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(t => t.length > 1 && !STOPWORDS.has(t));
+}
+
+/**
+ * Deterministically scores the relevance of an active memory record against a query.
+ * Combines token overlap, category keywords, continuous exponential freshness decay,
+ * verification level, and recorded confidence.
+ */
+export function scoreMemoryRelevance(
+  memory: AIMemoryRecord,
+  query: string = '',
+  referenceDate: Date = new Date()
+): MemoryRelevanceScore {
+  // 1. Eligibility Check (Hard Lifecycle Gate)
+  if (memory.lifecycle_status !== 'active' || memory.superseded_by) {
+    return {
+      totalScore: 0,
+      components: { queryRelevance: 0, freshnessScore: 0, confidenceWeight: 0, verificationBoost: 0 },
+      isEligible: false,
+      exclusionReason: 'superseded_or_inactive'
+    };
+  }
+
+  if (memory.expires_at && new Date(memory.expires_at).getTime() <= referenceDate.getTime()) {
+    return {
+      totalScore: 0,
+      components: { queryRelevance: 0, freshnessScore: 0, confidenceWeight: 0, verificationBoost: 0 },
+      isEligible: false,
+      exclusionReason: 'expired'
+    };
+  }
+
+  // 2. Query Relevance
+  const queryTokens = extractMeaningfulTokens(query);
+  let queryRelevance = 0.5; // neutral baseline if no query provided
+
+  if (queryTokens.length > 0) {
+    const memoryText = `${memory.content} ${memory.summary || ''} ${memory.category}`.toLowerCase();
+    const memoryTokens = new Set(extractMeaningfulTokens(memoryText));
+    
+    // Add structured attribute keys and values if present
+    if (memory.attributes && typeof memory.attributes === 'object') {
+      for (const [k, v] of Object.entries(memory.attributes)) {
+        memoryTokens.add(k.toLowerCase());
+        if (typeof v === 'string') {
+          extractMeaningfulTokens(v).forEach(t => memoryTokens.add(t));
+        }
+      }
+    }
+
+    const matches = queryTokens.filter(t => memoryTokens.has(t));
+    const tokenOverlap = matches.length / queryTokens.length;
+
+    // Category keyword matching boost
+    const catKeywords = CATEGORY_KEYWORDS[memory.category] || [];
+    const hasCategoryMatch = queryTokens.some(t => catKeywords.includes(t));
+    const categoryBoost = hasCategoryMatch ? 0.25 : 0;
+
+    queryRelevance = Math.min(1.0, tokenOverlap + categoryBoost);
+  }
+
+  // 3. Freshness Score (Continuous exponential decay based on last review/update)
+  const targetDateStr = memory.last_reviewed_at || memory.updated_at || memory.created_at;
+  const targetTime = targetDateStr ? new Date(targetDateStr).getTime() : referenceDate.getTime();
+  const daysDiff = Math.max(0, (referenceDate.getTime() - targetTime) / (1000 * 60 * 60 * 24));
+  // Half-life ~45 days (decay factor 0.015). Floor at 0.20 for established long-term knowledge.
+  const freshnessScore = Math.max(0.20, Math.exp(-0.015 * daysDiff));
+
+  // 4. Verification Boost
+  const verificationMap: Record<string, number> = {
+    confirmed: 1.0,
+    unverified: 0.8,
+    inferred: 0.6,
+    disputed: 0.2
+  };
+  const verificationBoost = verificationMap[memory.verification_status] ?? 0.8;
+
+  // 5. Confidence Weight
+  const confidenceWeight = Math.min(1.0, Math.max(0.0, (memory.confidence ?? 80) / 100));
+
+  // 6. Weighted Composite Total Score
+  const totalScore = Number((
+    (queryRelevance * 0.50) +
+    (freshnessScore * 0.25) +
+    (verificationBoost * 0.15) +
+    (confidenceWeight * 0.10)
+  ).toFixed(4));
+
+  return {
+    totalScore,
+    components: {
+      queryRelevance: Number(queryRelevance.toFixed(4)),
+      freshnessScore: Number(freshnessScore.toFixed(4)),
+      confidenceWeight: Number(confidenceWeight.toFixed(4)),
+      verificationBoost: Number(verificationBoost.toFixed(4))
+    },
+    isEligible: true
+  };
+}
+
+/**
+ * Filters, scores, and ranks candidate memories by relevance and freshness.
+ */
+export function rankAndFilterMemories(
+  memories: AIMemoryRecord[],
+  query: string = '',
+  options: {
+    limit?: number;
+    minScoreThreshold?: number;
+    referenceDate?: Date;
+  } = {}
+): Array<AIMemoryRecord & { relevanceScore: MemoryRelevanceScore }> {
+  const limit = options.limit || 5;
+  const threshold = options.minScoreThreshold ?? (query.trim().length > 0 ? 0.25 : 0.20);
+  const refDate = options.referenceDate || new Date();
+
+  const scored = memories.map(mem => ({
+    ...mem,
+    relevanceScore: scoreMemoryRelevance(mem, query, refDate)
+  }));
+
+  const eligible = scored.filter(m => m.relevanceScore.isEligible && m.relevanceScore.totalScore >= threshold);
+
+  eligible.sort((a, b) => b.relevanceScore.totalScore - a.relevanceScore.totalScore);
+
+  return eligible.slice(0, limit);
 }
 
 /**
@@ -140,12 +314,16 @@ export async function getScopedMemories(
     categories?: MemoryCategory[];
     scope?: MemoryScope;
     limit?: number;
+    query?: string;
+    minScoreThreshold?: number;
+    referenceDate?: Date;
   } = {}
 ): Promise<AIMemoryRecord[]> {
   const limit = Math.min(options.limit || 20, 50);
+  const candidateLimit = options.query ? Math.max(limit * 3, 25) : limit;
 
   // Expire any outdated memories deterministically
-  const nowIso = new Date().toISOString();
+  const nowIso = (options.referenceDate || new Date()).toISOString();
   await supabase
     .from('ai_memories')
     .update({ lifecycle_status: 'expired' })
@@ -153,6 +331,8 @@ export async function getScopedMemories(
     .eq('lifecycle_status', 'active')
     .not('expires_at', 'is', null)
     .lt('expires_at', nowIso);
+
+  let rawCandidates: AIMemoryRecord[] = [];
 
   // If specific scope requested
   if (options.scope === 'user') {
@@ -165,17 +345,15 @@ export async function getScopedMemories(
       .eq('user_id', options.userId)
       .eq('lifecycle_status', 'active')
       .order('updated_at', { ascending: false })
-      .limit(limit);
+      .limit(candidateLimit);
 
     if (options.categories && options.categories.length > 0) {
       q = q.in('category', options.categories);
     }
 
     const { data } = await q;
-    return (data || []) as AIMemoryRecord[];
-  }
-
-  if (options.scope === 'workspace') {
+    rawCandidates = (data || []) as AIMemoryRecord[];
+  } else if (options.scope === 'workspace') {
     let q = supabase
       .from('ai_memories')
       .select('*')
@@ -184,54 +362,72 @@ export async function getScopedMemories(
       .is('user_id', null)
       .eq('lifecycle_status', 'active')
       .order('updated_at', { ascending: false })
-      .limit(limit);
+      .limit(candidateLimit);
 
     if (options.categories && options.categories.length > 0) {
       q = q.in('category', options.categories);
     }
 
     const { data } = await q;
-    return (data || []) as AIMemoryRecord[];
+    rawCandidates = (data || []) as AIMemoryRecord[];
+  } else {
+    // Mixed scope: workspace memories + caller's user memories
+    const [wsRes, userRes] = await Promise.all([
+      (() => {
+        let q = supabase
+          .from('ai_memories')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .eq('scope', 'workspace')
+          .is('user_id', null)
+          .eq('lifecycle_status', 'active')
+          .order('updated_at', { ascending: false })
+          .limit(candidateLimit);
+        if (options.categories && options.categories.length > 0) {
+          q = q.in('category', options.categories);
+        }
+        return q;
+      })(),
+      options.userId
+        ? (() => {
+            let q = supabase
+              .from('ai_memories')
+              .select('*')
+              .eq('workspace_id', workspaceId)
+              .eq('scope', 'user')
+              .eq('user_id', options.userId)
+              .eq('lifecycle_status', 'active')
+              .order('updated_at', { ascending: false })
+              .limit(Math.min(candidateLimit, 15));
+            if (options.categories && options.categories.length > 0) {
+              q = q.in('category', options.categories);
+            }
+            return q;
+          })()
+        : Promise.resolve({ data: [] })
+    ]);
+
+    rawCandidates = [...(wsRes.data || []), ...(userRes.data || [])] as AIMemoryRecord[];
   }
 
-  // Mixed scope: workspace memories + caller's user memories
-  const [wsRes, userRes] = await Promise.all([
-    (() => {
-      let q = supabase
-        .from('ai_memories')
-        .select('*')
-        .eq('workspace_id', workspaceId)
-        .eq('scope', 'workspace')
-        .is('user_id', null)
-        .eq('lifecycle_status', 'active')
-        .order('updated_at', { ascending: false })
-        .limit(limit);
-      if (options.categories && options.categories.length > 0) {
-        q = q.in('category', options.categories);
-      }
-      return q;
-    })(),
-    options.userId
-      ? (() => {
-          let q = supabase
-            .from('ai_memories')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .eq('scope', 'user')
-            .eq('user_id', options.userId)
-            .eq('lifecycle_status', 'active')
-            .order('updated_at', { ascending: false })
-            .limit(10);
-          if (options.categories && options.categories.length > 0) {
-            q = q.in('category', options.categories);
-          }
-          return q;
-        })()
-      : Promise.resolve({ data: [] })
-  ]);
+  // Deduplicate by memory id
+  const seenIds = new Set<string>();
+  const uniqueCandidates = rawCandidates.filter(m => {
+    if (seenIds.has(m.id)) return false;
+    seenIds.add(m.id);
+    return true;
+  });
 
-  const combined = [...(wsRes.data || []), ...(userRes.data || [])];
-  return combined as AIMemoryRecord[];
+  if (options.query) {
+    const ranked = rankAndFilterMemories(uniqueCandidates, options.query, {
+      limit,
+      minScoreThreshold: options.minScoreThreshold,
+      referenceDate: options.referenceDate
+    });
+    return ranked;
+  }
+
+  return uniqueCandidates.slice(0, limit);
 }
 
 /**

@@ -1,14 +1,27 @@
+import { UserAIPreferences } from './preferences';
+
 export function buildSystemPrompt(
   workspaceName: string, 
   contextStr: string,
   userRole?: string,
-  temporalContext?: Record<string, string>
+  temporalContext?: Record<string, string>,
+  preferences?: UserAIPreferences
 ) {
   // Use passed temporal context or fallback
   const now = temporalContext?.serverNow || new Date().toISOString();
   const timeInfo = temporalContext ? 
     `Current Server Time: ${temporalContext.serverNow}\nCurrent Date: ${temporalContext.currentDate} (${temporalContext.currentWeekday})\nTimezone: ${temporalContext.timezone}` : 
     `Current Server Time: ${now}`;
+
+  const detailDirective = preferences?.detailLevel === 'concise'
+    ? '- RESPONSE DETAIL LEVEL: CONCISE. Keep answers terse, crisp, and laser-focused. Use maximum 3 bullet points or 1 brief paragraph. Avoid unnecessary exposition.'
+    : preferences?.detailLevel === 'comprehensive'
+    ? '- RESPONSE DETAIL LEVEL: COMPREHENSIVE. Provide in-depth investigative context, detailed trade-offs, exhaustive options, and thorough step-by-step guidance.'
+    : '- RESPONSE DETAIL LEVEL: BALANCED. Standard executive briefing style with balanced depth and structure.';
+
+  const personalizationDirective = preferences && !preferences.enablePersonalization
+    ? '\n- PERSONALIZATION OPT-OUT: User has disabled optional personalization. Disregard personal private preferences and rely strictly on neutral workspace-wide operational data.'
+    : '';
   
   return `You are SYNCORA AI, the elite, proactive, and highly intelligent Chief of Staff for the "${workspaceName}" workspace.
 ${timeInfo}
@@ -34,6 +47,8 @@ CRITICAL BEHAVIORAL RULES:
       - **Due Date:** [Due Date with relative timeframe]
       - **Status:** \`[Status]\` | **Priority:** \`[Priority]\` | **Assignee:** [Name]
 15. NO MANUAL LINK DUMPS: Do NOT append raw URL citation dumps or a manual "Sources" section at the end of your message. The Syncora interface automatically detects tool results and renders rich interactive source cards.
+16. USER PREFERENCES & DETAIL LEVEL:
+${detailDirective}${personalizationDirective}
 
 WORKSPACE CONTEXT (Bounded and semantic matches, for exact details use tools!):
 <workspace_data>

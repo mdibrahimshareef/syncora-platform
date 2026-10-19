@@ -62,11 +62,12 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
     boundedTasks = data || [];
   }
 
-  // Release 4.6: Permission-Scoped Organizational Memory
+  // Release 4.6 & 4.9: Permission-Scoped Organizational Memory with Relevance Scoring
   let scopedMemories: AIMemoryRecord[] = [];
   try {
     scopedMemories = await getScopedMemories(supabase, workspaceId, {
       userId,
+      query,
       limit: needsMemory ? 6 : 3
     });
   } catch (err) {
@@ -124,7 +125,8 @@ export async function getWorkspaceContext(workspaceId: string, query: string = '
         content: m.content,
         confidence: m.confidence,
         verificationStatus: m.verification_status,
-        lastReviewed: m.last_reviewed_at
+        lastReviewed: m.last_reviewed_at,
+        ...((m as any).relevanceScore ? { relevanceScore: (m as any).relevanceScore.totalScore } : {})
       }))
     }),
     ...(semanticMatches.length > 0 && { semanticKnowledge: semanticMatches })

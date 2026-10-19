@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw, X } from "lucide-react"
+import { Sparkles, Send, Bot, User, Loader2, AlertCircle, MessageSquarePlus, RefreshCw, X, SlidersHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
@@ -18,6 +18,7 @@ import { DecisionComparisonCard } from './DecisionComparisonCard'
 import { MemoryProposalCard } from './MemoryProposalCard'
 import { AIToolActivity } from './AIToolActivity'
 import { AISourceList } from './AISourceList'
+import { AIPreferencesModal } from './AIPreferencesModal'
 import { usePathname } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -28,6 +29,7 @@ export function AIAssistant() {
   
   const [sources, setSources] = React.useState<any[]>([])
   const [conversationId, setConversationId] = React.useState<string | undefined>(undefined)
+  const [isPreferencesOpen, setIsPreferencesOpen] = React.useState(false)
   const pathname = usePathname()
 
   const [inputValue, setInputValue] = React.useState('')
@@ -221,6 +223,15 @@ export function AIAssistant() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="size-7 rounded-md text-muted-foreground hover:text-foreground" 
+              onClick={() => setIsPreferencesOpen(true)} 
+              title="AI Preferences & Personalization"
+            >
+              <SlidersHorizontal className="size-3.5" />
+            </Button>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -522,6 +533,11 @@ export function AIAssistant() {
           </form>
         </div>
       </SheetContent>
+      <AIPreferencesModal
+        open={isPreferencesOpen}
+        onOpenChange={setIsPreferencesOpen}
+        workspaceId={activeWorkspaceId || undefined}
+      />
     </Sheet>
   )
 }
