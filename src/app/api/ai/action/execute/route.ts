@@ -17,8 +17,9 @@ export async function POST(req: Request) {
     let authContext;
     try {
       authContext = await verifyWorkspaceAccess(workspaceId)
-    } catch (e: any) {
-      return NextResponse.json({ status: 'denied', error: e.message }, { status: 403 })
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      return NextResponse.json({ status: 'denied', error: err?.message || 'Access denied' }, { status: 403 })
     }
     
     const supabase = await createClient()
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     })
 
     // Helper to complete action
-    const completeAction = async (status: 'completed' | 'failed' | 'conflict' | 'denied' | 'PARTIALLY_COMPLETED' | 'VERIFICATION_FAILED' | 'COMPLETED', result?: any) => {
+    const completeAction = async (status: string, result?: unknown) => {
       await supabase.from('ai_action_logs').update({
         status,
         result,
@@ -57,17 +58,35 @@ export async function POST(req: Request) {
 
     // 3. Route & Execute
     if (toolName === 'generate_workflow_plan') {
-      const result = await executeWorkflowPlan(supabase, workspaceId, authContext.user.id, args);
-      return completeAction(result.status as any, result);
+      const { createApprovalBinding } = await import('@/lib/ai/workflow-approval');
+      const planId = (args as Record<string, unknown>).workflowId as string || actionId;
+      await createApprovalBinding(supabase, {
+        workflowId: planId,
+        workspaceId,
+        approverId: authContext.user.id,
+        plan: args,
+        status: 'APPROVED'
+      });
+
+      const result = await executeWorkflowPlan(supabase, workspaceId, authContext.user.id, args, {
+        autoCompensateOnFailure: true
+      });
+      return completeAction(result.status, result);
     }
     
     const result = await executeAction(supabase, workspaceId, authContext.user.id, toolName, args);
-    return completeAction(result.status === 'executed_but_not_verified' ? 'completed' : result.status as any, result.status === 'executed_but_not_verified' ? { ...result.data, __verificationWarning: result.error } : (result as any).data || result)
+    const resultRecord = result as Record<string, unknown>;
+    const finalResultData = result.status === 'executed_but_not_verified'
+      ? { ...((resultRecord.data as Record<string, unknown>) || {}), __verificationWarning: resultRecord.error }
+      : (resultRecord.data || result);
 
-  } catch (error: any) {
+    return completeAction(result.status === 'executed_but_not_verified' ? 'completed' : result.status, finalResultData);
+
+  } catch (error: unknown) {
+    const errObj = error as { message?: string };
     console.error('Action Execution Error:', error)
     return NextResponse.json(
-      { status: 'failed', error: error.message || 'An unexpected error occurred during execution' },
+      { status: 'failed', error: errObj?.message || 'An unexpected error occurred during execution' },
       { status: 500 }
     )
   }

@@ -49,6 +49,7 @@ CRITICAL BEHAVIORAL RULES:
 15. NO MANUAL LINK DUMPS: Do NOT append raw URL citation dumps or a manual "Sources" section at the end of your message. The Syncora interface automatically detects tool results and renders rich interactive source cards.
 16. USER PREFERENCES & DETAIL LEVEL:
 ${detailDirective}${personalizationDirective}
+17. CONTROLLED WORKFLOW AUTONOMY: When a multi-step workflow is requested, propose a bounded plan using generate_workflow_plan (maximum 5 steps). Never claim a mutation has already happened until verified. High-risk and destructive actions strictly require human approval.
 
 WORKSPACE CONTEXT (Bounded and semantic matches, for exact details use tools!):
 <workspace_data>

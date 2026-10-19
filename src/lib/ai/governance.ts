@@ -11,6 +11,10 @@ export type WorkspaceAIPolicy = {
   allow_ai_task_creation: boolean;
   allow_ai_task_assignment: boolean;
   allow_ai_task_updates: boolean;
+  autonomy_level?: number;
+  allowed_autonomous_actions?: string[];
+  kill_switch_active?: boolean;
+  max_autonomous_actions_per_workflow?: number;
 };
 
 export class AIGovernanceError extends Error {
@@ -25,6 +29,21 @@ export class AIGovernanceError extends Error {
   }
 }
 
+export const DEFAULT_AI_POLICY: WorkspaceAIPolicy = {
+  ai_enabled: true,
+  max_workflow_steps: 10,
+  max_concurrent_workflows: 2,
+  max_daily_requests: 1000,
+  require_action_approval: true,
+  allow_ai_task_creation: true,
+  allow_ai_task_assignment: true,
+  allow_ai_task_updates: true,
+  autonomy_level: 1,
+  allowed_autonomous_actions: ['update_task'],
+  kill_switch_active: false,
+  max_autonomous_actions_per_workflow: 3
+};
+
 export async function getWorkspaceAIPolicy(supabase: SupabaseClient, workspaceId: string): Promise<WorkspaceAIPolicy> {
   const { data: policy, error } = await supabase
     .from('ai_workspace_policies')
@@ -32,18 +51,9 @@ export async function getWorkspaceAIPolicy(supabase: SupabaseClient, workspaceId
     .eq('workspace_id', workspaceId)
     .single();
 
-  if (error || !policy) {
+  if (error || !policy || Array.isArray(policy) || typeof policy !== 'object' || Object.keys(policy).length === 0) {
     // Return default conservative policy if none found
-    return {
-      ai_enabled: true,
-      max_workflow_steps: 10,
-      max_concurrent_workflows: 2,
-      max_daily_requests: 1000,
-      require_action_approval: true,
-      allow_ai_task_creation: true,
-      allow_ai_task_assignment: true,
-      allow_ai_task_updates: true,
-    };
+    return { ...DEFAULT_AI_POLICY };
   }
   return policy as WorkspaceAIPolicy;
 }

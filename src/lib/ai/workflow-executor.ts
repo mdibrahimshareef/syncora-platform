@@ -1,29 +1,81 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { WorkflowPlan, WorkflowState } from './workflow-schema';
+import { WorkflowPlan, WorkflowState, WorkflowStep } from './workflow-schema';
 import { calculatePlanRisk } from './risk';
 import { executeAction, ActionExecutionResult } from './action-executor';
 import { publishWorkflowEvent, updateWorkflowState } from './workflow-events';
-import { validateAIRequest, recordAIUsage } from './governance';
+import { validateAIRequest, recordAIUsage, WorkspaceAIPolicy } from './governance';
+import { evaluateAutonomyDecision, AutonomyDecision } from './autonomy';
+import { validateApprovalIntegrity } from './workflow-approval';
+import { verifyStepPreconditions, verifyStepPostconditions } from './workflow-verification';
+import { executeCompensation, CompensationEntry, CompensationResult } from './compensation';
 
 export type WorkflowExecutionResult = {
   status: WorkflowState;
   completedSteps: string[];
   failedStep?: string;
   error?: string;
+  compensationResult?: CompensationResult;
+  autonomyDecision?: AutonomyDecision;
 };
 
 export async function executeWorkflowPlan(
   supabase: SupabaseClient,
   workspaceId: string,
   userId: string,
-  plan: WorkflowPlan
+  plan: WorkflowPlan,
+  options?: {
+    workflowId?: string;
+    autoCompensateOnFailure?: boolean;
+    requireApprovalCheck?: boolean;
+    requireStrictPostconditions?: boolean;
+  }
 ): Promise<WorkflowExecutionResult> {
-  const planId = plan.workflowId || crypto.randomUUID();
+  const planId = options?.workflowId || plan.workflowId || crypto.randomUUID();
   const executorId = crypto.randomUUID();
   
   try {
     const policy = await validateAIRequest(supabase, workspaceId, userId, 'workflow_execute');
     const risk = calculatePlanRisk(plan);
+
+    // If approval check is required, enforce approval integrity
+    if (options?.requireApprovalCheck) {
+      const autonomyDecision = evaluateAutonomyDecision({
+        policy,
+        plan,
+        planRisk: risk,
+        userId
+      });
+
+      if (!autonomyDecision.allowed) {
+        return {
+          status: 'FAILED',
+          completedSteps: [],
+          error: `Autonomy policy violation: ${autonomyDecision.reasonCodes.join(', ')}`,
+          autonomyDecision
+        };
+      }
+
+      if (autonomyDecision.requiresApproval) {
+        const approvalCheck = await validateApprovalIntegrity(supabase, planId, workspaceId, plan);
+        if (!approvalCheck.valid) {
+          await updateWorkflowState(supabase, planId, workspaceId, userId, 'AWAITING_APPROVAL');
+          await publishWorkflowEvent(supabase, {
+            workflowId: planId,
+            workspaceId,
+            userId,
+            eventType: 'APPROVAL_REQUIRED',
+            status: 'AWAITING_APPROVAL',
+            metadata: { reason: approvalCheck.reason, autonomyDecision }
+          });
+          return {
+            status: 'AWAITING_APPROVAL',
+            completedSteps: [],
+            error: approvalCheck.reason,
+            autonomyDecision
+          };
+        }
+      }
+    }
     
     // Check if workflow exists, otherwise create it
     const { data: existingWorkflow } = await supabase.from('ai_workflows').select('id').eq('id', planId).single();
@@ -62,6 +114,7 @@ export async function executeWorkflowPlan(
     });
 
     const completedSteps = new Set<string>();
+    const compensationJournal: CompensationEntry[] = [];
 
     for (const step of plan.steps) {
       // 1.5 Check if workflow was cancelled mid-flight, or if lease/timeout expired
@@ -113,7 +166,7 @@ export async function executeWorkflowPlan(
       const actionId = `${planId}-${step.stepId}`;
       const { data: existingAction } = await supabase.from('ai_action_logs').select('*').eq('action_id', actionId).single();
       
-      if (existingAction && existingAction.status === 'completed') {
+      if (existingAction && (existingAction.status === 'completed' || existingAction.status?.toLowerCase() === 'completed')) {
         completedSteps.add(step.stepId);
         await publishWorkflowEvent(supabase, {
           workflowId: planId, stepId: step.stepId, workspaceId, userId, eventType: 'STEP_SKIPPED', status: 'SKIPPED', metadata: { reason: 'Already completed' }
@@ -124,6 +177,44 @@ export async function executeWorkflowPlan(
       if (!existingAction) {
         await supabase.from('ai_action_logs').insert({
           action_id: actionId, workspace_id: workspaceId, user_id: userId, action_type: step.tool, status: 'pending', payload: step.args
+        });
+      }
+
+      // 3.5 Preconditions Verification
+      const preResult = await verifyStepPreconditions(supabase, workspaceId, userId, step);
+      if (!preResult.passed) {
+        const errorMsg = preResult.reason || 'Precondition verification failed.';
+        await publishWorkflowEvent(supabase, {
+          workflowId: planId, stepId: step.stepId, workspaceId, userId, eventType: 'STEP_FAILED', status: 'FAILED', metadata: { error: errorMsg }
+        });
+        let compResult: CompensationResult | undefined;
+        if (options?.autoCompensateOnFailure && compensationJournal.length > 0) {
+          compResult = await executeCompensation(supabase, workspaceId, userId, compensationJournal);
+        }
+        const finalStatus = 'PARTIALLY_COMPLETED';
+        await updateWorkflowState(supabase, planId, workspaceId, userId, finalStatus);
+        await publishWorkflowEvent(supabase, {
+          workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PARTIALLY_COMPLETED', status: finalStatus
+        });
+        return {
+          status: finalStatus,
+          completedSteps: Array.from(completedSteps),
+          failedStep: step.stepId,
+          error: errorMsg,
+          compensationResult: compResult
+        };
+      }
+
+      // Record snapshot for compensation if entity can be reverted
+      if (preResult.currentSnapshot && (step.tool === 'update_task' || step.tool === 'assign_task') && step.args.taskId) {
+        compensationJournal.push({
+          stepId: step.stepId,
+          tool: step.tool,
+          targetEntity: 'task',
+          entityId: step.args.taskId,
+          previousState: preResult.currentSnapshot,
+          appliedUpdates: step.tool === 'update_task' ? (step.args.updates || {}) : { assigneeId: step.args.assigneeId },
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -145,20 +236,46 @@ export async function executeWorkflowPlan(
 
       // 6. Handle failure
       if (result.status === 'failed' || result.status === 'denied' || result.status === 'conflict') {
-        const errorMsg = result.status === 'conflict' ? (result as any).message : (result as any).error;
+        const resultRecord = result as Record<string, unknown>;
+        const errorMsg = String(resultRecord.message || resultRecord.error || 'Action execution failed');
         await publishWorkflowEvent(supabase, {
           workflowId: planId, stepId: step.stepId, workspaceId, userId, eventType: 'STEP_FAILED', status: 'FAILED', metadata: { error: errorMsg }
         });
+        let compResult: CompensationResult | undefined;
+        if (options?.autoCompensateOnFailure && compensationJournal.length > 0) {
+          compResult = await executeCompensation(supabase, workspaceId, userId, compensationJournal);
+        }
         const finalStatus = 'PARTIALLY_COMPLETED';
         await updateWorkflowState(supabase, planId, workspaceId, userId, finalStatus);
         await publishWorkflowEvent(supabase, {
           workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PARTIALLY_COMPLETED', status: finalStatus
         });
-        return { status: finalStatus, completedSteps: Array.from(completedSteps), failedStep: step.stepId, error: errorMsg };
+        return { status: finalStatus, completedSteps: Array.from(completedSteps), failedStep: step.stepId, error: errorMsg, compensationResult: compResult };
       }
       
+      // 7. Postcondition Verification
+      if (options?.requireStrictPostconditions) {
+        const postResult = await verifyStepPostconditions(supabase, workspaceId, step, result);
+        if (postResult.status === 'failed' || postResult.status === 'needs_review') {
+          const errorMsg = postResult.error || 'Postcondition verification failed.';
+          await publishWorkflowEvent(supabase, {
+            workflowId: planId, stepId: step.stepId, workspaceId, userId, eventType: 'STEP_VERIFIED', status: 'VERIFICATION_FAILED', metadata: { error: errorMsg }
+          });
+          let compResult: CompensationResult | undefined;
+          if (options?.autoCompensateOnFailure && compensationJournal.length > 0) {
+            compResult = await executeCompensation(supabase, workspaceId, userId, compensationJournal);
+          }
+          const finalStatus = 'VERIFICATION_FAILED';
+          await updateWorkflowState(supabase, planId, workspaceId, userId, finalStatus);
+          await publishWorkflowEvent(supabase, {
+            workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PARTIALLY_COMPLETED', status: finalStatus
+          });
+          return { status: finalStatus, completedSteps: Array.from(completedSteps), failedStep: step.stepId, error: errorMsg, compensationResult: compResult };
+        }
+      }
+
       if (result.status === 'executed_but_not_verified') {
-        const errorMsg = (result as any).error;
+        const errorMsg = String((result as Record<string, unknown>).error || 'Verification warning');
         await publishWorkflowEvent(supabase, {
           workflowId: planId, stepId: step.stepId, workspaceId, userId, eventType: 'STEP_VERIFIED', status: 'VERIFICATION_FAILED', metadata: { error: errorMsg }
         });
@@ -187,11 +304,12 @@ export async function executeWorkflowPlan(
 
     return { status: finalStatus, completedSteps: Array.from(completedSteps) };
 
-  } catch (error: any) {
-    if (error.name === 'AIGovernanceError') {
+  } catch (error: unknown) {
+    const errorObj = error as { name?: string; message?: string };
+    if (errorObj?.name === 'AIGovernanceError') {
       throw error;
     }
-    const errorMsg = error.message || 'Unexpected workflow execution failure';
+    const errorMsg = errorObj?.message || 'Unexpected workflow execution failure';
     await supabase.from('ai_workflows').update({ status: 'FAILED', executor_id: null }).eq('id', planId);
     await publishWorkflowEvent(supabase, {
       workflowId: planId, workspaceId, userId, eventType: 'WORKFLOW_PAUSED', status: 'FAILED', metadata: { error: errorMsg }
@@ -313,7 +431,7 @@ export async function retryWorkflowStep(
   }
 
   // 2. Verify step exists in plan
-  const step = workflow.plan.steps.find((s: any) => s.stepId === stepId);
+  const step = workflow.plan.steps.find((s: WorkflowStep) => s.stepId === stepId);
   if (!step) {
     throw new Error('Step not found in workflow plan');
   }
@@ -333,5 +451,82 @@ export async function retryWorkflowStep(
   // Since we want to resume the workflow from this point (and complete the rest of the plan),
   // we delegate to resumeWorkflowPlan now that concurrency is acquired and step is validated.
   return executeWorkflowPlan(supabase, workspaceId, userId, workflow.plan);
+}
+
+/**
+ * High-level entry point for executing workflows under Release 4.10 Controlled Autonomy:
+ * 1. Evaluates workspace autonomy policy, risk, bounds, and kill switch.
+ * 2. If approval is required, validates approval binding and plan digest.
+ * 3. Enforces bounded execution, precondition checks, and optional auto-compensation.
+ */
+export async function executeGovernedWorkflow(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  userId: string,
+  plan: WorkflowPlan,
+  optionsOrPolicy?: {
+    policy?: WorkspaceAIPolicy;
+    autoCompensateOnFailure?: boolean;
+    isGlobalKillSwitchActive?: boolean;
+    workflowId?: string;
+  } | WorkspaceAIPolicy
+): Promise<WorkflowExecutionResult> {
+  const options = optionsOrPolicy && 'ai_enabled' in optionsOrPolicy
+    ? { policy: optionsOrPolicy as WorkspaceAIPolicy }
+    : (optionsOrPolicy as { policy?: WorkspaceAIPolicy; autoCompensateOnFailure?: boolean; isGlobalKillSwitchActive?: boolean; workflowId?: string } | undefined);
+
+  const policy = options?.policy || await validateAIRequest(supabase, workspaceId, userId, 'workflow_execute');
+  const planRisk = calculatePlanRisk(plan);
+  const planId = options?.workflowId || plan.workflowId || crypto.randomUUID();
+
+  const autonomyDecision = evaluateAutonomyDecision({
+    policy,
+    plan,
+    planRisk,
+    userId,
+    isGlobalKillSwitchActive: options?.isGlobalKillSwitchActive
+  });
+
+  if (!autonomyDecision.allowed) {
+    return {
+      status: 'FAILED',
+      completedSteps: [],
+      error: `Workflow execution disallowed by policy: ${autonomyDecision.reasonCodes.join(', ')}`,
+      autonomyDecision
+    };
+  }
+
+  if (autonomyDecision.requiresApproval) {
+    const approval = await validateApprovalIntegrity(supabase, planId, workspaceId, plan);
+    if (!approval.valid) {
+      await updateWorkflowState(supabase, planId, workspaceId, userId, 'AWAITING_APPROVAL');
+      await publishWorkflowEvent(supabase, {
+        workflowId: planId,
+        workspaceId,
+        userId,
+        eventType: 'APPROVAL_REQUIRED',
+        status: 'AWAITING_APPROVAL',
+        metadata: { reason: approval.reason, autonomyDecision }
+      });
+      return {
+        status: 'AWAITING_APPROVAL',
+        completedSteps: [],
+        error: approval.reason,
+        autonomyDecision
+      };
+    }
+  }
+
+  // If approved or bounded automatic execution is permitted, proceed with verified execution
+  const executionResult = await executeWorkflowPlan(supabase, workspaceId, userId, plan, {
+    workflowId: planId,
+    requireStrictPostconditions: true,
+    autoCompensateOnFailure: options?.autoCompensateOnFailure
+  });
+
+  return {
+    ...executionResult,
+    autonomyDecision
+  };
 }
 
