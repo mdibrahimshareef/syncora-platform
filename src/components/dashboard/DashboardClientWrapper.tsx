@@ -4,16 +4,14 @@ import { useEffect } from "react"
 import { useDataStore } from "@/stores/data-store"
 import { RecentActivity } from "@/components/dashboard/RecentActivity"
 import { AIWorkflowHistory } from "@/components/ai/AIWorkflowHistory"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { 
-  CheckCircle2, Clock, AlertTriangle, ListTodo, Calendar, 
-  ArrowRight, Inbox, Plus, Rocket, Zap, UserPlus, FolderPlus, Send
+  CheckCircle2, AlertTriangle, Plus, FolderPlus, Send
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePresenceAvatars"
 
 export function DashboardClientWrapper() {
   const params = useParams()
@@ -79,9 +77,22 @@ export function DashboardClientWrapper() {
   if (projects.length === 0 && openTasks.length === 0) {
     return (
       <div className="flex flex-col gap-10 py-6">
-        <div className="mb-4">
-          <h1 className="text-3xl font-bold mb-2">Good morning, {firstName}</h1>
-          <p className="text-xl text-muted-foreground">Let's get your workspace moving.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Good morning, {firstName}</h1>
+            <p className="text-xl text-muted-foreground">Let&apos;s get your workspace moving.</p>
+          </div>
+          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-border bg-card/80 backdrop-blur-xs shadow-2xs self-start sm:self-auto">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Workspace
+            </span>
+            <div className="h-4 w-px bg-border" />
+            <WorkspacePresenceAvatars />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -146,8 +157,8 @@ export function DashboardClientWrapper() {
           </div>
           <div className="bg-muted/30 rounded-xl p-8 border border-dashed border-border flex flex-col justify-center text-center">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Your Workspace</h3>
-            <p className="text-lg font-medium mb-2">You don't have activity yet.</p>
-            <p className="text-muted-foreground">Once your team starts working, you'll see tasks, deadlines, activity and project health here.</p>
+            <p className="text-lg font-medium mb-2">You don&apos;t have activity yet.</p>
+            <p className="text-muted-foreground">Once your team starts working, you&apos;ll see tasks, deadlines, activity and project health here.</p>
           </div>
         </div>
       </div>
@@ -158,9 +169,22 @@ export function DashboardClientWrapper() {
     <div className="flex flex-col gap-10 pb-8 pt-4">
       
       {/* HEADER */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Good morning, {firstName}</h1>
-        <p className="text-xl text-muted-foreground">Here's what needs your attention today.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Good morning, {firstName}</h1>
+          <p className="text-xl text-muted-foreground">Here&apos;s what needs your attention today.</p>
+        </div>
+        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-border bg-card/80 backdrop-blur-xs shadow-2xs self-start sm:self-auto">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Workspace
+          </span>
+          <div className="h-4 w-px bg-border" />
+          <WorkspacePresenceAvatars />
+        </div>
       </div>
 
       {/* QUICK ACTIONS */}

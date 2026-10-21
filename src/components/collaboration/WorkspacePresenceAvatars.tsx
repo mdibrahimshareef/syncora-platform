@@ -21,27 +21,29 @@ export function WorkspacePresenceAvatars() {
         <TooltipProvider delay={300}>
           {displayUsers.map((user) => (
             <Tooltip key={user.id}>
-              <TooltipTrigger>
-                <Avatar className="size-7 border-2 border-background shadow-sm hover:z-10 transition-transform hover:scale-110">
+              <TooltipTrigger render={
+                <Avatar className="size-7 border-2 border-background shadow-sm hover:z-10 transition-transform hover:scale-110 cursor-pointer">
                   <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
                     {user.initials}
                   </AvatarFallback>
                 </Avatar>
-              </TooltipTrigger>
+              } />
               <TooltipContent>
                 <p className="text-xs font-medium">{user.name}</p>
-                <p className="text-[10px] text-muted-foreground">Active now</p>
+                <p className="text-[10px] text-muted-foreground">Active in workspace</p>
               </TooltipContent>
             </Tooltip>
           ))}
           {remainingCount > 0 && (
             <Tooltip>
-              <TooltipTrigger className="relative flex size-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground shadow-sm hover:z-10 cursor-default">
-                +{remainingCount}
-              </TooltipTrigger>
+              <TooltipTrigger render={
+                <div className="relative flex size-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground shadow-sm hover:z-10 cursor-default">
+                  +{remainingCount}
+                </div>
+              } />
               <TooltipContent>
-                <p className="text-xs">{remainingCount} more online</p>
+                <p className="text-xs">{remainingCount} more online in workspace</p>
               </TooltipContent>
             </Tooltip>
           )}

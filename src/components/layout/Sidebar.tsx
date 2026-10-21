@@ -1,7 +1,19 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, usePathname } from "next/navigation"
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, PlusCircle, Folders, Users, Target, Briefcase, Flag, FileText, Send, CheckCircle, Building2, PieChart, ShieldAlert, Blocks } from "lucide-react"
+import {
+  LayoutDashboard,
+  Inbox,
+  CheckSquare,
+  Calendar,
+  PlusCircle,
+  Folders,
+  Users,
+  FileText,
+  Send,
+  CheckCircle,
+  PieChart,
+} from "lucide-react"
 
 import {
   Sidebar as ShadcnSidebar,
@@ -15,9 +27,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarFooter,
 } from "@/components/ui/sidebar"
 import { useDataStore } from "@/stores/data-store"
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher"
+import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePresenceAvatars"
 
 export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>) {
   const pathname = usePathname()
@@ -127,6 +141,23 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-border/60 p-2.5">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Team Online
+            </span>
+          </div>
+          <div className="group-data-[collapsible=icon]:mx-auto">
+            <WorkspacePresenceAvatars />
+          </div>
+        </div>
+      </SidebarFooter>
 
       <SidebarRail />
     </ShadcnSidebar>
