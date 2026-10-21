@@ -28,7 +28,7 @@ export async function getRequests(supabase: SupabaseClient<Database>, workspaceI
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data
+  return data || []
 }
 
 export async function createRequestForm(

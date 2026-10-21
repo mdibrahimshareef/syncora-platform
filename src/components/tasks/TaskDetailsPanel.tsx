@@ -498,8 +498,10 @@ export function TaskDetailsPanel() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none" className="text-xs">None</SelectItem>
-                      {approvals.map(a => (
-                        <SelectItem key={a.id} value={a.id} className="text-xs">{a.title}</SelectItem>
+                      {(approvals || []).map(a => (
+                        <SelectItem key={a.id} value={a.id} className="text-xs">
+                          {a.title || `${a.resource_type ? a.resource_type.toUpperCase() : 'General'} Approval (${a.status})`}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

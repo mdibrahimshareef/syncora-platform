@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -7,7 +7,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const adminDb = createClient(supabaseUrl, supabaseServiceKey);
 
-async function signUpAndGetWorkspaces(page: any, prefix: string) {
+async function signUpAndGetWorkspaces(page: Page, prefix: string) {
   const email = `${prefix}-${Date.now()}@example.com`.toLowerCase();
   const password = 'Password123!';
   
@@ -19,7 +19,7 @@ async function signUpAndGetWorkspaces(page: any, prefix: string) {
   await page.click('button[type="submit"]');
   await page.waitForURL(/.*(onboarding|app|dashboard).*/);
   
-  let orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
+  const orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
   console.log(`[${prefix}] Current URL before if onboarding:`, page.url());
   if (page.url().includes('onboarding')) {
     console.log(`[${prefix}] Filling onboarding form...`);
@@ -35,7 +35,7 @@ async function signUpAndGetWorkspaces(page: any, prefix: string) {
       await toast.waitFor({ timeout: 2000, state: 'visible' });
       const msg = await toast.textContent();
       console.log(`[${prefix}] ONBOARDING ERROR TOAST:`, msg);
-    } catch (e) {
+    } catch {
       console.log(`[${prefix}] No error toast found.`);
     }
   } else {

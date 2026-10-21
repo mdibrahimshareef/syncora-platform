@@ -4,6 +4,20 @@ import { createClient } from "@/lib/supabase/server"
 import { StoreInitializer } from "@/components/providers/StoreInitializer"
 import { cookies } from "next/headers"
 
+interface WorkspaceMemberItem {
+  workspace_id: string
+  role: string | null
+  workspaces: {
+    id: string
+    name: string
+    slug: string
+    organization_id: string
+    team_id?: string | null
+    organizations?: { id: string; name: string; slug: string } | null
+    teams?: { id: string; name: string; slug: string } | null
+  } | null
+}
+
 export default async function WorkspaceLayout({
   children,
 }: {
@@ -22,7 +36,7 @@ export default async function WorkspaceLayout({
 
   const [
     { data: profile },
-    { data: memberWorkspaces, error: memberWorkspacesError },
+    { data: initialMemberWorkspaces, error: memberWorkspacesError },
     { data: memberOrgs },
     { data: memberTeams }
   ] = await Promise.all([
@@ -32,17 +46,36 @@ export default async function WorkspaceLayout({
     supabase.from('team_members').select('team_id, role, teams(id, org_id, name, slug, description, icon)').eq('user_id', user.id)
   ])
 
+  let memberWorkspaces = initialMemberWorkspaces as unknown as WorkspaceMemberItem[] | null
+  
   if (memberWorkspacesError) {
-    console.error("Layout: Error fetching member workspaces:", memberWorkspacesError)
+    console.error("Layout: Error fetching member workspaces with embedded relations:", {
+      message: memberWorkspacesError.message,
+      code: memberWorkspacesError.code,
+      details: memberWorkspacesError.details,
+      hint: memberWorkspacesError.hint,
+    })
+
+    // Fallback: Query workspace_members without deep nested teams relationship
+    const { data: fallbackWorkspaces, error: fallbackError } = await supabase
+      .from('workspace_members')
+      .select('workspace_id, role, workspaces(id, name, slug, organization_id, team_id, organizations(id, name, slug))')
+      .eq('user_id', user.id)
+
+    if (!fallbackError && fallbackWorkspaces) {
+      memberWorkspaces = fallbackWorkspaces as unknown as WorkspaceMemberItem[]
+    } else {
+      console.error("Layout: Fallback workspace fetch also failed:", fallbackError?.message || fallbackError?.code)
+    }
   }
 
   let activeWorkspaceId = null
   let activeWorkspaceRole = 'Member'
 
   if (memberWorkspaces && memberWorkspaces.length > 0) {
-    if (savedWorkspaceId && memberWorkspaces.some(w => w.workspace_id === savedWorkspaceId)) {
+    if (savedWorkspaceId && memberWorkspaces.some((w) => w.workspace_id === savedWorkspaceId)) {
       activeWorkspaceId = savedWorkspaceId
-      activeWorkspaceRole = memberWorkspaces.find(w => w.workspace_id === savedWorkspaceId)?.role || 'Member'
+      activeWorkspaceRole = memberWorkspaces.find((w) => w.workspace_id === savedWorkspaceId)?.role || 'Member'
     } else {
       activeWorkspaceId = memberWorkspaces[0].workspace_id
       activeWorkspaceRole = memberWorkspaces[0].role || 'Member'
@@ -60,17 +93,17 @@ export default async function WorkspaceLayout({
     email: user.email || '',
     role: activeWorkspaceRole,
     avatarUrl: profile?.avatar_url || undefined,
-    metadata: (profile?.metadata as Record<string, any>) || {}
+    metadata: (profile?.metadata as Record<string, unknown>) || {}
   }
 
-  const mappedWorkspaces = memberWorkspaces?.filter(w => w.workspaces).map(w => ({
+  const mappedWorkspaces = memberWorkspaces?.filter((w) => w.workspaces).map((w) => ({
     id: w.workspaces!.id,
     name: w.workspaces!.name,
     slug: w.workspaces!.slug,
     organizationId: w.workspaces!.organization_id,
     teamId: w.workspaces!.team_id || undefined,
     orgSlug: w.workspaces!.organizations?.slug,
-    teamSlug: w.workspaces!.teams?.slug
+    teamSlug: w.workspaces!.teams?.slug || 'team'
   })) || []
 
   const mappedOrganizations = memberOrgs?.filter(o => o.organizations).map(o => ({

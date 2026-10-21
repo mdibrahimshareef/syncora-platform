@@ -58,7 +58,7 @@ export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
       await bulkUpdateTasks(selectedTaskIds, { status })
       setSelectedTaskIds([])
       toast.success(`Updated ${selectedTaskIds.length} tasks`)
-    } catch(err) { toast.error("Update failed") }
+    } catch { toast.error("Update failed") }
   }
 
   const handleBulkPriorityUpdate = async (priority: Task['priority']) => {
@@ -66,7 +66,7 @@ export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
       await bulkUpdateTasks(selectedTaskIds, { priority })
       setSelectedTaskIds([])
       toast.success(`Updated ${selectedTaskIds.length} tasks`)
-    } catch(err) { toast.error("Update failed") }
+    } catch { toast.error("Update failed") }
   }
 
   const handleBulkDelete = async () => {
@@ -75,7 +75,7 @@ export function TaskListView({ tasks, projectStatuses }: TaskListViewProps) {
       await bulkDeleteTasks(selectedTaskIds)
       setSelectedTaskIds([])
       toast.success("Tasks deleted")
-    } catch(err) { toast.error("Delete failed") }
+    } catch { toast.error("Delete failed") }
   }
 
   const getPriorityColor = (priority: string) => {

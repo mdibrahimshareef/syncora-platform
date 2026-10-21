@@ -12,12 +12,11 @@ async function runTests() {
   const userOwnerRes = await adminClient.auth.admin.createUser({ email: `owner${timestamp}@doki.app`, password: 'password', email_confirm: true })
   const userAdminRes = await adminClient.auth.admin.createUser({ email: `admin${timestamp}@doki.app`, password: 'password', email_confirm: true })
   const userMemberRes = await adminClient.auth.admin.createUser({ email: `member${timestamp}@doki.app`, password: 'password', email_confirm: true })
-  const userForeignRes = await adminClient.auth.admin.createUser({ email: `foreign${timestamp}@doki.app`, password: 'password', email_confirm: true })
+  await adminClient.auth.admin.createUser({ email: `foreign${timestamp}@doki.app`, password: 'password', email_confirm: true })
 
   const userOwner = userOwnerRes.data.user!
   const userAdmin = userAdminRes.data.user!
   const userMember = userMemberRes.data.user!
-  const userForeign = userForeignRes.data.user!
 
   console.log("Setting up workspace and roles...")
   const { data: org, error: orgErr } = await adminClient.from('organizations').insert({ name: `Test Org ${timestamp}`, slug: `test-org-${timestamp}`, owner_id: userOwner.id }).select().single()

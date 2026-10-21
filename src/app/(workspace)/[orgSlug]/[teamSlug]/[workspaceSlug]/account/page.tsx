@@ -88,7 +88,7 @@ export default function AccountSettingsPage() {
   const [success, setSuccess] = React.useState(false)
 
   // Initialize form state from currentUser and metadata
-  const meta = currentUser?.metadata || {}
+  const meta = (currentUser?.metadata || {}) as Record<string, string>
   
   const [formData, setFormData] = React.useState({
     fullName: currentUser?.name || "",

@@ -8,14 +8,15 @@ export async function getApprovalsRequestedByMe(supabase: SupabaseClient<Databas
     .from('approvals')
     .select(`
       *,
-      approver:approver_id(id, full_name, avatar_url)
+      approver:profiles!approvals_approver_id_fkey(id, full_name, avatar_url),
+      requester:profiles!approvals_requester_id_fkey(id, full_name, avatar_url)
     `)
     .eq('workspace_id', workspaceId)
     .eq('requester_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data
+  return data || []
 }
 
 export async function getApprovalsAssignedToMe(supabase: SupabaseClient<Database>, workspaceId: string, userId: string) {
@@ -23,14 +24,30 @@ export async function getApprovalsAssignedToMe(supabase: SupabaseClient<Database
     .from('approvals')
     .select(`
       *,
-      requester:requester_id(id, full_name, avatar_url)
+      approver:profiles!approvals_approver_id_fkey(id, full_name, avatar_url),
+      requester:profiles!approvals_requester_id_fkey(id, full_name, avatar_url)
     `)
     .eq('workspace_id', workspaceId)
     .eq('approver_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data
+  return data || []
+}
+
+export async function getWorkspaceApprovals(supabase: SupabaseClient<Database>, workspaceId: string) {
+  const { data, error } = await supabase
+    .from('approvals')
+    .select(`
+      *,
+      approver:profiles!approvals_approver_id_fkey(id, full_name, avatar_url),
+      requester:profiles!approvals_requester_id_fkey(id, full_name, avatar_url)
+    `)
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }
 
 export async function requestApproval(
@@ -40,7 +57,11 @@ export async function requestApproval(
   const { data, error } = await supabase
     .from('approvals')
     .insert({ ...payload, status: 'Pending' })
-    .select()
+    .select(`
+      *,
+      approver:profiles!approvals_approver_id_fkey(id, full_name, avatar_url),
+      requester:profiles!approvals_requester_id_fkey(id, full_name, avatar_url)
+    `)
     .single()
 
   if (error) throw error
@@ -61,7 +82,11 @@ export async function resolveApproval(
       updated_at: new Date().toISOString() 
     })
     .eq('id', approvalId)
-    .select()
+    .select(`
+      *,
+      approver:profiles!approvals_approver_id_fkey(id, full_name, avatar_url),
+      requester:profiles!approvals_requester_id_fkey(id, full_name, avatar_url)
+    `)
     .single()
 
   if (error) throw error

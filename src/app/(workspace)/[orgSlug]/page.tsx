@@ -34,7 +34,7 @@ export default function OrganizationPage() {
         <Building2 className="size-12 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold tracking-tight">Organization Not Found</h2>
         <p className="text-muted-foreground mt-2">
-          We couldn't find an organization with the slug "{orgSlug}".
+          We couldn&apos;t find an organization with the slug &quot;{orgSlug}&quot;.
         </p>
         <Button className="mt-6" onClick={() => router.push("/")}>Return Home</Button>
       </div>

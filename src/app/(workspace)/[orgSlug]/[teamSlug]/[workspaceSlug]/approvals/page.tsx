@@ -31,8 +31,8 @@ export default function ApprovalsPage() {
   
   if (!currentUser) return null
 
-  const assignedToMe = approvals.filter(a => a.approver_id === currentUser.id)
-  const requestedByMe = approvals.filter(a => a.requester_id === currentUser.id)
+  const assignedToMe = (approvals || []).filter(a => a && a.approver_id === currentUser.id)
+  const requestedByMe = (approvals || []).filter(a => a && a.requester_id === currentUser.id)
 
   const handleResolve = async (id: string, status: 'Approved' | 'Rejected' | 'Changes Requested') => {
     try {

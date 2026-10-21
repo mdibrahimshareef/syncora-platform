@@ -9,10 +9,9 @@ import { ProjectOverview } from "@/components/tasks/ProjectOverview"
 import { notFound, useSearchParams, useRouter, usePathname } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, MoreHorizontal, Trash2, Edit } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
@@ -24,19 +23,14 @@ import { PresenceAvatars } from "@/components/collaboration/PresenceAvatars"
 import { ProjectSettings } from "@/components/tasks/ProjectSettings"
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
 
-import { getProjectStatuses } from "@/lib/api/projects"
-import { createClient } from "@/lib/supabase/client"
-
 export default function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = React.use(params)
-  const supabase = createClient()
   const baseUrl = useWorkspaceUrl()
   const isAdminOrOwner = useIsAdminOrOwner()
   
   const projects = useDataStore(s => s.projects);
   const projectStatuses = useDataStore(s => s.projectStatuses);
   const tasks = useDataStore(s => s.tasks);
-  const milestones = useDataStore(s => s.milestones);
   const templates = useDataStore(s => s.templates);
   const fetchTasks = useDataStore(s => s.fetchTasks);
   const fetchMilestones = useDataStore(s => s.fetchMilestones);
@@ -46,7 +40,6 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
   const isLoading = useDataStore(s => s.isLoading);
   const deleteProject = useDataStore(s => s.deleteProject);
-  const [isStatusesLoading, setIsStatusesLoading] = React.useState(true)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState("")
@@ -64,7 +57,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         fetchTemplates()
       }
     }
-  }, [projectId, activeWorkspaceId, projects.length, fetchProjects, fetchTasks, fetchMilestones, fetchProjectStatuses])
+  }, [projectId, activeWorkspaceId, projects.length, fetchProjects, fetchTasks, fetchMilestones, fetchProjectStatuses, fetchTemplates, templates.length])
 
   const project = projects.find(p => p.id === projectId)
   
@@ -128,7 +121,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
     })
   }, [tasks, projectId, filters])
 
-  if ((isLoading || isStatusesLoading) && !project) {
+  if (isLoading && !project) {
     return <div className="flex items-center justify-center h-full"><span className="text-muted-foreground animate-pulse">Loading project...</span></div>
   }
 
@@ -239,9 +232,10 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
                           await deleteProject(project.id)
                           toast.success("Project deleted successfully")
                           router.push(`${baseUrl}/projects`)
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                           console.error("Delete error:", error)
-                          toast.error(`Failed to delete project: ${error?.message || error?.details || JSON.stringify(error)}`)
+                          const err = error as { message?: string; details?: string }
+                          toast.error(`Failed to delete project: ${err?.message || err?.details || String(error)}`)
                           setIsDeleting(false)
                         }
                       }}

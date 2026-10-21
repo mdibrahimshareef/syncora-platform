@@ -1,7 +1,13 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
 
-export type Portfolio = Database['public']['Tables']['portfolios']['Row']
+export type Portfolio = Database['public']['Tables']['portfolios']['Row'] & {
+  owner?: { id: string; full_name: string | null; avatar_url: string | null } | null
+  projects?: { project: Database['public']['Tables']['projects']['Row'] }[] | null
+  progress?: number | null
+}
+export type CreatePortfolioPayload = Omit<Database['public']['Tables']['portfolios']['Insert'], 'id' | 'created_at' | 'updated_at'>
+export type UpdatePortfolioPayload = Database['public']['Tables']['portfolios']['Update']
 
 export async function getPortfolios(supabase: SupabaseClient<Database>, orgId: string) {
   const { data, error } = await supabase
@@ -20,7 +26,7 @@ export async function getPortfolios(supabase: SupabaseClient<Database>, orgId: s
 
 export async function createPortfolio(
   supabase: SupabaseClient<Database>,
-  payload: Omit<Database['public']['Tables']['portfolios']['Insert'], 'id' | 'created_at' | 'updated_at'>
+  payload: CreatePortfolioPayload
 ) {
   const { data, error } = await supabase
     .from('portfolios')
@@ -35,7 +41,7 @@ export async function createPortfolio(
 export async function updatePortfolio(
   supabase: SupabaseClient<Database>,
   portfolioId: string,
-  payload: Database['public']['Tables']['portfolios']['Update']
+  payload: UpdatePortfolioPayload
 ) {
   const { data, error } = await supabase
     .from('portfolios')

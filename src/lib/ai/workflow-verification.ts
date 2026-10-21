@@ -247,7 +247,7 @@ export async function verifyStepPostconditions(
       return { status: 'succeeded', verified: true, verifiedState: task, mismatches: [] };
     }
 
-    return { status: 'succeeded', verified: true, verifiedState: executionResult.data, mismatches: [] };
+    return { status: 'succeeded', verified: true, verifiedState: (executionResult.data as Record<string, unknown>) || undefined, mismatches: [] };
 
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Database query exception during verification';

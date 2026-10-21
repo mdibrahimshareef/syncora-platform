@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useOrganizationStore } from "@/stores/organizationStore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -52,8 +51,9 @@ export default function PortfoliosPage() {
       setName("")
       setDescription("")
       setStatus("Active")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create portfolio")
+    } catch (err: unknown) {
+      const e = err as { message?: string }
+      toast.error(e?.message || "Failed to create portfolio")
     }
   }
 
@@ -61,7 +61,7 @@ export default function PortfoliosPage() {
     try {
       await updatePortfolio(id, { status: newStatus })
       toast.success("Portfolio status updated")
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to update status")
     }
   }
@@ -116,7 +116,7 @@ export default function PortfoliosPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {portfolios.map((portfolio) => {
-            const projectCount = (portfolio as any).projects?.length || 0;
+            const projectCount = portfolio.projects?.length || 0;
             return (
               <Card key={portfolio.id} className="flex flex-col">
                 <CardHeader className="pb-2">
@@ -148,20 +148,20 @@ export default function PortfoliosPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Overall Progress</span>
-                        <span className="font-medium">{(portfolio as any).progress || 0}%</span>
+                        <span className="font-medium">{portfolio.progress || 0}%</span>
                       </div>
-                      <Progress value={(portfolio as any).progress || 0} className="h-2" />
+                      <Progress value={portfolio.progress || 0} className="h-2" />
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t border-border">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          {(portfolio as any).owner?.avatar_url && <AvatarImage src={(portfolio as any).owner.avatar_url} />}
+                          {portfolio.owner?.avatar_url && <AvatarImage src={portfolio.owner.avatar_url} />}
                           <AvatarFallback className="text-[10px]">
-                            {(portfolio as any).owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
+                            {portfolio.owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-muted-foreground">{(portfolio as any).owner?.full_name || 'Unassigned'}</span>
+                        <span className="text-xs text-muted-foreground">{portfolio.owner?.full_name || 'Unassigned'}</span>
                       </div>
                     </div>
                   </div>

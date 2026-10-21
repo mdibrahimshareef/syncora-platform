@@ -4,6 +4,7 @@ import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function TeamMembers({ teamId }: { teamId?: string }) {
+  void teamId
   return (
     <Card>
       <CardHeader>

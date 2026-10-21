@@ -43,7 +43,7 @@ export async function setTaskCustomField(
   supabase: SupabaseClient<Database>,
   taskId: string,
   fieldId: string,
-  value: any
+  value: Database['public']['Tables']['task_custom_fields']['Insert']['value']
 ) {
   const { data, error } = await supabase
     .from('task_custom_fields')

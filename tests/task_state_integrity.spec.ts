@@ -18,7 +18,7 @@ async function signUpAndGetWorkspaces(page: Page, prefix: string) {
   await page.click('button[type="submit"]');
   await page.waitForURL(/.*(onboarding|app|dashboard).*/);
   
-  let orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
+  const orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
   if (page.url().includes('onboarding')) {
     const orgName = `${prefix} Org ${Date.now()}`;
     await page.fill('input[name="name"]', orgName);
@@ -85,7 +85,7 @@ test.describe.serial('16B.6 Task State Integrity & Collaborative Consistency', (
     await pageB.waitForTimeout(2000); // Give B time to subscribe
 
     // CREATE TASK via API (Simulates fast creation or creation elsewhere)
-    const { data: insertedTask, error: insertError } = await adminDb.from('tasks').insert({
+    const { error: insertError } = await adminDb.from('tasks').insert({
       project_id: proj.id,
       workspace_id: ws.wsId,
       title: 'New Collaborative Task',
@@ -94,6 +94,7 @@ test.describe.serial('16B.6 Task State Integrity & Collaborative Consistency', (
       position: 1000,
       created_by: ws.userId
     }).select().single();
+    if (insertError) throw insertError;
     
     // Navigate to List tab so we can see tasks
     await pageA.locator('button[role="tab"]:has-text("List")').first().click();

@@ -14,7 +14,7 @@ export function StoreInitializer({
 }: { 
   currentUser: User | null
   activeWorkspaceId: string | null
-  workspaces?: Workspace[] | any[]
+  workspaces?: Workspace[]
   organizations?: Organization[]
   teams?: Team[]
 }) {

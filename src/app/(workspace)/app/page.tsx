@@ -26,7 +26,9 @@ export default async function AppRedirectPage() {
     }
   }
   
-  let { data: memberWorkspaces, error } = await query.limit(1).maybeSingle()
+  const initialRes = await query.limit(1).maybeSingle()
+  let memberWorkspaces = initialRes.data
+  const error = initialRes.error
 
   if (error) {
     console.error("Error fetching workspace for redirect:", error)

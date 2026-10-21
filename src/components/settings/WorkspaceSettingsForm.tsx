@@ -60,8 +60,9 @@ export function WorkspaceSettingsForm() {
     try {
       await updateWorkspace(activeWorkspaceId, { name: values.name })
       toast.success("Workspace name updated successfully!")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update workspace name.")
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      toast.error(error?.message || "Failed to update workspace name.")
       console.error('Update workspace error:', err)
     } finally {
       setIsLoading(false)

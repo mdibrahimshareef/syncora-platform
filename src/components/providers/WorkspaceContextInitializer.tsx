@@ -1,15 +1,16 @@
 "use client"
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useRef } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useDataStore } from '@/stores/data-store'
 import { useOrganizationStore } from '@/stores/organizationStore'
 
 export function WorkspaceContextInitializer() {
   const params = useParams()
+  const router = useRouter()
   const workspaces = useDataStore(s => s.workspaces);
   const { organizations, teams } = useOrganizationStore()
-  const [initialized, setInitialized] = useState(false)
+  const initializedRef = useRef(false)
 
   useEffect(() => {
     if (!params) return
@@ -39,7 +40,7 @@ export function WorkspaceContextInitializer() {
       // Update cookie silently so next reload uses this workspace by default
       document.cookie = `SYNCORA_workspace_id=${currentWorkspace.id}; path=/; max-age=31536000`
 
-      if (isNewWorkspace || !initialized) {
+      if (isNewWorkspace || !initializedRef.current) {
         useDataStore.getState().fetchWorkspaceMembers()
         useDataStore.getState().fetchProjects()
         useDataStore.getState().fetchWorkspaceTasks()
@@ -49,15 +50,15 @@ export function WorkspaceContextInitializer() {
         useDataStore.getState().fetchRequests()
         useDataStore.getState().fetchRequestForms()
         useDataStore.getState().fetchApprovals()
-        setInitialized(true)
+        initializedRef.current = true
       }
     } else if (workspaces.length > 0) {
       // User does not have access to this workspace, redirect to their first available workspace
       const defaultWorkspace = workspaces[0]
-      window.location.href = `/${defaultWorkspace.orgSlug || 'org'}/${defaultWorkspace.teamSlug || 'team'}/${defaultWorkspace.slug}/home`
+      router.replace(`/${defaultWorkspace.orgSlug || 'org'}/${defaultWorkspace.teamSlug || 'team'}/${defaultWorkspace.slug}/home`)
     }
     // If workspaces.length === 0, we are just waiting for Zustand hydration (layout.tsx ensures they have > 0)
-  }, [params, workspaces, organizations, teams, initialized])
+  }, [params, workspaces, organizations, teams, router])
 
   return null
 }

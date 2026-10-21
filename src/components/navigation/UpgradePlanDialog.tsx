@@ -14,8 +14,21 @@ import {
 
 import { toast } from "sonner"
 
-export function UpgradePlanDialog() {
-  const [open, setOpen] = React.useState(false)
+interface UpgradePlanDialogProps {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactElement
+}
+
+export function UpgradePlanDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  trigger
+}: UpgradePlanDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (controlledOnOpenChange ?? (() => {})) : setInternalOpen
 
   const handleSelectPlan = (planName: string) => {
     setOpen(false)
@@ -24,7 +37,13 @@ export function UpgradePlanDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" className="h-9 px-3 hidden sm:flex text-sm font-medium bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">See plans</Button>} />
+      {trigger !== undefined ? (
+        trigger && <DialogTrigger render={trigger} />
+      ) : (
+        !isControlled && (
+          <DialogTrigger render={<Button variant="outline" className="h-9 px-3 hidden sm:flex text-sm font-medium bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">See plans</Button>} />
+        )
+      )}
       <DialogContent className="sm:max-w-4xl p-0 overflow-y-auto max-h-[90vh] bg-background">
         <DialogHeader className="p-6 pb-2">
           <div className="flex items-center gap-2 mb-4">
@@ -37,7 +56,7 @@ export function UpgradePlanDialog() {
           </div>
           <DialogTitle className="text-2xl font-bold">Choose the right plan for your team</DialogTitle>
           <DialogDescription className="text-base mt-2">
-            Congrats - we've given you Premium access with all our best features to get started. Your trial ends on 5 October 2026. Choose a plan by then, or you'll be auto-downgraded to Free. <a href="#" className="text-primary hover:underline">Learn more about your features</a>
+            Congrats - we&apos;ve given you Premium access with all our best features to get started. Your trial ends on 5 October 2026. Choose a plan by then, or you&apos;ll be auto-downgraded to Free. <a href="#" className="text-primary hover:underline">Learn more about your features</a>
           </DialogDescription>
         </DialogHeader>
 
@@ -58,11 +77,11 @@ export function UpgradePlanDialog() {
               <p className="text-sm font-bold">Free includes:</p>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Limited to 10 users</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>100 automations / month</span>
                 </li>
               </ul>
@@ -82,29 +101,29 @@ export function UpgradePlanDialog() {
               <span className="text-3xl font-bold">$6.70</span>
               <span className="text-sm text-muted-foreground">per user / month</span>
             </div>
-            <Button variant="default" className="w-full mb-8 bg-blue-600 hover:bg-blue-700 text-white">Buy Standard</Button>
+            <Button variant="default" className="w-full mb-8" onClick={() => handleSelectPlan('Standard')}>Buy Standard</Button>
             
             <div className="space-y-3 flex-1">
               <p className="text-sm font-bold">Get everything in Free, plus:</p>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Unlimited users</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Page permissions</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Page insights</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Advanced workflows</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>1,000 automations / month</span>
                 </li>
               </ul>
@@ -127,27 +146,27 @@ export function UpgradePlanDialog() {
               <p className="text-sm font-bold">Get everything in Standard, plus:</p>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Analytics & Mission control</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Team calendars</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>AI-powered productivity</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Unlimited automations</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>24/7 Enterprise support</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Check className="size-4 text-blue-500 mt-0.5 shrink-0" />
+                  <Check className="size-4 text-primary mt-0.5 shrink-0" />
                   <span>Single Sign-On (SSO)</span>
                 </li>
               </ul>

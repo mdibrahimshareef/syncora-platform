@@ -1,4 +1,3 @@
-import { Settings as SettingsIcon } from "lucide-react"
 import { WorkspaceMembers } from "@/components/settings/WorkspaceMembers"
 import { WorkspaceSettingsForm } from "@/components/settings/WorkspaceSettingsForm"
 import { AIGovernanceSettings } from "@/components/settings/AIGovernanceSettings"

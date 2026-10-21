@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useOrganizationStore } from "@/stores/organizationStore"
 import { useDataStore } from "@/stores/data-store"
 import { createClient } from "@/lib/supabase/client"
 import { 
@@ -9,10 +8,12 @@ import {
   getOrganizationInvitations, 
   removeOrganizationMember, 
   updateOrganizationMemberRole,
-  cancelOrganizationInvitation
+  cancelOrganizationInvitation,
+  OrganizationMemberItem,
+  OrganizationInvitationItem
 } from "@/lib/api/organizations"
 import { toast } from "sonner"
-import { User, MoreHorizontal, Shield, Mail, Trash2, Copy, Link as LinkIcon } from "lucide-react"
+import { MoreHorizontal, Shield, Mail, Trash2, Copy } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -22,7 +23,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Select,
@@ -36,33 +36,51 @@ import { InviteOrgMemberDialog } from "./InviteOrgMemberDialog"
 
 export function OrganizationMembers({ orgId }: { orgId: string }) {
   const currentUser = useDataStore(s => s.currentUser);
-  const supabase = createClient()
-  const [members, setMembers] = React.useState<any[]>([])
-  const [invitations, setInvitations] = React.useState<any[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [isInitialLoading, setIsInitialLoading] = React.useState(true)
+  const supabase = React.useMemo(() => createClient(), [])
+  const [members, setMembers] = React.useState<OrganizationMemberItem[]>([])
+  const [invitations, setInvitations] = React.useState<OrganizationInvitationItem[]>([])
+  const [isInitialLoading, setIsInitialLoading] = React.useState(Boolean(orgId))
   const [isInviteDialogOpen, setIsInviteDialogOpen] = React.useState(false)
 
-  const loadData = React.useCallback(async (silent = false) => {
-    if (!orgId) return
-    if (!silent) setIsLoading(true)
+  const loadData = React.useCallback(async () => {
+    if (!orgId) {
+      setIsInitialLoading(false)
+      return
+    }
     try {
-      const [membersData, invitationsData] = await Promise.all([
+      const [membersResult, invitationsResult] = await Promise.allSettled([
         getOrganizationMembers(supabase, orgId),
         getOrganizationInvitations(supabase, orgId)
       ])
-      setMembers(membersData || [])
-      setInvitations(invitationsData || [])
-    } catch (error) {
-      console.error("Failed to load org members:", error)
-      toast.error("Failed to load members")
+
+      if (membersResult.status === 'fulfilled') {
+        setMembers(membersResult.value || [])
+      } else {
+        const err = membersResult.reason
+        const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : "Failed to load members")
+        console.error("Failed to load org members:", errMsg, err)
+        toast.error(errMsg)
+      }
+
+      if (invitationsResult.status === 'fulfilled') {
+        setInvitations(invitationsResult.value || [])
+      } else {
+        // Invitations might fail if user does not have admin permissions (RLS policy)
+        console.warn("Could not load organization invitations:", invitationsResult.reason?.message || invitationsResult.reason)
+        setInvitations([])
+      }
+    } catch (error: unknown) {
+      const err = error as { message?: string; details?: string }
+      const errMsg = err?.message || err?.details || "Failed to load members"
+      console.error("Failed to load org members:", errMsg, error)
+      toast.error(errMsg)
     } finally {
-      setIsLoading(false)
       setIsInitialLoading(false)
     }
   }, [orgId, supabase])
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
   }, [loadData])
 
@@ -70,9 +88,10 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await updateOrganizationMemberRole(supabase, orgId, userId, newRole)
       toast.success("Role updated successfully")
-      loadData(true)
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update role")
+      loadData()
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      toast.error(err?.message || "Failed to update role")
     }
   }
 
@@ -82,9 +101,10 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await removeOrganizationMember(supabase, orgId, userId)
       toast.success("Member removed successfully")
-      loadData(true)
-    } catch (error: any) {
-      toast.error(error.message || "Failed to remove member")
+      loadData()
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      toast.error(err?.message || "Failed to remove member")
     }
   }
 
@@ -92,9 +112,10 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
     try {
       await cancelOrganizationInvitation(supabase, inviteId)
       toast.success("Invitation canceled")
-      loadData(true)
-    } catch (error: any) {
-      toast.error(error.message || "Failed to cancel invitation")
+      loadData()
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      toast.error(err?.message || "Failed to cancel invitation")
     }
   }
 
@@ -122,7 +143,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
           orgId={orgId} 
           open={isInviteDialogOpen} 
           onOpenChange={setIsInviteDialogOpen} 
-          onSuccess={() => loadData(true)}
+          onSuccess={() => loadData()}
         />
       </div>
     )
@@ -151,7 +172,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
             <div key={member.id} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src={member.profiles?.avatar_url} />
+                  <AvatarImage src={member.profiles?.avatar_url || undefined} />
                   <AvatarFallback>{member.profiles?.full_name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -162,7 +183,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {member.profiles?.metadata?.contact || member.profiles?.email || member.profiles?.username || "No email provided"}
+                    {String(((member.profiles?.metadata as Record<string, unknown> | null)?.contact as string) || member.profiles?.email || member.profiles?.username || "No email provided")}
                   </p>
                 </div>
               </div>
@@ -172,7 +193,9 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
                   {isAdminOrOwner && member.user_id !== currentUser?.id && (isOwner || member.role !== 'owner') ? (
                     <Select
                       defaultValue={member.role}
-                      onValueChange={(val) => handleUpdateRole(member.user_id, val)}
+                      onValueChange={(val) => {
+                        if (val) handleUpdateRole(member.user_id, val)
+                      }}
                     >
                       <SelectTrigger className="h-8">
                         <SelectValue />
@@ -234,12 +257,12 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
                   <span className="text-sm capitalize text-muted-foreground">{invite.role}</span>
                 </div>
                 
-                {(invite as any).token && (
+                {invite.token && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-8 gap-1.5 text-xs font-normal"
-                    onClick={() => handleCopyInviteLink((invite as any).token, invite.email)}
+                    onClick={() => handleCopyInviteLink(invite.token, invite.email)}
                     title="Copy organization invite link"
                   >
                     <Copy className="size-3.5" />
@@ -268,7 +291,7 @@ export function OrganizationMembers({ orgId }: { orgId: string }) {
         orgId={orgId} 
         open={isInviteDialogOpen} 
         onOpenChange={setIsInviteDialogOpen}
-        onSuccess={() => loadData(true)}
+        onSuccess={() => loadData()}
       />
     </div>
   )

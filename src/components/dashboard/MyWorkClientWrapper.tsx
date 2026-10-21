@@ -49,10 +49,10 @@ export function MyWorkClientWrapper() {
   const upcomingTasks = assignedTasks.filter(t => !t.dueDate || t.dueDate > todayStr)
 
   // 2. Filter Approvals
-  const pendingApprovals = approvals.filter(a => a.approver_id === currentUser.id && a.status === 'Pending')
+  const pendingApprovals = (approvals || []).filter(a => a && a.approver_id === currentUser.id && a.status === 'Pending')
 
   // 3. Filter Requests
-  const myRequests = requests.filter(r => r.requester_id === currentUser.id && r.status !== 'Completed' && r.status !== 'Rejected')
+  const myRequests = (requests || []).filter(r => r && r.requester_id === currentUser.id && r.status !== 'Completed' && r.status !== 'Rejected')
 
   // Group tasks by Priority and Status for unified view
   const tasksByPriority = {

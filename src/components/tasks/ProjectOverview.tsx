@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { Project, Task, Milestone } from "@/types"
+import { Project, Task } from "@/types"
 import { useDataStore } from "@/stores/data-store"
 import { useUIStore } from "@/stores/ui-store"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Calendar, CheckCircle2, CircleDashed, Clock, AlertTriangle, Target, Plus, MoreHorizontal } from "lucide-react"
+import { Calendar, CheckCircle2, CircleDashed, Clock, AlertTriangle, Target, Plus } from "lucide-react"
 import { format, isPast, isToday } from "date-fns"
 
 interface ProjectOverviewProps {

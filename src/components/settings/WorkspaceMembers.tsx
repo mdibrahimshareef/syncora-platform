@@ -38,31 +38,52 @@ export function WorkspaceMembers() {
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
   const workspaces = useDataStore(s => s.workspaces);
   const currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
-  const supabase = createClient()
+  const supabase = React.useMemo(() => createClient(), [])
   const [members, setMembers] = React.useState<any[]>([])
   const [invitations, setInvitations] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isInitialLoading, setIsInitialLoading] = React.useState(true)
   const [isInviteDialogOpen, setIsInviteDialogOpen] = React.useState(false)
 
+  const workspaceId = currentWorkspace?.id
+
   const loadData = React.useCallback(async (silent = false) => {
-    if (!currentWorkspace) return
+    if (!workspaceId) {
+      setIsLoading(false)
+      setIsInitialLoading(false)
+      return
+    }
     if (!silent) setIsLoading(true)
     try {
-      const [membersData, invitationsData] = await Promise.all([
-        getWorkspaceMembers(supabase, currentWorkspace.id),
-        getWorkspaceInvitations(supabase, currentWorkspace.id)
+      const [membersResult, invitationsResult] = await Promise.allSettled([
+        getWorkspaceMembers(supabase, workspaceId),
+        getWorkspaceInvitations(supabase, workspaceId)
       ])
-      setMembers(membersData || [])
-      setInvitations(invitationsData || [])
-    } catch (error) {
-      console.error("Failed to load members:", error)
-      toast.error("Failed to load members")
+
+      if (membersResult.status === 'fulfilled') {
+        setMembers(membersResult.value || [])
+      } else {
+        const err = membersResult.reason
+        const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : "Failed to load members")
+        console.error("Failed to load members:", errMsg, err)
+        toast.error(errMsg)
+      }
+
+      if (invitationsResult.status === 'fulfilled') {
+        setInvitations(invitationsResult.value || [])
+      } else {
+        console.warn("Could not load workspace invitations:", invitationsResult.reason?.message || invitationsResult.reason)
+        setInvitations([])
+      }
+    } catch (error: any) {
+      const errMsg = error?.message || error?.details || "Failed to load members"
+      console.error("Failed to load members:", errMsg, error)
+      toast.error(errMsg)
     } finally {
       setIsLoading(false)
       setIsInitialLoading(false)
     }
-  }, [currentWorkspace, supabase])
+  }, [workspaceId, supabase])
 
   React.useEffect(() => {
     loadData()

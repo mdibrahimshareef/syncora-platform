@@ -16,10 +16,7 @@ export function WorkspacePresenceAvatars() {
   const remainingCount = onlineWorkspaceUsers.length - displayUsers.length
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="text-xs text-muted-foreground mr-1 hidden sm:block">
-        {onlineWorkspaceUsers.length} online in workspace
-      </div>
+    <div className="flex items-center">
       <div className="flex -space-x-2">
         <TooltipProvider delay={300}>
           {displayUsers.map((user) => (

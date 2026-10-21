@@ -81,7 +81,7 @@ export function ProjectsList() {
           </div>
           <h3 className="text-lg font-medium mb-1">No projects found</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            We couldn't find any projects matching "{searchQuery}". Try adjusting your search term.
+            We couldn&apos;t find any projects matching &quot;{searchQuery}&quot;. Try adjusting your search term.
           </p>
           <Button variant="outline" className="mt-6 mx-auto" onClick={() => setSearchQuery("")}>
             Clear Search

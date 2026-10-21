@@ -60,20 +60,20 @@ export default async function InitiativesPage({ params }: { params: { orgSlug: s
                   <div className="space-y-2 mt-4">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Overall Progress</span>
-                      <span className="font-medium">{(initiative as any).progress || 0}%</span>
+                      <span className="font-medium">{initiative.progress || 0}%</span>
                     </div>
-                    <Progress value={(initiative as any).progress || 0} className="h-2" />
+                    <Progress value={initiative.progress || 0} className="h-2" />
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        {(initiative as any).owner?.avatar_url && <AvatarImage src={(initiative as any).owner.avatar_url} />}
+                        {initiative.owner?.avatar_url && <AvatarImage src={initiative.owner.avatar_url} />}
                         <AvatarFallback className="text-[10px]">
-                          {(initiative as any).owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
+                          {initiative.owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground">{(initiative as any).owner?.full_name || 'Unassigned'}</span>
+                      <span className="text-xs text-muted-foreground">{initiative.owner?.full_name || 'Unassigned'}</span>
                     </div>
                   </div>
                 </div>

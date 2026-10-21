@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Project } from "@/types"
@@ -55,8 +55,6 @@ const PROJECT_COLORS = [
   { label: 'Rose', value: 'bg-rose-500' },
 ]
 
-import { createClient } from "@/lib/supabase/client"
-
 export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: ProjectFormProps) {
   const createProject = useDataStore(s => s.createProject);
   const updateProject = useDataStore(s => s.updateProject);
@@ -95,6 +93,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
   }, [defaultValues, form])
 
   const { isDirty } = form.formState;
+  const watchedTemplateId = useWatch({ control: form.control, name: "templateId" });
 
   React.useEffect(() => {
     if (onDirtyChange) {
@@ -129,7 +128,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
       }
       
       if (onSuccess) onSuccess()
-    } catch (err) {
+    } catch {
       toast.error("An error occurred while saving the project")
     }
   }
@@ -265,7 +264,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
           />
         )}
 
-        {form.watch("templateId") && form.watch("templateId") !== "none" && (
+        {watchedTemplateId && watchedTemplateId !== "none" && (
           <FormField
             control={form.control}
             name="includeSampleData"

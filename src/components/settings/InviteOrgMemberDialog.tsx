@@ -70,8 +70,9 @@ export function InviteOrgMemberDialog({ orgId, open, onOpenChange, onSuccess }: 
       setRole("member")
       handleOpenChange(false)
       onSuccess()
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send invitation")
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      toast.error(err?.message || "Failed to send invitation")
     } finally {
       setIsSubmitting(false)
     }

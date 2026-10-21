@@ -56,7 +56,7 @@ export async function getProjects(supabase: SupabaseClient<Database>, workspaceI
       progress: calculatedProgress,
       taskCount: stats.total,
       members: [], // Connect to workspace_members in future
-      updatedAt: p.updated_at as any,
+      updatedAt: (p.updated_at as string) || new Date().toISOString(),
       budget: p.budget as number,
       spent: p.spent as number,
       currency: p.currency as string,

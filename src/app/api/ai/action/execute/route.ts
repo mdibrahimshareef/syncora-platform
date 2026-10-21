@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const completeAction = async (status: string, result?: unknown) => {
       await supabase.from('ai_action_logs').update({
         status,
-        result,
+        result: result as any,
         completed_at: new Date().toISOString()
       }).eq('action_id', actionId)
       return NextResponse.json({ status, data: result })

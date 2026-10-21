@@ -22,8 +22,6 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { Filter, Search, X, Bookmark, Save } from "lucide-react"
-import { mockUsers } from "@/data/mock"
-import { toast } from "sonner"
 
 export interface TaskFilterState {
   search: string
@@ -74,7 +72,7 @@ export function TaskFilters({ filters, setFilters }: TaskFiltersProps) {
     setNewFilterName("")
   }
 
-  const applySavedFilter = (filterData: any) => {
+  const applySavedFilter = (filterData: Partial<TaskFilterState>) => {
     setFilters({
       search: filterData.search || "",
       priorities: filterData.priorities || [],

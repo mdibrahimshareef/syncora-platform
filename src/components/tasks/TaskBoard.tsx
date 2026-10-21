@@ -52,10 +52,6 @@ export function TaskBoard({ tasks: initialTasks, projectStatuses }: TaskBoardPro
     setTasks(initialTasks.filter(t => !t.parentId))
   }
 
-  // Ensure initial render also filters subtasks if we are using initialTasks
-  React.useEffect(() => {
-    setTasks(initialTasks.filter(t => !t.parentId))
-  }, [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

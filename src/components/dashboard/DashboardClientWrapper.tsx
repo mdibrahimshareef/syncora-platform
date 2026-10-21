@@ -84,17 +84,32 @@ export function DashboardClientWrapper() {
           <p className="text-xl text-muted-foreground">Let's get your workspace moving.</p>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-          <Button size="lg" onClick={() => router.push(`${baseUrl}/projects`)} className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent shadow-none">
-            <FolderPlus className="size-5 mr-2" />
+        <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            size="lg" 
+            variant="default"
+            onClick={() => router.push(`${baseUrl}/projects`)} 
+            className="shadow-sm font-medium gap-2"
+          >
+            <FolderPlus className="size-5" />
             Create Project
           </Button>
-          <Button size="lg" onClick={() => router.push(`${baseUrl}/my-tasks`)} className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent shadow-none">
-            <Plus className="size-5 mr-2" />
+          <Button 
+            size="lg" 
+            variant="outline"
+            onClick={() => router.push(`${baseUrl}/my-tasks`)} 
+            className="font-medium gap-2"
+          >
+            <Plus className="size-5" />
             Create Task
           </Button>
-          <Button size="lg" onClick={() => router.push(`${baseUrl}/requests`)} className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent shadow-none">
-            <Send className="size-5 mr-2" />
+          <Button 
+            size="lg" 
+            variant="outline"
+            onClick={() => router.push(`${baseUrl}/requests`)} 
+            className="font-medium gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <Send className="size-5" />
             Create Request
           </Button>
         </div>
@@ -149,17 +164,17 @@ export function DashboardClientWrapper() {
       </div>
 
       {/* QUICK ACTIONS */}
-      <div className="flex gap-4">
-        <Button variant="outline" size="sm" onClick={() => router.push(`${baseUrl}/my-tasks`)}>
-          <Plus className="size-4 mr-2" />
+      <div className="flex items-center gap-3">
+        <Button variant="default" size="sm" onClick={() => router.push(`${baseUrl}/my-tasks`)} className="shadow-sm font-medium gap-2">
+          <Plus className="size-4" />
           Create Task
         </Button>
-        <Button variant="outline" size="sm" onClick={() => router.push(`${baseUrl}/projects`)}>
-          <FolderPlus className="size-4 mr-2" />
+        <Button variant="outline" size="sm" onClick={() => router.push(`${baseUrl}/projects`)} className="font-medium gap-2">
+          <FolderPlus className="size-4" />
           Create Project
         </Button>
-        <Button variant="outline" size="sm" onClick={() => router.push(`${baseUrl}/requests`)}>
-          <Send className="size-4 mr-2" />
+        <Button variant="outline" size="sm" onClick={() => router.push(`${baseUrl}/requests`)} className="font-medium gap-2 text-muted-foreground hover:text-foreground">
+          <Send className="size-4" />
           Create Request
         </Button>
       </div>

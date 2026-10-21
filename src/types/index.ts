@@ -5,7 +5,7 @@ export type User = {
   email: string;
   role: string;
   avatarUrl?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 export type Organization = {
@@ -15,6 +15,8 @@ export type Organization = {
   logoUrl?: string;
   ownerId?: string;
   role?: string;
+  type?: string;
+  plan?: string;
 };
 
 export type Team = {
@@ -182,7 +184,7 @@ export type SavedFilter = {
   userId: string;
   workspaceId: string;
   name: string;
-  filterData: Record<string, any>;
+  filterData: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -191,9 +193,9 @@ export type Automation = {
   workspaceId: string;
   name: string;
   triggerType: string;
-  triggerConfig?: Record<string, any>;
+  triggerConfig?: Record<string, unknown>;
   actionType: string;
-  actionConfig?: Record<string, any>;
+  actionConfig?: Record<string, unknown>;
   isActive: boolean;
   createdBy?: string;
   createdAt: string;

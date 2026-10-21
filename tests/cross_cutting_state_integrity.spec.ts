@@ -18,7 +18,7 @@ async function signUpAndGetWorkspaces(page: Page, prefix: string) {
   await page.click('button[type="submit"]');
   await page.waitForURL(/.*(onboarding|app|dashboard).*/);
   
-  let orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
+  const orgSlug = `${prefix.toLowerCase()}-ws-${Date.now()}`;
   if (page.url().includes('onboarding')) {
     const orgName = `${prefix} Org ${Date.now()}`;
     await page.fill('input[name="name"]', orgName);
@@ -136,9 +136,7 @@ test.describe('16B.7 Cross-Cutting State Integrity', () => {
     await pageA.goto(`http://localhost:3000${wsA.baseUrl}/my-tasks`);
     
     // Intercept search API and delay it
-    let searchIntercepted = false;
     await pageA.route('**/rest/v1/rpc/global_search', async route => {
-      searchIntercepted = true;
       // Delay the response
       await new Promise(r => setTimeout(r, 2000));
       // Return a fake search result for Workspace A
@@ -193,7 +191,7 @@ test.describe('16B.7 Cross-Cutting State Integrity', () => {
     await adminDb.from('workspace_members').insert({ workspace_id: wsB.id, user_id: wsA.userId, role: 'owner' });
 
     // Insert a project for Workspace A so the Dashboard empty state is bypassed
-    const { data: projectA, error: pError } = await adminDb.from('projects').insert({
+    const { error: pError } = await adminDb.from('projects').insert({
       workspace_id: wsA.wsId,
       name: 'Workspace A Project',
       slug: 'ws-a-project',

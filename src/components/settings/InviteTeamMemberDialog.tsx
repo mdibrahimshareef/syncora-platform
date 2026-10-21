@@ -52,8 +52,9 @@ export function InviteTeamMemberDialog({ teamId, open, onOpenChange, onSuccess }
       setRole("member")
       onSuccess()
       onOpenChange(false)
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send invitation")
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      toast.error(err?.message || "Failed to send invitation")
     } finally {
       setIsSubmitting(false)
     }

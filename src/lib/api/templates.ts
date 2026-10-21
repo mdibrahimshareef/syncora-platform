@@ -1,9 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js"
-import { Database } from "@/types/supabase"
+import { Database, Json } from "@/types/supabase"
 
 export type TemplateContent = {
   statuses: { name: string, color: string, position: number, category?: string, is_default?: boolean, allowed_transitions?: string[] }[],
-  customFields?: { name: string, type: 'text' | 'number' | 'date' | 'select' | 'multi-select', options: any }[],
+  customFields?: { name: string, type: 'text' | 'number' | 'date' | 'select' | 'multi-select', options?: Json }[],
   tasks?: { title: string, status: string, priority: string, position: number, description?: string }[],
   taskTypes?: string[]
 }
@@ -55,7 +55,7 @@ export async function createProjectFromTemplate(
       created_by: payload.userId,
       template_id: templateId,
       task_types: content.taskTypes || ['Task']
-    } as any) // cast to any to bypass strict type checking until types are generated
+    } as unknown as Database['public']['Tables']['projects']['Insert'])
     .select()
     .single()
     
@@ -83,7 +83,7 @@ export async function createProjectFromTemplate(
     
     const { error: statusError } = await supabase
       .from('project_statuses')
-      .insert(statusesToInsert as any) // cast to any until types are updated
+      .insert(statusesToInsert as unknown as Database['public']['Tables']['project_statuses']['Insert'][])
       
     if (statusError) throw statusError
   }
@@ -101,7 +101,7 @@ export async function createProjectFromTemplate(
     
     const { data: insertedFields, error: fieldsError } = await supabase
       .from('custom_field_definitions')
-      .insert(fieldsToInsert)
+      .insert(fieldsToInsert as unknown as Database['public']['Tables']['custom_field_definitions']['Insert'][])
       .select()
       
     if (fieldsError) throw fieldsError

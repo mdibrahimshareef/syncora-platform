@@ -488,9 +488,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const reqs = await requestsApi.getRequests(supabase, activeWorkspaceId)
-      set({ requests: reqs })
-    } catch (err) {
-      console.error('Failed to fetch requests', err)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      set({ requests: reqs || [] })
+    } catch (err: any) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      console.error('Failed to fetch requests:', errMsg, err)
     }
   },
 
@@ -498,9 +501,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const data = await milestonesApi.getMilestones(supabase, projectId)
-      set({ milestones: data })
-    } catch (error) {
-      console.error("Failed to load milestones:", error)
+      set({ milestones: data || [] })
+    } catch (error: any) {
+      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+      console.error("Failed to load milestones:", errMsg, error)
     }
   },
 
@@ -510,9 +514,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const data = await filtersApi.getSavedFilters(supabase, activeWorkspaceId)
-      set({ savedFilters: data })
-    } catch (error) {
-      console.error("Failed to load filters:", error)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      set({ savedFilters: data || [] })
+    } catch (error: any) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+      console.error("Failed to load filters:", errMsg, error)
     }
   },
 
@@ -520,9 +527,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const data = await getTemplates(supabase)
-      set({ templates: data })
-    } catch (error) {
-      console.error("Failed to load templates:", error)
+      set({ templates: data || [] })
+    } catch (error: any) {
+      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+      console.error("Failed to load templates:", errMsg, error)
     }
   },
 
@@ -532,9 +540,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const forms = await requestsApi.getRequestForms(supabase, activeWorkspaceId)
-      set({ requestForms: forms })
-    } catch (err) {
-      console.error('Failed to fetch request forms', err)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      set({ requestForms: forms || [] })
+    } catch (err: any) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      console.error('Failed to fetch request forms:', errMsg, err)
     }
   },
 
@@ -543,17 +554,36 @@ export const useDataStore = create<DataState>()((set, get) => ({
     if (!activeWorkspaceId || !currentUser) return
     try {
       const supabase = createClient()
-      const [requestedByMe, assignedToMe] = await Promise.all([
-        approvalsApi.getApprovalsRequestedByMe(supabase, activeWorkspaceId, currentUser.id),
-        approvalsApi.getApprovalsAssignedToMe(supabase, activeWorkspaceId, currentUser.id)
-      ])
-      // Merge unique approvals
-      const map = new Map()
-      requestedByMe.forEach(a => map.set(a.id, a))
-      assignedToMe.forEach(a => map.set(a.id, a))
+      
+      let approvalsList: any[] = []
+      try {
+        approvalsList = await approvalsApi.getWorkspaceApprovals(supabase, activeWorkspaceId)
+      } catch {
+        const [requestedByMeRes, assignedToMeRes] = await Promise.allSettled([
+          approvalsApi.getApprovalsRequestedByMe(supabase, activeWorkspaceId, currentUser.id),
+          approvalsApi.getApprovalsAssignedToMe(supabase, activeWorkspaceId, currentUser.id)
+        ])
+        const map = new Map<string, any>()
+        if (requestedByMeRes.status === 'fulfilled' && Array.isArray(requestedByMeRes.value)) {
+          requestedByMeRes.value.forEach(a => a && a.id && map.set(a.id, a))
+        }
+        if (assignedToMeRes.status === 'fulfilled' && Array.isArray(assignedToMeRes.value)) {
+          assignedToMeRes.value.forEach(a => a && a.id && map.set(a.id, a))
+        }
+        approvalsList = Array.from(map.values())
+      }
+
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+
+      const map = new Map<string, any>()
+      ;(approvalsList || []).forEach(a => {
+        if (a && a.id) map.set(a.id, a)
+      })
       set({ approvals: Array.from(map.values()) })
-    } catch (err) {
-      console.error('Failed to fetch approvals', err)
+    } catch (err: any) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      console.error('Failed to fetch approvals:', errMsg, err)
     }
   },
 
@@ -747,7 +777,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const supabase = createClient()
     const resolved = await approvalsApi.resolveApproval(supabase, id, status, comment)
     set({
-      approvals: get().approvals.map(a => a.id === id ? { ...a, status, comment: comment || a.comment } : a)
+      approvals: get().approvals.map(a => a.id === id ? { ...a, ...resolved, status, comment: comment || a.comment } : a)
     })
   },
 

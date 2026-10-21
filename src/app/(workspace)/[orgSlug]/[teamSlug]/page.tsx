@@ -8,7 +8,7 @@ import Link from "next/link"
 import { Users, FolderKanban, Plus, ChevronRight, LayoutDashboard } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export default function TeamPage() {
@@ -31,7 +31,7 @@ export default function TeamPage() {
         <Users className="size-12 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold tracking-tight">Team Not Found</h2>
         <p className="text-muted-foreground mt-2">
-          We couldn't find the team "{teamSlug}" in this organization.
+          We couldn&apos;t find the team &quot;{teamSlug}&quot; in this organization.
         </p>
         <Button className="mt-6" onClick={() => router.push(`/${orgSlug}`)}>Back to Organization</Button>
       </div>

@@ -55,8 +55,9 @@ export default function GoalsPage() {
       setDescription("")
       setStatus("On Track")
       setProgress("0")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create goal")
+    } catch (err: unknown) {
+      const e = err as { message?: string }
+      toast.error(e?.message || "Failed to create goal")
     }
   }
 
@@ -64,7 +65,7 @@ export default function GoalsPage() {
     try {
       await updateGoal(id, { progress: newProgress })
       toast.success("Progress updated")
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to update progress")
     }
   }
@@ -154,12 +155,12 @@ export default function GoalsPage() {
                   <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        {(goal as any).owner?.avatar_url && <AvatarImage src={(goal as any).owner.avatar_url} />}
+                        {goal.owner?.avatar_url && <AvatarImage src={goal.owner.avatar_url} />}
                         <AvatarFallback className="text-[10px]">
-                          {(goal as any).owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
+                          {goal.owner?.full_name?.substring(0, 2).toUpperCase() || 'UN'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground">{(goal as any).owner?.full_name || 'Unassigned'}</span>
+                      <span className="text-xs text-muted-foreground">{goal.owner?.full_name || 'Unassigned'}</span>
                     </div>
                     {goal.target_date && (
                       <span className="text-xs text-muted-foreground">

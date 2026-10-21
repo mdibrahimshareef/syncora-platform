@@ -1,7 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
 
-export type Goal = Database['public']['Tables']['goals']['Row']
+export type Goal = Database['public']['Tables']['goals']['Row'] & {
+  owner?: { id: string; full_name: string | null; avatar_url: string | null } | null
+}
+export type CreateGoalPayload = Omit<Database['public']['Tables']['goals']['Insert'], 'id' | 'created_at' | 'updated_at'>
+export type UpdateGoalPayload = Database['public']['Tables']['goals']['Update']
 
 export async function getGoals(supabase: SupabaseClient<Database>, orgId: string) {
   const { data, error } = await supabase
@@ -19,7 +23,7 @@ export async function getGoals(supabase: SupabaseClient<Database>, orgId: string
 
 export async function createGoal(
   supabase: SupabaseClient<Database>,
-  payload: Omit<Database['public']['Tables']['goals']['Insert'], 'id' | 'created_at' | 'updated_at'>
+  payload: CreateGoalPayload
 ) {
   const { data, error } = await supabase
     .from('goals')
@@ -34,7 +38,7 @@ export async function createGoal(
 export async function updateGoal(
   supabase: SupabaseClient<Database>,
   goalId: string,
-  payload: Database['public']['Tables']['goals']['Update']
+  payload: UpdateGoalPayload
 ) {
   const { data, error } = await supabase
     .from('goals')

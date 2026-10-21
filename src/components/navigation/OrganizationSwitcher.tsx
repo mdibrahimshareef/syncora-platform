@@ -16,8 +16,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
 
-// We will build CreateOrganizationDialog next
-// import { CreateOrganizationDialog } from "@/components/organizations/CreateOrganizationDialog"
+import { CreateOrganizationDialog } from "@/components/organizations/CreateOrganizationDialog"
+
+function switchOrganization(orgId: string) {
+  // Set a cookie so the server knows which organization to load next
+  document.cookie = `SYNCORA_org_id=${orgId}; path=/; max-age=31536000`
+  
+  // Force a full reload to clear all states and re-initialize from server layout
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign("/")
+}
 
 export function OrganizationSwitcher() {
   const { organizations, activeOrganizationId } = useOrganizationStore()
@@ -33,12 +41,7 @@ export function OrganizationSwitcher() {
 
   const handleSwitchOrganization = (orgId: string) => {
     if (orgId === activeOrganizationId) return
-
-    // Set a cookie so the server knows which organization to load next
-    document.cookie = `SYNCORA_org_id=${orgId}; path=/; max-age=31536000`
-    
-    // Force a full reload to clear all states and re-initialize from server layout
-    window.location.assign("/")
+    switchOrganization(orgId)
   }
 
   return (
@@ -95,10 +98,10 @@ export function OrganizationSwitcher() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* <CreateOrganizationDialog 
+      <CreateOrganizationDialog 
         open={isCreateDialogOpen} 
         onOpenChange={setIsCreateDialogOpen} 
-      /> */}
+      />
     </>
   )
 }

@@ -1,33 +1,24 @@
 "use client"
 
 import * as React from "react"
-import { Search, CheckCircle2, Settings, HelpCircle, Sparkles } from "lucide-react"
+import { Search, HelpCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useUIStore } from "@/stores/ui-store"
-import { useDataStore, useIsAdminOrOwner } from "@/stores/data-store"
-import { useOrganizationStore } from "@/stores/organizationStore"
 import { useWorkspaceUrl } from "@/hooks/useWorkspaceUrl"
 import { NotificationCenter } from "@/components/navigation/NotificationCenter"
 import { UserProfile } from "@/components/navigation/UserProfile"
-import { UpgradePlanDialog } from "@/components/navigation/UpgradePlanDialog"
-import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePresenceAvatars"
 import { GlobalTimer } from "@/components/time-tracking/GlobalTimer"
 import Link from "next/link"
-import { useParams } from "next/navigation"
 import { Logo } from "@/components/ui/logo"
 
 export function Header() {
   const { setCommandPaletteOpen } = useUIStore()
-  const { organizations } = useOrganizationStore()
   const baseUrl = useWorkspaceUrl()
-  const params = useParams()
-  
-  const currentOrg = organizations.find(o => o.slug === params.orgSlug)
-  const isOrgAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'owner'
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background px-4 lg:px-6">
+    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:px-6">
+      {/* Left: Sidebar trigger & Brand */}
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <div className="flex items-center gap-2 overflow-hidden ml-2">
@@ -38,15 +29,8 @@ export function Header() {
         </div>
       </div>
       
-      <div className="flex-1 flex items-center">
-        {/* Contextual Breadcrumb could go here based on route */}
-      </div>
-
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="hidden lg:block mr-2 border-r border-border pr-4">
-          <WorkspacePresenceAvatars />
-        </div>
-
+      {/* Center: Core Utilities (Search, Timer, Ask AI) */}
+      <div className="flex-1 flex items-center justify-center max-w-xl mx-auto gap-2 sm:gap-3 px-2">
         <Button 
           variant="outline" 
           size="sm"
@@ -66,28 +50,18 @@ export function Header() {
         <Button 
           variant="outline" 
           size="sm" 
-          className="h-9 w-9 px-0 sm:w-auto sm:px-3 gap-2 text-indigo-500 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-indigo-800 dark:hover:bg-indigo-950 dark:hover:text-indigo-400"
+          className="h-9 w-9 px-0 sm:w-auto sm:px-3 gap-2 text-primary border-primary/20 hover:bg-primary/10 hover:text-primary dark:border-primary/40"
           onClick={() => useUIStore.getState().setAIAssistantOpen(true)}
           title="Ask AI"
         >
           <Sparkles className="size-4" />
-          <span className="sr-only sm:not-sr-only sm:inline-block">Ask AI</span>
+          <span className="sr-only sm:not-sr-only sm:inline-block font-medium">Ask AI</span>
         </Button>
+      </div>
 
-        <div className="hidden sm:block">
-          <UpgradePlanDialog />
-        </div>
-
+      {/* Right: Notifications, Help, User Profile */}
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto">
         <NotificationCenter />
-        
-        {isOrgAdmin && (
-          <Link href={`/${params.orgSlug}/admin`} className="hidden sm:flex">
-            <Button variant="outline" size="sm" className="h-8 gap-2">
-              <Settings className="size-4" />
-              <span>Admin Console</span>
-            </Button>
-          </Link>
-        )}
         
         <Link href={`${baseUrl}/help`} className="hidden sm:flex">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label="Help">

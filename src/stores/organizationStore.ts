@@ -6,6 +6,10 @@ import * as portfoliosApi from '@/lib/api/portfolios'
 
 export type Goal = goalsApi.Goal
 export type Portfolio = portfoliosApi.Portfolio
+export type CreateGoalPayload = goalsApi.CreateGoalPayload
+export type UpdateGoalPayload = goalsApi.UpdateGoalPayload
+export type CreatePortfolioPayload = portfoliosApi.CreatePortfolioPayload
+export type UpdatePortfolioPayload = portfoliosApi.UpdatePortfolioPayload
 
 type OrganizationState = {
   organizations: Organization[]
@@ -30,12 +34,12 @@ type OrganizationState = {
   updateTeam: (id: string, updates: Partial<Team>) => void
 
   fetchGoals: () => Promise<void>
-  createGoal: (payload: any) => Promise<Goal>
-  updateGoal: (id: string, payload: any) => Promise<void>
+  createGoal: (payload: CreateGoalPayload) => Promise<Goal>
+  updateGoal: (id: string, payload: UpdateGoalPayload) => Promise<void>
   
   fetchPortfolios: () => Promise<void>
-  createPortfolio: (payload: any) => Promise<Portfolio>
-  updatePortfolio: (id: string, payload: any) => Promise<void>
+  createPortfolio: (payload: CreatePortfolioPayload) => Promise<Portfolio>
+  updatePortfolio: (id: string, payload: UpdatePortfolioPayload) => Promise<void>
 }
 
 export const useOrganizationStore = create<OrganizationState>()((set, get) => ({

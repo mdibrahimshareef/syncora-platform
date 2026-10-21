@@ -1,7 +1,32 @@
 import { SupabaseClient } from "@supabase/supabase-js"
-import { Database } from "@/types/supabase"
+import { Database, Json } from "@/types/supabase"
 
-export async function getOrganizationMembers(supabase: SupabaseClient<Database>, orgId: string) {
+export type OrganizationMemberItem = {
+  id: string
+  role: string
+  user_id: string
+  created_at: string
+  profiles: {
+    id: string
+    full_name: string | null
+    username: string | null
+    email: string | null
+    avatar_url: string | null
+    metadata: Json | null
+  } | null
+}
+
+export type OrganizationInvitationItem = {
+  id: string
+  email: string
+  role: string
+  status: string
+  token: string
+  created_at: string
+  expires_at: string
+}
+
+export async function getOrganizationMembers(supabase: SupabaseClient<Database>, orgId: string): Promise<OrganizationMemberItem[]> {
   const { data, error } = await supabase
     .from('organization_members')
     .select(`
@@ -13,6 +38,7 @@ export async function getOrganizationMembers(supabase: SupabaseClient<Database>,
         id,
         full_name,
         username,
+        email,
         avatar_url,
         metadata
       )
@@ -20,7 +46,7 @@ export async function getOrganizationMembers(supabase: SupabaseClient<Database>,
     .eq('org_id', orgId)
 
   if (error) throw error
-  return data
+  return (data || []) as unknown as OrganizationMemberItem[]
 }
 
 export async function updateOrganization(
@@ -68,7 +94,7 @@ export async function updateOrganizationMemberRole(
   if (error) throw error
 }
 
-export async function getOrganizationInvitations(supabase: SupabaseClient<Database>, orgId: string) {
+export async function getOrganizationInvitations(supabase: SupabaseClient<Database>, orgId: string): Promise<OrganizationInvitationItem[]> {
   const { data, error } = await supabase
     .from('organization_invitations')
     .select(`
@@ -85,7 +111,7 @@ export async function getOrganizationInvitations(supabase: SupabaseClient<Databa
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data
+  return (data || []) as OrganizationInvitationItem[]
 }
 
 export async function createOrganizationInvitation(
