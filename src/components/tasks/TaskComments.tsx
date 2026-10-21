@@ -156,7 +156,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
                     <span className="text-muted-foreground">
                       {activity.action === 'created' && 'created this task'}
                       {activity.action === 'updated' && 'updated the task details'}
-                      {activity.action === 'commented' && 'added a comment'}
+                      {(activity.action === 'commented' || activity.action === 'commented on') && 'added a comment'}
                     </span>{' '}
                     <span className="text-xs text-muted-foreground ml-2">
                       {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}

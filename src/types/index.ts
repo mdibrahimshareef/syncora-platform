@@ -129,7 +129,7 @@ export type Task = {
   updatedAt: string;
 };
 
-export type ActivityAction = 'created' | 'completed' | 'commented on' | 'moved' | 'updated' | 'deleted';
+export type ActivityAction = 'created' | 'completed' | 'commented on' | 'commented' | 'moved' | 'updated' | 'deleted';
 
 export type Activity = {
   id: string;
