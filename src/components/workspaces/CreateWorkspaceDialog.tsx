@@ -3,12 +3,13 @@
 import * as React from "react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { useDataStore } from "@/stores/data-store"
 import { useOrganizationStore } from "@/stores/organizationStore"
 import { createWorkspace } from "@/lib/api/workspaces"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -49,7 +50,12 @@ interface CreateWorkspaceDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+function setWorkspaceCookie(workspaceId: string) {
+  document.cookie = `SYNCORA_workspace_id=${workspaceId}; path=/; max-age=31536000`
+}
+
 export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDialogProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
   const currentUser = useDataStore(s => s.currentUser);
   const { organizations, activeOrganizationId } = useOrganizationStore()
@@ -64,7 +70,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
   })
 
   // Avoid watch in dependency array
-  const watchName = form.watch("name")
+  const watchName = useWatch({ control: form.control, name: "name" })
 
   // Auto-generate slug from name and set default organization
   React.useEffect(() => {
@@ -113,11 +119,12 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
       toast.success("Workspace created successfully!")
       
       // Set a cookie so the server knows which workspace to load next
-      document.cookie = `SYNCORA_workspace_id=${workspace.id}; path=/; max-age=31536000`
+      setWorkspaceCookie(workspace.id)
       
-      // Close modal and force reload to clear all states and re-initialize
+      // Close modal and navigate to app
       onOpenChange(false)
-      window.location.assign("/app")
+      router.push("/app")
+      router.refresh()
     } catch (err: unknown) {
       const error = err as { code?: string, message?: string }
       if (error?.code === '23505') { // Unique violation

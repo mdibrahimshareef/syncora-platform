@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -15,7 +15,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, ShieldAlert } from "lucide-react"
@@ -43,6 +42,8 @@ export function AIGovernanceSettings() {
       allow_ai_task_updates: true,
     },
   })
+
+  const aiEnabled = useWatch({ control: form.control, name: 'ai_enabled' })
 
   React.useEffect(() => {
     async function loadPolicy() {
@@ -83,8 +84,9 @@ export function AIGovernanceSettings() {
         throw new Error(errorData.error || "Failed to save AI policies")
       }
       toast.success("AI Governance policies updated successfully!")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update AI policies.")
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      toast.error(error.message || "Failed to update AI policies.")
     } finally {
       setIsLoading(false)
     }
@@ -151,7 +153,7 @@ export function AIGovernanceSettings() {
                         <FormLabel>Task Creation</FormLabel>
                       </div>
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!form.watch('ai_enabled')} />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!aiEnabled} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -166,7 +168,7 @@ export function AIGovernanceSettings() {
                         <FormLabel>Task Modification (Status/Details)</FormLabel>
                       </div>
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!form.watch('ai_enabled')} />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!aiEnabled} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -181,7 +183,7 @@ export function AIGovernanceSettings() {
                         <FormLabel>Task Assignment</FormLabel>
                       </div>
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!form.watch('ai_enabled')} />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!aiEnabled} />
                       </FormControl>
                     </FormItem>
                   )}

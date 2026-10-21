@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Task, TaskPriority, TaskStatus } from "@/types"
@@ -99,8 +99,9 @@ export function TaskForm({ defaultValues, onSuccess, onCancel, onDirtyChange }: 
     },
   })
 
-  const watchedTitle = form.watch("title")
-  const watchedDesc = form.watch("description")
+  const watchedTitle = useWatch({ control: form.control, name: "title" })
+  const watchedDesc = useWatch({ control: form.control, name: "description" })
+  const watchedProjectId = useWatch({ control: form.control, name: "projectId" })
   const formIsDirty = form.formState.isDirty
 
   const isFormDirty = React.useMemo(() => {
@@ -237,8 +238,7 @@ export function TaskForm({ defaultValues, onSuccess, onCancel, onDirtyChange }: 
               control={form.control}
               name="taskType"
               render={({ field }) => {
-                const projectId = form.watch("projectId")
-                const selectedProject = projects.find(p => p.id === projectId)
+                const selectedProject = projects.find(p => p.id === watchedProjectId)
                 const availableTaskTypes = selectedProject?.taskTypes || ['Task']
 
                 return (
@@ -494,8 +494,7 @@ export function TaskForm({ defaultValues, onSuccess, onCancel, onDirtyChange }: 
               control={form.control}
               name="milestoneId"
               render={({ field }) => {
-                const projectId = form.watch("projectId")
-                const projectMilestones = milestones.filter(m => m.projectId === projectId)
+                const projectMilestones = milestones.filter(m => m.projectId === watchedProjectId)
 
                 return (
                   <FormItem>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { formatDistanceToNow } from "date-fns"
@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client"
 import { createComment } from "@/lib/api/comments"
 import { useTaskRealtime } from "@/hooks/useTaskRealtime"
 import { useDataStore } from "@/stores/data-store"
-import { Task } from "@/types"
+import { Task, Comment, Activity } from "@/types"
 
 import { Button } from "@/components/ui/button"
 import dynamic from 'next/dynamic'
@@ -28,7 +28,6 @@ interface TaskCommentsProps {
 export function TaskComments({ task }: TaskCommentsProps) {
   const currentUser = useDataStore(s => s.currentUser);
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
-  const projects = useDataStore(s => s.projects);
   const { timeline, isLoading, setComments } = useTaskRealtime(task.id)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -37,9 +36,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
     defaultValues: { body: "" },
   })
   
-  const watchedBody = form.watch("body") || ""
-
-  const project = projects.find(p => p.id === task.projectId)
+  const watchedBody = useWatch({ control: form.control, name: "body" }) || ""
 
   async function onSubmit(data: z.infer<typeof commentSchema>) {
     if (!currentUser || !activeWorkspaceId) return
@@ -99,7 +96,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
         }
       }
 
-    } catch (error) {
+    } catch {
       toast.error("Failed to post comment")
     } finally {
       setIsSubmitting(false)
@@ -118,7 +115,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
         ) : (
           timeline.map((item) => {
             if (item.type === 'comment') {
-              const comment = item as any
+              const comment = item as unknown as Comment
               
               // Parse @mentions
               const parseMentions = (html: string) => {
@@ -148,7 +145,7 @@ export function TaskComments({ task }: TaskCommentsProps) {
                 </div>
               )
             } else {
-              const activity = item as any
+              const activity = item as unknown as Activity
               return (
                 <div key={`activity-${activity.id}`} className="flex gap-3 items-center opacity-80">
                   <Avatar className="size-6 shrink-0">
