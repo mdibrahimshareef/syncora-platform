@@ -60,8 +60,8 @@ import {
 } from "lucide-react"
 
 const projectSchema = z.object({
-  name: z.string().min(1, "Project name is required").max(100, "Name is too long"),
-  summary: z.string().max(300, "Summary is too long").optional(),
+  name: z.string().min(1, "Project name is required").max(80, "Project name cannot be longer than 80 characters."),
+  summary: z.string().max(255, "Summary cannot be longer than 255 characters.").optional(),
   description: z.string().optional(),
   status: z.string(),
   priority: z.string(),
@@ -140,6 +140,9 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
   const workspaceMembers = useDataStore((s) => s.workspaceMembers)
   const currentUser = useDataStore((s) => s.currentUser)
 
+  const nameRef = React.useRef<HTMLTextAreaElement>(null)
+  const summaryRef = React.useRef<HTMLTextAreaElement>(null)
+
   const [openIconPicker, setOpenIconPicker] = React.useState(false)
   const [openLead, setOpenLead] = React.useState(false)
   const [openMembers, setOpenMembers] = React.useState(false)
@@ -172,6 +175,8 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
     onDirtyChange?.(isDirty || milestones.length > 0)
   }, [isDirty, milestones.length, onDirtyChange])
 
+  const watchedName = useWatch({ control: form.control, name: "name" }) || ""
+  const watchedSummary = useWatch({ control: form.control, name: "summary" }) || ""
   const watchedStatus = useWatch({ control: form.control, name: "status" })
   const watchedPriority = useWatch({ control: form.control, name: "priority" })
   const watchedColor = useWatch({ control: form.control, name: "color" })
@@ -181,6 +186,21 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
   const watchedStartDate = useWatch({ control: form.control, name: "startDate" })
   const watchedTargetDate = useWatch({ control: form.control, name: "targetDate" })
   const watchedLabels = useWatch({ control: form.control, name: "labels" }) || []
+
+  // Auto-resize inputs line by line
+  React.useEffect(() => {
+    if (nameRef.current) {
+      nameRef.current.style.height = "auto"
+      nameRef.current.style.height = `${nameRef.current.scrollHeight}px`
+    }
+  }, [watchedName])
+
+  React.useEffect(() => {
+    if (summaryRef.current) {
+      summaryRef.current.style.height = "auto"
+      summaryRef.current.style.height = `${summaryRef.current.scrollHeight}px`
+    }
+  }, [watchedSummary])
 
   // Helpers for selected elements
   const currentStatusObj = STATUS_OPTIONS.find((s) => s.label === watchedStatus) || STATUS_OPTIONS[0]
@@ -240,6 +260,15 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
   }
 
   async function onSubmit(data: ProjectFormValues) {
+    if (data.name.length > 80) {
+      form.setError("name", { message: "Project name cannot be longer than 80 characters." })
+      return
+    }
+    if (data.summary && data.summary.length > 255) {
+      form.setError("summary", { message: "Summary cannot be longer than 255 characters." })
+      return
+    }
+
     setIsSubmitting(true)
 
     // Combine summary and description cleanly
@@ -313,533 +342,562 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleKeyDown} className="space-y-4">
-        {/* Top: Project Icon + Title */}
-        <div className="flex items-start gap-3 pt-1">
-          {/* Icon Selector Button */}
-          <Popover open={openIconPicker} onOpenChange={setOpenIconPicker}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="size-9 rounded-lg flex items-center justify-center shrink-0 transition-all hover:ring-2 hover:ring-primary/20 bg-muted/60 hover:bg-muted text-foreground border border-border/50 mt-1"
-                />
-              }
-            >
-              <CurrentIconComponent className={cn("size-5", currentColorObj.text)} />
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3 gap-3" align="start">
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Color</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {PROJECT_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => form.setValue("color", c.value, { shouldDirty: true })}
-                      className={cn(
-                        "size-5 rounded-full flex items-center justify-center transition-transform hover:scale-110",
-                        c.value,
-                        watchedColor === c.value && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                      )}
-                    />
-                  ))}
+      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleKeyDown} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Scrollable Content Container (Fixed Outer Height, Inner Scrolling Only) */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+          {/* Top: Project Icon + Title + Summary */}
+          <div className="flex items-start gap-3 pt-1">
+            {/* Icon Selector Button */}
+            <Popover open={openIconPicker} onOpenChange={setOpenIconPicker}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="size-9 rounded-lg flex items-center justify-center shrink-0 transition-all hover:ring-2 hover:ring-primary/20 bg-muted/60 hover:bg-muted text-foreground border border-border/50 mt-1"
+                  />
+                }
+              >
+                <CurrentIconComponent className={cn("size-5", currentColorObj.text)} />
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 gap-3" align="start">
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Color</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {PROJECT_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => form.setValue("color", c.value, { shouldDirty: true })}
+                        className={cn(
+                          "size-5 rounded-full flex items-center justify-center transition-transform hover:scale-110",
+                          c.value,
+                          watchedColor === c.value && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        )}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5 pt-2 border-t border-border/50">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Icon</span>
-                <div className="grid grid-cols-5 gap-1">
-                  {ICON_OPTIONS.map(({ name, Icon }) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => {
-                        form.setValue("icon", name, { shouldDirty: true })
-                        setOpenIconPicker(false)
-                      }}
-                      className={cn(
-                        "size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
-                        watchedIcon === name && "bg-muted text-foreground ring-1 ring-border"
-                      )}
-                    >
-                      <Icon className="size-4" />
-                    </button>
-                  ))}
+                <div className="space-y-1.5 pt-2 border-t border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Icon</span>
+                  <div className="grid grid-cols-5 gap-1">
+                    {ICON_OPTIONS.map(({ name, Icon }) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => {
+                          form.setValue("icon", name, { shouldDirty: true })
+                          setOpenIconPicker(false)
+                        }}
+                        className={cn(
+                          "size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+                          watchedIcon === name && "bg-muted text-foreground ring-1 ring-border"
+                        )}
+                      >
+                        <Icon className="size-4" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
 
-          {/* Project Name and Summary */}
-          <div className="flex-1 space-y-1">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem className="space-y-0">
-                  <FormControl>
-                    <input
-                      placeholder="Project name"
-                      className="w-full text-2xl font-bold tracking-tight bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 text-foreground placeholder:text-muted-foreground/40 p-0 shadow-none"
-                      autoFocus
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs pt-1" />
-                </FormItem>
-              )}
-            />
+            {/* Project Name and Summary (Multi-line wrapping with auto-resize) */}
+            <div className="flex-1 space-y-1 min-w-0">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="space-y-0">
+                    <FormControl>
+                      <textarea
+                        ref={nameRef}
+                        rows={1}
+                        placeholder="Project name"
+                        value={field.value}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          if (nameRef.current) {
+                            nameRef.current.style.height = "auto"
+                            nameRef.current.style.height = `${nameRef.current.scrollHeight}px`
+                          }
+                        }}
+                        className="w-full text-2xl font-bold tracking-tight bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 text-foreground placeholder:text-muted-foreground/40 p-0 shadow-none resize-none overflow-hidden leading-tight"
+                        autoFocus
+                      />
+                    </FormControl>
+                    {(watchedName.length > 80 || form.formState.errors.name) && (
+                      <p className="text-xs font-medium text-destructive pt-1">
+                        {form.formState.errors.name?.message || "Project name cannot be longer than 80 characters."}
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="summary"
-              render={({ field }) => (
-                <FormItem className="space-y-0">
-                  <FormControl>
-                    <input
-                      placeholder="Add a short summary..."
-                      className="w-full text-sm text-muted-foreground bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 p-0 shadow-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="summary"
+                render={({ field }) => (
+                  <FormItem className="space-y-0">
+                    <FormControl>
+                      <textarea
+                        ref={summaryRef}
+                        rows={1}
+                        placeholder="Add a short summary..."
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          if (summaryRef.current) {
+                            summaryRef.current.style.height = "auto"
+                            summaryRef.current.style.height = `${summaryRef.current.scrollHeight}px`
+                          }
+                        }}
+                        className="w-full text-sm text-muted-foreground bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 p-0 shadow-none resize-none overflow-hidden leading-relaxed"
+                      />
+                    </FormControl>
+                    {(watchedSummary.length > 255 || form.formState.errors.summary) && (
+                      <p className="text-xs font-medium text-destructive pt-1">
+                        {form.formState.errors.summary?.message || "Summary cannot be longer than 255 characters."}
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Action List / Property Pills Bar */}
-        <div className="flex items-center gap-1.5 flex-wrap pt-2 pb-1">
-          {/* Status Pill */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <currentStatusObj.Icon className={cn("size-3.5", currentStatusObj.color)} />
-              <span>{currentStatusObj.label}</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-36">
-              {STATUS_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.label}
-                  onClick={() => form.setValue("status", opt.label, { shouldDirty: true })}
-                  className="gap-2 text-xs cursor-pointer"
-                >
-                  <opt.Icon className={cn("size-3.5", opt.color)} />
-                  <span>{opt.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Action List / Property Pills Bar */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-2 pb-1">
+            {/* Status Pill */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <currentStatusObj.Icon className={cn("size-3.5", currentStatusObj.color)} />
+                <span>{currentStatusObj.label}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                {STATUS_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.label}
+                    onClick={() => form.setValue("status", opt.label, { shouldDirty: true })}
+                    className="gap-2 text-xs cursor-pointer"
+                  >
+                    <opt.Icon className={cn("size-3.5", opt.color)} />
+                    <span>{opt.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Priority Pill */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <currentPriorityObj.Icon className={cn("size-3.5", currentPriorityObj.color)} />
-              <span>{currentPriorityObj.label}</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-36">
-              {PRIORITY_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.label}
-                  onClick={() => form.setValue("priority", opt.label, { shouldDirty: true })}
-                  className="gap-2 text-xs cursor-pointer"
-                >
-                  <opt.Icon className={cn("size-3.5", opt.color)} />
-                  <span>{opt.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {/* Priority Pill */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <currentPriorityObj.Icon className={cn("size-3.5", currentPriorityObj.color)} />
+                <span>{currentPriorityObj.label}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                {PRIORITY_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.label}
+                    onClick={() => form.setValue("priority", opt.label, { shouldDirty: true })}
+                    className="gap-2 text-xs cursor-pointer"
+                  >
+                    <opt.Icon className={cn("size-3.5", opt.color)} />
+                    <span>{opt.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Lead Pill */}
-          <Popover open={openLead} onOpenChange={setOpenLead}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              {selectedLead ? (
-                <>
-                  <Avatar className="size-4 text-[9px]">
-                    <AvatarFallback>{selectedLead.initials || selectedLead.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span className="truncate max-w-[110px]">{selectedLead.name}</span>
-                </>
-              ) : (
-                <>
-                  <UserIcon className="size-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Lead</span>
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-56 p-0">
-              <Command>
-                <CommandInput placeholder="Assign lead..." />
-                <CommandList>
-                  <CommandEmpty>No members found</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      onSelect={() => {
-                        form.setValue("leadId", null, { shouldDirty: true })
-                        setOpenLead(false)
-                      }}
-                      className="text-xs"
-                    >
-                      <Check className={cn("mr-2 size-3.5", !watchedLeadId ? "opacity-100" : "opacity-0")} />
-                      No lead
-                    </CommandItem>
-                    {workspaceMembers.map((member) => (
+            {/* Lead Pill */}
+            <Popover open={openLead} onOpenChange={setOpenLead}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                {selectedLead ? (
+                  <>
+                    <Avatar className="size-4 text-[9px]">
+                      <AvatarFallback>{selectedLead.initials || selectedLead.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="truncate max-w-[110px]">{selectedLead.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <UserIcon className="size-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Lead</span>
+                  </>
+                )}
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-0">
+                <Command>
+                  <CommandInput placeholder="Assign lead..." />
+                  <CommandList>
+                    <CommandEmpty>No members found</CommandEmpty>
+                    <CommandGroup>
                       <CommandItem
-                        key={member.id}
-                        value={member.name}
                         onSelect={() => {
-                          form.setValue("leadId", member.id, { shouldDirty: true })
+                          form.setValue("leadId", null, { shouldDirty: true })
                           setOpenLead(false)
                         }}
                         className="text-xs"
                       >
-                        <Check className={cn("mr-2 size-3.5", watchedLeadId === member.id ? "opacity-100" : "opacity-0")} />
-                        <Avatar className="size-4 mr-2 text-[8px]">
-                          <AvatarFallback>{member.initials || member.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{member.name}</span>
+                        <Check className={cn("mr-2 size-3.5", !watchedLeadId ? "opacity-100" : "opacity-0")} />
+                        No lead
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                      {workspaceMembers.map((member) => (
+                        <CommandItem
+                          key={member.id}
+                          value={member.name}
+                          onSelect={() => {
+                            form.setValue("leadId", member.id, { shouldDirty: true })
+                            setOpenLead(false)
+                          }}
+                          className="text-xs"
+                        >
+                          <Check className={cn("mr-2 size-3.5", watchedLeadId === member.id ? "opacity-100" : "opacity-0")} />
+                          <Avatar className="size-4 mr-2 text-[8px]">
+                            <AvatarFallback>{member.initials || member.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{member.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-          {/* Members Pill */}
-          <Popover open={openMembers} onOpenChange={setOpenMembers}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <UsersIcon className="size-3.5 text-muted-foreground" />
-              <span className={watchedMemberIds.length > 0 ? "text-foreground" : "text-muted-foreground"}>
-                {watchedMemberIds.length > 0 ? `${watchedMemberIds.length} members` : "Members"}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-60 p-2">
-              <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Workspace members</div>
-              <div className="space-y-0.5 max-h-48 overflow-y-auto">
-                {workspaceMembers.map((m) => {
-                  const isSelected = watchedMemberIds.includes(m.id)
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => toggleMember(m.id)}
-                      className="w-full flex items-center justify-between p-1.5 rounded-md hover:bg-muted text-xs text-left transition-colors"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <Avatar className="size-4 text-[8px]">
-                          <AvatarFallback>{m.initials || m.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{m.name}</span>
-                      </div>
-                      {isSelected && <Check className="size-3.5 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {/* Start Date Pill */}
-          <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <CalendarIcon className="size-3.5 text-muted-foreground" />
-              <span className={watchedStartDate ? "text-foreground" : "text-muted-foreground"}>
-                {watchedStartDate ? format(watchedStartDate, "MMM d") : "Start"}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={watchedStartDate || undefined}
-                onSelect={(d) => {
-                  form.setValue("startDate", d || null, { shouldDirty: true })
-                  setOpenStartDate(false)
-                }}
-                autoFocus
-              />
-              {watchedStartDate && (
-                <div className="p-2 border-t border-border flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      form.setValue("startDate", null, { shouldDirty: true })
-                      setOpenStartDate(false)
-                    }}
-                    className="text-xs h-7 text-muted-foreground"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-
-          {/* Target Date Pill */}
-          <Popover open={openTargetDate} onOpenChange={setOpenTargetDate}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <Target className="size-3.5 text-muted-foreground" />
-              <span className={watchedTargetDate ? "text-foreground" : "text-muted-foreground"}>
-                {watchedTargetDate ? format(watchedTargetDate, "MMM d") : "Target"}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={watchedTargetDate || undefined}
-                onSelect={(d) => {
-                  form.setValue("targetDate", d || null, { shouldDirty: true })
-                  setOpenTargetDate(false)
-                }}
-                autoFocus
-              />
-              {watchedTargetDate && (
-                <div className="p-2 border-t border-border flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      form.setValue("targetDate", null, { shouldDirty: true })
-                      setOpenTargetDate(false)
-                    }}
-                    className="text-xs h-7 text-muted-foreground"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-
-          {/* Labels Pill */}
-          <Popover open={openLabels} onOpenChange={setOpenLabels}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <Tag className="size-3.5 text-muted-foreground" />
-              <span className={watchedLabels.length > 0 ? "text-foreground" : "text-muted-foreground"}>
-                {watchedLabels.length > 0 ? `${watchedLabels.length} labels` : "Labels"}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-52 p-2">
-              <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Project Labels</div>
-              <div className="space-y-1">
-                {AVAILABLE_LABELS.map((lbl) => {
-                  const isSelected = watchedLabels.includes(lbl.name)
-                  return (
-                    <button
-                      key={lbl.id}
-                      type="button"
-                      onClick={() => toggleLabel(lbl.name)}
-                      className="w-full flex items-center justify-between p-1.5 rounded-md hover:bg-muted text-xs text-left transition-colors"
-                    >
-                      <span className={cn("px-2 py-0.5 rounded text-[11px] font-medium border", lbl.color)}>
-                        {lbl.name}
-                      </span>
-                      {isSelected && <Check className="size-3.5 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {/* Dependencies Pill */}
-          <Popover>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
-                />
-              }
-            >
-              <Link2 className="size-3.5 text-muted-foreground" />
-              <span>Dependencies</span>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-3 text-xs text-muted-foreground">
-              <div className="font-medium text-foreground mb-1">Project Dependencies</div>
-              <p>Link projects or tasks that block or depend on this project after creation.</p>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Selected Labels Display */}
-        {watchedLabels.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-            {watchedLabels.map((name) => {
-              const item = AVAILABLE_LABELS.find((l) => l.name === name)
-              return (
-                <span
-                  key={name}
-                  className={cn("px-2 py-0.5 rounded text-[11px] font-medium border flex items-center gap-1", item?.color)}
-                >
-                  {name}
+            {/* Members Pill */}
+            <Popover open={openMembers} onOpenChange={setOpenMembers}>
+              <PopoverTrigger
+                render={
                   <button
                     type="button"
-                    onClick={() => toggleLabel(name)}
-                    className="hover:opacity-75"
-                  >
-                    ×
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Large Open Writing Description Area */}
-        <div className="pt-2">
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="space-y-0">
-                <FormControl>
-                  <Textarea
-                    placeholder="Write a description, a project brief, or collect ideas..."
-                    className="w-full min-h-[140px] text-sm text-foreground bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 p-0 placeholder:text-muted-foreground/40 resize-none shadow-none leading-relaxed"
-                    {...field}
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Lightweight Milestones Section */}
-        <div className="pt-3 border-t border-border/50">
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Milestones</span>
-              {milestones.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground">
-                  {milestones.length}
+                }
+              >
+                <UsersIcon className="size-3.5 text-muted-foreground" />
+                <span className={watchedMemberIds.length > 0 ? "text-foreground" : "text-muted-foreground"}>
+                  {watchedMemberIds.length > 0 ? `${watchedMemberIds.length} members` : "Members"}
                 </span>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleAddMilestone}
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-              title="Add milestone"
-            >
-              <Plus className="size-3.5" />
-            </Button>
-          </div>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-60 p-2">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Workspace members</div>
+                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                  {workspaceMembers.map((m) => {
+                    const isSelected = watchedMemberIds.includes(m.id)
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleMember(m.id)}
+                        className="w-full flex items-center justify-between p-1.5 rounded-md hover:bg-muted text-xs text-left transition-colors"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Avatar className="size-4 text-[8px]">
+                            <AvatarFallback>{m.initials || m.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{m.name}</span>
+                        </div>
+                        {isSelected && <Check className="size-3.5 text-primary" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-          {milestones.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {milestones.map((m, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 bg-muted/20 px-2.5 py-1.5 rounded-md border border-border/40 group"
-                >
-                  <CircleDot className="size-3 text-muted-foreground shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="Milestone name..."
-                    value={m.name}
-                    onChange={(e) => updateMilestoneName(idx, e.target.value)}
-                    className="flex-1 bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-0 p-0"
-                  />
-                  <Popover>
-                    <PopoverTrigger
-                      render={
-                        <button
-                          type="button"
-                          className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted"
-                        />
-                      }
-                    >
-                      <CalendarIcon className="size-3" />
-                      <span>{m.dueDate ? format(m.dueDate, "MMM d") : "Target date"}</span>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={m.dueDate || undefined}
-                        onSelect={(d) => updateMilestoneDate(idx, d || null)}
-                        autoFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+            {/* Start Date Pill */}
+            <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
+              <PopoverTrigger
+                render={
                   <button
                     type="button"
-                    onClick={() => removeMilestone(idx)}
-                    className="text-muted-foreground hover:text-destructive size-5 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
-                    title="Remove milestone"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <CalendarIcon className="size-3.5 text-muted-foreground" />
+                <span className={watchedStartDate ? "text-foreground" : "text-muted-foreground"}>
+                  {watchedStartDate ? format(watchedStartDate, "MMM d") : "Start"}
+                </span>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={watchedStartDate || undefined}
+                  onSelect={(d) => {
+                    form.setValue("startDate", d || null, { shouldDirty: true })
+                    setOpenStartDate(false)
+                  }}
+                  autoFocus
+                />
+                {watchedStartDate && (
+                  <div className="p-2 border-t border-border flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("startDate", null, { shouldDirty: true })
+                        setOpenStartDate(false)
+                      }}
+                      className="text-xs h-7 text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {/* Target Date Pill */}
+            <Popover open={openTargetDate} onOpenChange={setOpenTargetDate}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <Target className="size-3.5 text-muted-foreground" />
+                <span className={watchedTargetDate ? "text-foreground" : "text-muted-foreground"}>
+                  {watchedTargetDate ? format(watchedTargetDate, "MMM d") : "Target"}
+                </span>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={watchedTargetDate || undefined}
+                  onSelect={(d) => {
+                    form.setValue("targetDate", d || null, { shouldDirty: true })
+                    setOpenTargetDate(false)
+                  }}
+                  autoFocus
+                />
+                {watchedTargetDate && (
+                  <div className="p-2 border-t border-border flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("targetDate", null, { shouldDirty: true })
+                        setOpenTargetDate(false)
+                      }}
+                      className="text-xs h-7 text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {/* Labels Pill */}
+            <Popover open={openLabels} onOpenChange={setOpenLabels}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <Tag className="size-3.5 text-muted-foreground" />
+                <span className={watchedLabels.length > 0 ? "text-foreground" : "text-muted-foreground"}>
+                  {watchedLabels.length > 0 ? `${watchedLabels.length} labels` : "Labels"}
+                </span>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-52 p-2">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Project Labels</div>
+                <div className="space-y-1">
+                  {AVAILABLE_LABELS.map((lbl) => {
+                    const isSelected = watchedLabels.includes(lbl.name)
+                    return (
+                      <button
+                        key={lbl.id}
+                        type="button"
+                        onClick={() => toggleLabel(lbl.name)}
+                        className="w-full flex items-center justify-between p-1.5 rounded-md hover:bg-muted text-xs text-left transition-colors"
+                      >
+                        <span className={cn("px-2 py-0.5 rounded text-[11px] font-medium border", lbl.color)}>
+                          {lbl.name}
+                        </span>
+                        {isSelected && <Check className="size-3.5 text-primary" />}
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
+              </PopoverContent>
+            </Popover>
+
+            {/* Dependencies Pill */}
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
+                  />
+                }
+              >
+                <Link2 className="size-3.5 text-muted-foreground" />
+                <span>Dependencies</span>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-3 text-xs text-muted-foreground">
+                <div className="font-medium text-foreground mb-1">Project Dependencies</div>
+                <p>Link projects or tasks that block or depend on this project after creation.</p>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Selected Labels Display */}
+          {watchedLabels.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              {watchedLabels.map((name) => {
+                const item = AVAILABLE_LABELS.find((l) => l.name === name)
+                return (
+                  <span
+                    key={name}
+                    className={cn("px-2 py-0.5 rounded text-[11px] font-medium border flex items-center gap-1", item?.color)}
+                  >
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => toggleLabel(name)}
+                      className="hover:opacity-75"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )
+              })}
             </div>
           )}
+
+          {/* Large Open Writing Description Area */}
+          <div className="pt-2">
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="space-y-0">
+                  <FormControl>
+                    <Textarea
+                      placeholder="Write a description, a project brief, or collect ideas..."
+                      className="w-full min-h-[160px] text-sm text-foreground bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 p-0 placeholder:text-muted-foreground/40 resize-none shadow-none leading-relaxed"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Lightweight Milestones Section */}
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Milestones</span>
+                {milestones.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground">
+                    {milestones.length}
+                  </span>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAddMilestone}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                title="Add milestone"
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+
+            {milestones.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {milestones.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 bg-muted/20 px-2.5 py-1.5 rounded-md border border-border/40 group"
+                  >
+                    <CircleDot className="size-3 text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Milestone name..."
+                      value={m.name}
+                      onChange={(e) => updateMilestoneName(idx, e.target.value)}
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-0 p-0"
+                    />
+                    <Popover>
+                      <PopoverTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted"
+                          />
+                        }
+                      >
+                        <CalendarIcon className="size-3" />
+                        <span>{m.dueDate ? format(m.dueDate, "MMM d") : "Target date"}</span>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={m.dueDate || undefined}
+                          onSelect={(d) => updateMilestoneDate(idx, d || null)}
+                          autoFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <button
+                      type="button"
+                      onClick={() => removeMilestone(idx)}
+                      className="text-muted-foreground hover:text-destructive size-5 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
+                      title="Remove milestone"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Clean Footer Bar */}
-        <div className="pt-4 border-t border-border/50 flex items-center justify-between">
+        {/* Pinned Bottom Footer Bar */}
+        <div className="shrink-0 px-6 py-3 border-t border-border/50 flex items-center justify-between bg-background/50 dark:bg-[#16171a]/50">
           <div className="text-xs text-muted-foreground hidden sm:block">
             <span className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded">Ctrl + Enter</span> to save
           </div>
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || watchedName.length > 80 || watchedSummary.length > 255}
             className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-4 h-9 rounded-lg shadow-sm ml-auto"
           >
             {isSubmitting ? (
