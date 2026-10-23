@@ -59,7 +59,7 @@ export function CreateProjectDialog({ open, onOpenChange, defaultValues }: Creat
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent 
           className="sm:max-w-[900px] w-full max-w-[94vw] h-[640px] max-h-[88vh] flex flex-col p-0 overflow-hidden bg-background dark:bg-[#16171a] border border-border/70 dark:border-zinc-800 shadow-2xl rounded-2xl gap-0"
-          overlayClassName="bg-black/25 dark:bg-black/45 backdrop-blur-none"
+          overlayClassName="bg-black/20 dark:bg-black/40"
           showCloseButton={false}
         >
           {/* Linear Breadcrumb Header */}

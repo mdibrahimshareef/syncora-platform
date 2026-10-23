@@ -401,7 +401,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
               </PopoverContent>
             </Popover>
 
-            {/* Project Name and Summary (Multi-line wrapping with auto-resize) */}
+            {/* Project Name and Summary (Multi-line wrapping with auto-resize & strict restrictions) */}
             <div className="flex-1 space-y-1 min-w-0">
               <FormField
                 control={form.control}
@@ -413,9 +413,11 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
                         ref={nameRef}
                         rows={1}
                         placeholder="Project name"
+                        maxLength={80}
                         value={field.value}
                         onChange={(e) => {
-                          field.onChange(e)
+                          const val = e.target.value.slice(0, 80)
+                          field.onChange(val)
                           if (nameRef.current) {
                             nameRef.current.style.height = "auto"
                             nameRef.current.style.height = `${nameRef.current.scrollHeight}px`
@@ -425,7 +427,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
                         autoFocus
                       />
                     </FormControl>
-                    {(watchedName.length > 80 || form.formState.errors.name) && (
+                    {(watchedName.length >= 80 || form.formState.errors.name) && (
                       <p className="text-xs font-medium text-destructive pt-1">
                         {form.formState.errors.name?.message || "Project name cannot be longer than 80 characters."}
                       </p>
@@ -444,9 +446,11 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
                         ref={summaryRef}
                         rows={1}
                         placeholder="Add a short summary..."
+                        maxLength={255}
                         value={field.value || ""}
                         onChange={(e) => {
-                          field.onChange(e)
+                          const val = e.target.value.slice(0, 255)
+                          field.onChange(val)
                           if (summaryRef.current) {
                             summaryRef.current.style.height = "auto"
                             summaryRef.current.style.height = `${summaryRef.current.scrollHeight}px`
@@ -455,7 +459,7 @@ export function ProjectForm({ defaultValues, onSuccess, onDirtyChange }: Project
                         className="w-full text-sm text-muted-foreground bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 p-0 shadow-none resize-none overflow-hidden leading-relaxed"
                       />
                     </FormControl>
-                    {(watchedSummary.length > 255 || form.formState.errors.summary) && (
+                    {(watchedSummary.length >= 255 || form.formState.errors.summary) && (
                       <p className="text-xs font-medium text-destructive pt-1">
                         {form.formState.errors.summary?.message || "Summary cannot be longer than 255 characters."}
                       </p>
