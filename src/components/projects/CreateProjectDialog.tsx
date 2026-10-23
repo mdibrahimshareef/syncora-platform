@@ -6,9 +6,6 @@ import { ProjectForm } from "@/components/projects/ProjectForm"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -20,6 +17,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useDataStore } from "@/stores/data-store"
+import { ChevronRight, Sparkles, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface CreateProjectDialogProps {
   open: boolean
@@ -30,6 +30,10 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ open, onOpenChange, defaultValues }: CreateProjectDialogProps) {
   const [isDirty, setIsDirty] = React.useState(false)
   const [showConfirm, setShowConfirm] = React.useState(false)
+
+  const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId)
+  const workspaces = useDataStore(s => s.workspaces)
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && isDirty) {
@@ -48,23 +52,56 @@ export function CreateProjectDialog({ open, onOpenChange, defaultValues }: Creat
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>{defaultValues?.id ? 'Edit Project' : 'Create Project'}</DialogTitle>
-            <DialogDescription>
-              {defaultValues?.id 
-                ? 'Update the details for this project below.' 
-                : 'Add a new project to organize tasks in your workspace.'}
-            </DialogDescription>
-          </DialogHeader>
-          <ProjectForm 
-            defaultValues={defaultValues} 
-            onSuccess={() => {
-              setIsDirty(false)
-              onOpenChange(false)
-            }}
-            onDirtyChange={setIsDirty}
-          />
+        <DialogContent 
+          className="sm:max-w-[780px] p-0 overflow-hidden bg-background dark:bg-[#16171a] border border-border/70 dark:border-zinc-800 shadow-2xl rounded-2xl gap-0"
+          overlayClassName="bg-black/60 dark:bg-black/80 backdrop-blur-none"
+          showCloseButton={false}
+        >
+          {/* Linear Breadcrumb Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/60 text-foreground">
+                <div className="size-2 rounded-xs bg-primary/80" />
+                <span className="truncate max-w-[180px]">{activeWorkspace?.name || "Workspace"}</span>
+              </div>
+              <ChevronRight className="size-3 text-muted-foreground/50" />
+              <span className="text-foreground font-semibold">
+                {defaultValues?.id ? 'Edit project' : 'New project'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground font-normal px-2.5 rounded-md"
+              >
+                <Sparkles className="size-3.5 text-amber-500" />
+                <span>Create with Agent</span>
+              </Button>
+              <button
+                type="button"
+                onClick={() => handleOpenChange(false)}
+                className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Form Container */}
+          <div className="p-5 max-h-[82vh] overflow-y-auto">
+            <ProjectForm 
+              defaultValues={defaultValues} 
+              onSuccess={() => {
+                setIsDirty(false)
+                onOpenChange(false)
+              }}
+              onDirtyChange={setIsDirty}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -73,7 +110,7 @@ export function CreateProjectDialog({ open, onOpenChange, defaultValues }: Creat
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to discard the changes you've made to this project?
+              Are you sure you want to discard the changes you&apos;ve made to this project?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
