@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 export default async function AppRedirectPage() {
   const supabase = await createClient()
@@ -26,11 +26,36 @@ export default async function AppRedirectPage() {
     }
   }
   
-  const initialRes = await query.limit(1).maybeSingle()
+  let initialRes = await query.limit(1).maybeSingle()
+
+  // Handle transient JWT clock skew (PGRST303 / "JWT issued at future")
+  if (
+    initialRes.error &&
+    (initialRes.error.code === 'PGRST303' || initialRes.error.message?.includes('JWT issued at future'))
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    initialRes = await query.limit(1).maybeSingle()
+
+    if (initialRes.error) {
+      const admin = createAdminClient()
+      let adminQuery = admin
+        .from('workspace_members')
+        .select('workspace_id, workspaces(slug, organizations(slug), teams(slug))')
+        .eq('user_id', user.id)
+      if (savedWorkspaceId && savedWorkspaceId !== 'undefined' && savedWorkspaceId !== 'null') {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        if (uuidRegex.test(savedWorkspaceId)) {
+          adminQuery = adminQuery.eq('workspace_id', savedWorkspaceId)
+        }
+      }
+      initialRes = await adminQuery.limit(1).maybeSingle()
+    }
+  }
+
   let memberWorkspaces = initialRes.data
   const error = initialRes.error
 
-  if (error) {
+  if (error && error.code !== 'PGRST303' && !error.message?.includes('JWT issued at future')) {
     console.error("Error fetching workspace for redirect:", error)
   }
 
