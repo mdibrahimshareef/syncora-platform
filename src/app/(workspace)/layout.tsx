@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { AppShell } from "@/components/layout/AppShell"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { StoreInitializer } from "@/components/providers/StoreInitializer"
 import { cookies } from "next/headers"
 
@@ -16,6 +16,15 @@ interface WorkspaceMemberItem {
     organizations?: { id: string; name: string; slug: string } | null
     teams?: { id: string; name: string; slug: string } | null
   } | null
+}
+
+const isClockSkewError = (err: unknown) => {
+  if (!err || typeof err !== 'object') return false
+  const errorObj = err as { code?: string; message?: string }
+  return (
+    errorObj.code === 'PGRST303' ||
+    (typeof errorObj.message === 'string' && errorObj.message.includes('JWT issued at future'))
+  )
 }
 
 export default async function WorkspaceLayout({
@@ -34,21 +43,62 @@ export default async function WorkspaceLayout({
   const cookieStore = await cookies()
   const savedWorkspaceId = cookieStore.get('SYNCORA_workspace_id')?.value
 
-  const [
-    { data: profile },
+  const fetchLayoutData = async (client: typeof supabase) => {
+    return Promise.all([
+      client.from('profiles').select('*').eq('id', user.id).single(),
+      client.from('workspace_members').select('workspace_id, role, workspaces(id, name, slug, organization_id, team_id, organizations(id, name, slug))').eq('user_id', user.id),
+      client.from('organization_members').select('org_id, role, organizations(id, name, slug, logo_url, owner_id)').eq('user_id', user.id),
+      client.from('team_members').select('team_id, role, teams(id, org_id, name, slug, description, icon)').eq('user_id', user.id)
+    ])
+  }
+
+  let [
+    { data: profile, error: profileError },
     { data: initialMemberWorkspaces, error: memberWorkspacesError },
-    { data: memberOrgs },
-    { data: memberTeams }
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('workspace_members').select('workspace_id, role, workspaces(id, name, slug, organization_id, team_id, organizations(id, name, slug))').eq('user_id', user.id),
-    supabase.from('organization_members').select('org_id, role, organizations(id, name, slug, logo_url, owner_id)').eq('user_id', user.id),
-    supabase.from('team_members').select('team_id, role, teams(id, org_id, name, slug, description, icon)').eq('user_id', user.id)
-  ])
+    { data: memberOrgs, error: memberOrgsError },
+    { data: memberTeams, error: memberTeamsError }
+  ] = await fetchLayoutData(supabase)
+
+  // Handle transient JWT clock skew (PGRST303 / "JWT issued at future")
+  if (
+    isClockSkewError(memberWorkspacesError) ||
+    isClockSkewError(profileError) ||
+    isClockSkewError(memberOrgsError) ||
+    isClockSkewError(memberTeamsError)
+  ) {
+    // Wait briefly for clock skew to pass, then retry with user client
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    const retryRes = await fetchLayoutData(supabase)
+
+    if (
+      !isClockSkewError(retryRes[1].error) &&
+      !isClockSkewError(retryRes[0].error)
+    ) {
+      ;[
+        { data: profile, error: profileError },
+        { data: initialMemberWorkspaces, error: memberWorkspacesError },
+        { data: memberOrgs, error: memberOrgsError },
+        { data: memberTeams, error: memberTeamsError }
+      ] = retryRes
+    } else {
+      // If clock drift persists between Auth and PostgREST containers,
+      // safely use admin client strictly scoped to authenticated user.id
+      const adminClient = createAdminClient()
+      const adminRes = await fetchLayoutData(adminClient as unknown as typeof supabase)
+      if (adminRes[1].data) {
+        ;[
+          { data: profile, error: profileError },
+          { data: initialMemberWorkspaces, error: memberWorkspacesError },
+          { data: memberOrgs, error: memberOrgsError },
+          { data: memberTeams, error: memberTeamsError }
+        ] = adminRes
+      }
+    }
+  }
 
   let memberWorkspaces = initialMemberWorkspaces as unknown as WorkspaceMemberItem[] | null
   
-  if (memberWorkspacesError) {
+  if (memberWorkspacesError && !isClockSkewError(memberWorkspacesError)) {
     console.error("Layout: Error fetching member workspaces:", memberWorkspacesError?.message || memberWorkspacesError)
 
     // Fallback: Query workspace_members with basic workspace fields only

@@ -48,13 +48,13 @@ export function Header() {
         <GlobalTimer />
 
         <Button 
-          variant="outline" 
+          variant="ghost" 
           size="sm" 
-          className="h-9 w-9 px-0 sm:w-auto sm:px-3 gap-2 text-primary border-primary/20 hover:bg-primary/10 hover:text-primary dark:border-primary/40"
+          className="h-9 w-9 px-0 sm:w-auto sm:px-3 gap-2 text-primary hover:bg-primary/10 hover:text-primary active:bg-primary/15 transition-colors border-0 shadow-none font-medium"
           onClick={() => useUIStore.getState().setAIAssistantOpen(true)}
           title="Ask AI"
         >
-          <Sparkles className="size-4" />
+          <Sparkles className="size-4 text-primary" />
           <span className="sr-only sm:not-sr-only sm:inline-block font-medium">Ask AI</span>
         </Button>
       </div>

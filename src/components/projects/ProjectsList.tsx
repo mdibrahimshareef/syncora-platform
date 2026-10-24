@@ -36,17 +36,25 @@ export function ProjectsList() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            type="search" 
-            placeholder="Search projects..." 
-            className="pl-9 bg-background"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Button className="w-full sm:w-auto" onClick={() => setIsCreateOpen(true)}>
+        {projects.length > 0 ? (
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Filter projects..." 
+              className="pl-9 bg-background"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div />
+        )}
+        <Button 
+          variant={projects.length === 0 ? "outline" : "default"}
+          className={`w-full sm:w-auto ${projects.length === 0 ? "text-muted-foreground hover:text-foreground hover:border-foreground/30" : ""}`} 
+          onClick={() => setIsCreateOpen(true)}
+        >
           <Plus className="mr-2 size-4" />
           New Project
         </Button>
@@ -60,16 +68,17 @@ export function ProjectsList() {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="mb-6">
-            <Layers className="size-16 text-muted-foreground opacity-80 stroke-[1]" />
+        <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-8 rounded-xl border border-dashed border-border/60 bg-muted/10">
+          <div className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Layers className="size-7 stroke-[1.75]" />
           </div>
-          <h3 className="text-xl font-medium mb-3">Projects</h3>
-          <p className="text-sm text-muted-foreground max-w-[420px] mx-auto mb-8 leading-relaxed">
+          <h3 className="text-xl font-semibold tracking-tight mb-2">Projects</h3>
+          <p className="text-sm text-muted-foreground max-w-[420px] mx-auto mb-6 leading-relaxed">
             Projects are larger units of work with a clear outcome, such as a new feature you want to ship. They can be shared across multiple teams and are comprised of tasks and optional documents.
           </p>
           <div className="flex items-center justify-center">
-            <Button onClick={() => setIsCreateOpen(true)}>
+            <Button onClick={() => setIsCreateOpen(true)} className="gap-2 font-medium shadow-sm">
+              <Plus className="size-4" />
               Create new project
             </Button>
           </div>

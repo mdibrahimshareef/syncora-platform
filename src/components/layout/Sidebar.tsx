@@ -32,10 +32,12 @@ import {
 import { useDataStore } from "@/stores/data-store"
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher"
 import { WorkspacePresenceAvatars } from "@/components/collaboration/WorkspacePresenceAvatars"
+import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
 
 export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>) {
   const pathname = usePathname()
   const params = useParams()
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = React.useState(false)
   const projects = useDataStore(s => s.projects);
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);
   const workspaces = useDataStore(s => s.workspaces);
@@ -101,7 +103,7 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
                     <SidebarMenuButton 
                       tooltip={item.name}
                       render={<Link href={item.href} />} 
-                      isActive={pathname === item.href}
+                      isActive={pathname === item.href || (item.name === "Projects" && pathname.startsWith(item.href))}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.name}</span>
@@ -118,28 +120,38 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
           </SidebarGroup>
         ))}
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex justify-between items-center group/label">
-            Projects
-            <PlusCircle className="size-4 cursor-pointer opacity-0 group-hover/label:opacity-100 transition-opacity hover:text-primary" />
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projects.slice(0, 5).map((project) => (
-                <SidebarMenuItem key={project.id}>
-                  <SidebarMenuButton 
-                    tooltip={project.name}
-                    render={<Link href={`${baseUrl || '/app'}/projects/${project.id}`} />} 
-                    isActive={pathname === `${baseUrl || '/app'}/projects/${project.id}`}
-                  >
-                    <span className={`size-2 rounded-full shrink-0 ${project.color}`} />
-                    <span className="truncate">{project.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {projects.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex justify-between items-center group/label text-xs font-semibold tracking-wider text-muted-foreground">
+              RECENT PROJECTS
+              <button
+                type="button"
+                onClick={() => setIsCreateProjectOpen(true)}
+                className="opacity-0 group-hover/label:opacity-100 transition-opacity hover:text-primary p-0.5 rounded cursor-pointer"
+                title="Create project"
+                aria-label="Create new project"
+              >
+                <PlusCircle className="size-3.5" />
+              </button>
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {projects.slice(0, 5).map((project) => (
+                  <SidebarMenuItem key={project.id}>
+                    <SidebarMenuButton 
+                      tooltip={project.name}
+                      render={<Link href={`${baseUrl || '/app'}/projects/${project.id}`} />} 
+                      isActive={pathname === `${baseUrl || '/app'}/projects/${project.id}`}
+                    >
+                      <span className={`size-2 rounded-full shrink-0 ${project.color}`} />
+                      <span className="truncate">{project.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/60 p-2.5">
@@ -160,6 +172,7 @@ export function Sidebar({ ...props }: React.ComponentProps<typeof ShadcnSidebar>
       </SidebarFooter>
 
       <SidebarRail />
+      <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} />
     </ShadcnSidebar>
   )
 }
