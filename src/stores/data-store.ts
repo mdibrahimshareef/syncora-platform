@@ -18,6 +18,7 @@ import * as integrationsApi from '@/lib/api/integrations'
 import { Integration, WebhookEndpoint } from '@/lib/integrations/types'
 import { createProjectFromTemplate as apiCreateProjectFromTemplate, getTemplates } from '@/lib/api/templates'
 import { Template } from '@/lib/api/templates'
+import { useUIStore } from './ui-store'
 
 type DataState = {
   tasks: Task[]
@@ -881,6 +882,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
         };
       })
 
+      if (typeof window !== 'undefined') {
+        const uiState = useUIStore.getState();
+        if (uiState.selectedTaskId === tempId) {
+          uiState.setSelectedTaskId(created.id);
+        }
+      }
+
       // Log activity
       const { activeWorkspaceId } = get()
       if (activeWorkspaceId) {
@@ -926,7 +934,14 @@ export const useDataStore = create<DataState>()((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       })
-      if (!res.ok) throw new Error('Failed to update task')
+      if (!res.ok) {
+        let errorMsg = 'Failed to update task'
+        try {
+          const errorData = await res.json()
+          if (errorData?.error) errorMsg = errorData.error
+        } catch {}
+        throw new Error(errorMsg)
+      }
 
       if (activeWorkspaceId && currentUser) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', id, 'updated', { targetName: updates.title || 'a task' })
@@ -1014,14 +1029,23 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   moveTask: async (id, newStatus) => {
-    const { tasks, currentUser, activeWorkspaceId } = get()
-    const taskToMove = tasks.find(t => t.id === id)
+    const { tasks, workspaceTasks, currentUser, activeWorkspaceId, projects } = get()
+    const taskToMove = tasks.find(t => t.id === id) || workspaceTasks.find(t => t.id === id)
     if (!taskToMove || taskToMove.status === newStatus) return
 
+    const originalTasks = [...tasks]
+    const originalWorkspaceTasks = [...workspaceTasks]
+    const originalProjects = [...projects]
+
+    const nextTasks = tasks.map(t => t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t)
+    const nextWorkspaceTasks = workspaceTasks.map(t => t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t)
+
     // Optimistic update
-    set({
-      tasks: tasks.map(t => t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t)
-    })
+    set((state) => ({
+      tasks: nextTasks,
+      workspaceTasks: nextWorkspaceTasks,
+      projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
+    }))
 
     try {
       const supabase = createClient()
@@ -1030,14 +1054,21 @@ export const useDataStore = create<DataState>()((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
-      if (!res.ok) throw new Error('Failed to update task status')
+      if (!res.ok) {
+        let errorMsg = 'Failed to update task status'
+        try {
+          const errorData = await res.json()
+          if (errorData?.error) errorMsg = errorData.error
+        } catch {}
+        throw new Error(errorMsg)
+      }
 
       if (activeWorkspaceId && currentUser) {
         await activityApi.logActivity(supabase, activeWorkspaceId, currentUser.id, 'task', id, 'moved', { targetName: taskToMove.title, toStatus: newStatus })
         get().fetchActivity()
       }
     } catch (err: unknown) {
-      set({ tasks }) // Rollback
+      set({ tasks: originalTasks, workspaceTasks: originalWorkspaceTasks, projects: originalProjects }) // Rollback
       throw err
     }
   },
@@ -1639,6 +1670,16 @@ export const useDataStore = create<DataState>()((set, get) => ({
         projects: syncProjectsWithTasks(state.projects, uniqueWorkspaceTasks)
       }
     })
+
+    if (typeof window !== 'undefined') {
+      const uiState = useUIStore.getState();
+      if (uiState.selectedTaskId && uiState.selectedTaskId.startsWith('temp-')) {
+        const task = get().tasks.find(t => t.id === payload.id);
+        if (task) {
+          uiState.setSelectedTaskId(payload.id);
+        }
+      }
+    }
   },
 
   applyRealtimeTaskDelete: (payload) => {

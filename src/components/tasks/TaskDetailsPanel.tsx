@@ -437,7 +437,7 @@ export function TaskDetailsPanel() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Document</span>
                   <Select 
                     value={task.documentId || "none"} 
-                    onValueChange={(val) => updateTask(task.id, { documentId: val === "none" ? undefined : (val as string) })}
+                    onValueChange={(val) => updateTask(task.id, { documentId: val === "none" ? null : (val as string) })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
                       <SelectValue placeholder="None" />
@@ -455,7 +455,7 @@ export function TaskDetailsPanel() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Customer</span>
                   <Select 
                     value={task.customerId || "none"} 
-                    onValueChange={(val) => updateTask(task.id, { customerId: val === "none" ? undefined : val })}
+                    onValueChange={(val) => updateTask(task.id, { customerId: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
                       <SelectValue placeholder="None" />
@@ -473,7 +473,7 @@ export function TaskDetailsPanel() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Request</span>
                   <Select 
                     value={task.requestId || "none"} 
-                    onValueChange={(val) => updateTask(task.id, { requestId: val === "none" ? undefined : val })}
+                    onValueChange={(val) => updateTask(task.id, { requestId: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
                       <SelectValue placeholder="None" />
@@ -491,7 +491,7 @@ export function TaskDetailsPanel() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Approval</span>
                   <Select 
                     value={task.approvalId || "none"} 
-                    onValueChange={(val) => updateTask(task.id, { approvalId: val === "none" ? undefined : (val as string) })}
+                    onValueChange={(val) => updateTask(task.id, { approvalId: val === "none" ? null : (val as string) })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
                       <SelectValue placeholder="None" />

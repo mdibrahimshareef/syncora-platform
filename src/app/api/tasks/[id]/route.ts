@@ -22,20 +22,20 @@ export async function PUT(
     const payload = await request.json();
     
     // Get before state for checking status changes, etc
-    const { data: oldTask } = await supabase
+    const { data: oldTask, error: oldTaskError } = await supabase
       .from('tasks')
       .select('*, projects(workspace_id)')
       .eq('id', taskId)
       .single();
 
-    if (!oldTask) {
+    if (oldTaskError || !oldTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     // Perform authoritative database mutation
     const updatedTask = await updateTask(supabase, taskId, payload);
 
-    const workspaceId = oldTask.projects?.workspace_id;
+    const workspaceId = (oldTask as any).workspace_id || (Array.isArray(oldTask.projects) ? (oldTask.projects[0] as any)?.workspace_id : (oldTask.projects as any)?.workspace_id);
 
     if (workspaceId) {
       // 1. Emit task.updated
@@ -70,7 +70,10 @@ export async function PUT(
       }
 
       // 3. Conditionally emit task.assigned
-      if (payload.assigneeId && payload.assigneeId !== oldTask.assignee_id) {
+      const newAssigneeId = payload.assigneeId !== undefined 
+        ? (payload.assigneeId === 'none' ? null : payload.assigneeId)
+        : (payload.assignee ? (typeof payload.assignee === 'string' ? payload.assignee : payload.assignee.id) : undefined);
+      if (newAssigneeId !== undefined && newAssigneeId !== oldTask.assignee_id) {
         const assignEvent: SyncoraEvent = {
           id: crypto.randomUUID(),
           type: 'task.assigned',
@@ -79,7 +82,7 @@ export async function PUT(
           actorId: user.id,
           payload: {
             task: updatedTask,
-            assigneeId: payload.assigneeId
+            assigneeId: newAssigneeId
           }
         };
         await dispatchEvent(assignEvent);

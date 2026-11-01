@@ -153,7 +153,7 @@ export function TaskForm({ defaultValues, onSuccess, onCancel, onDirtyChange }: 
       parentId: defaultValues?.parentId || null,
       estimatedTime: data.estimatedTime ? data.estimatedTime * 60 : null,
       milestoneId: data.milestoneId === 'none' ? null : data.milestoneId || null,
-      documentId: data.documentId === 'none' ? undefined : data.documentId || undefined,
+      documentId: data.documentId === 'none' ? null : (data.documentId || null),
       taskType: data.taskType || 'Task',
     }
 

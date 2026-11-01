@@ -383,6 +383,43 @@ export async function createTask(
   }
 }
 
+const ALLOWED_TASK_COLUMNS = new Set([
+  'title',
+  'description',
+  'status',
+  'priority',
+  'project_id',
+  'workspace_id',
+  'assignee_id',
+  'start_date',
+  'due_date',
+  'position',
+  'parent_id',
+  'task_type',
+  'reporter_id',
+  'customer_id',
+  'request_id',
+  'approval_id',
+  'document_id',
+  'milestone_id',
+  'estimated_time',
+  'tracked_time',
+  'estimated_cost',
+  'actual_cost',
+  'estimated_hours',
+  'story_points',
+  'recurrence_rule',
+  'is_recurring',
+  'next_occurrence',
+  'recurring_parent_id',
+  'sla_priority',
+  'sla_severity',
+  'response_target',
+  'resolution_target',
+  'sla_status',
+  'updated_at'
+]);
+
 export async function updateTask(
   supabase: SupabaseClient<Database>, 
   taskId: string, 
@@ -392,44 +429,40 @@ export async function updateTask(
     slaPriority: string, slaSeverity: string, responseTarget: string, resolutionTarget: string, slaStatus: string,
     estimatedTime: number, trackedTime: number, estimatedCost: number, actualCost: number,
     taskType: string, reporterId: string | null, customerId: string | null, requestId: string | null, approvalId: string | null, documentId: string | null,
-    estimatedHours: number, storyPoints: number, milestoneId: string | null
+    estimatedHours: number, storyPoints: number, milestoneId: string | null,
+    projectId: string, workspaceId: string, isRecurring: boolean, nextOccurrence: string | null, recurringParentId: string | null
   }>
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateData: any = { ...payload }
-  if (updateData.assigneeId !== undefined) {
-    updateData.assignee_id = updateData.assigneeId
-    delete updateData.assigneeId
+  const raw: any = { ...payload }
+
+  if (raw.assigneeId !== undefined) {
+    raw.assignee_id = raw.assigneeId === 'none' ? null : (raw.assigneeId || null)
+    delete raw.assigneeId
   }
-  if (updateData.assignee !== undefined) {
-    if (updateData.assignee_id === undefined) {
-      updateData.assignee_id = updateData.assignee ? (typeof updateData.assignee === 'string' ? updateData.assignee : updateData.assignee.id) : null
+  if (raw.assignee !== undefined) {
+    if (raw.assignee_id === undefined) {
+      raw.assignee_id = raw.assignee ? (typeof raw.assignee === 'string' ? raw.assignee : raw.assignee.id) : null
     }
-    delete updateData.assignee
+    delete raw.assignee
   }
-  if (updateData.milestoneId !== undefined) {
-    updateData.milestone_id = updateData.milestoneId === 'none' ? null : (updateData.milestoneId || null)
-    delete updateData.milestoneId
-  }
-  if (updateData.startDate !== undefined) {
-    updateData.start_date = updateData.startDate
-    delete updateData.startDate
-  }
-  if (updateData.dueDate !== undefined) {
-    updateData.due_date = updateData.dueDate
-    delete updateData.dueDate
-  }
-  if (updateData.parentId !== undefined) {
-    updateData.parent_id = updateData.parentId
-    delete updateData.parentId
-  }
-  if (updateData.recurrenceRule !== undefined) {
-    updateData.recurrence_rule = updateData.recurrenceRule
-    delete updateData.recurrenceRule
-  }
-  
-  // Mapping camelCase to snake_case for new fields
+
+  // Mapping camelCase to snake_case for database fields
   const mappings: Record<string, string> = {
+    projectId: 'project_id',
+    workspaceId: 'workspace_id',
+    startDate: 'start_date',
+    dueDate: 'due_date',
+    parentId: 'parent_id',
+    milestoneId: 'milestone_id',
+    documentId: 'document_id',
+    customerId: 'customer_id',
+    requestId: 'request_id',
+    approvalId: 'approval_id',
+    recurrenceRule: 'recurrence_rule',
+    isRecurring: 'is_recurring',
+    nextOccurrence: 'next_occurrence',
+    recurringParentId: 'recurring_parent_id',
     slaPriority: 'sla_priority',
     slaSeverity: 'sla_severity',
     responseTarget: 'response_target',
@@ -441,30 +474,98 @@ export async function updateTask(
     actualCost: 'actual_cost',
     taskType: 'task_type',
     reporterId: 'reporter_id',
-    customerId: 'customer_id',
-    requestId: 'request_id',
-    approvalId: 'approval_id',
-    documentId: 'document_id',
     estimatedHours: 'estimated_hours',
     storyPoints: 'story_points'
   }
 
   for (const [camel, snake] of Object.entries(mappings)) {
-    if (updateData[camel] !== undefined) {
-      updateData[snake] = updateData[camel]
-      delete updateData[camel]
+    if (raw[camel] !== undefined) {
+      raw[snake] = raw[camel]
+      delete raw[camel]
     }
   }
+
+  // Normalize 'none' values for nullable relations
+  const nullableRelationFields = [
+    'milestone_id',
+    'document_id',
+    'customer_id',
+    'request_id',
+    'approval_id',
+    'recurrence_rule',
+    'parent_id',
+    'assignee_id',
+  ]
+  for (const field of nullableRelationFields) {
+    if (raw[field] === 'none') {
+      raw[field] = null
+    }
+  }
+
+  // Whitelist only valid columns on public.tasks table
+  const updateData: Record<string, any> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (ALLOWED_TASK_COLUMNS.has(key) && value !== undefined) {
+      updateData[key] = value
+    }
+  }
+  updateData.updated_at = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('tasks')
     .update(updateData)
     .eq('id', taskId)
-    .select()
+    .select(`
+      *,
+      assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+    `)
     .single()
 
   if (error) throw error
-  return data
+
+  return {
+    id: data.id,
+    projectId: data.project_id,
+    title: data.title,
+    description: data.description || undefined,
+    status: data.status as TaskStatus,
+    priority: data.priority as import("@/types").TaskPriority,
+    assignee: data.assignee ? {
+      id: (data.assignee as any).id,
+      name: (data.assignee as any).full_name || 'Unknown User',
+      initials: ((data.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+      email: '',
+      role: 'Member',
+      avatarUrl: (data.assignee as any).avatar_url || undefined
+    } : undefined,
+    assigneeId: data.assignee_id || null,
+    dueDate: data.due_date || undefined,
+    startDate: data.start_date || undefined,
+    position: data.position,
+    parentId: data.parent_id || null,
+    workspaceId: data.workspace_id || (payload as any).workspaceId || '',
+    taskType: data.task_type || 'Task',
+    reporterId: data.reporter_id || null,
+    customerId: data.customer_id || null,
+    requestId: data.request_id || null,
+    approvalId: data.approval_id || undefined,
+    documentId: data.document_id || undefined,
+    milestoneId: data.milestone_id || null,
+    estimatedTime: data.estimated_time || null,
+    estimatedHours: data.estimated_hours || undefined,
+    storyPoints: data.story_points || undefined,
+    recurrenceRule: data.recurrence_rule || null,
+    isRecurring: data.is_recurring || false,
+    nextOccurrence: data.next_occurrence || null,
+    recurringParentId: data.recurring_parent_id || null,
+    labels: [], 
+    dependencies: [],
+    blockedBy: [],
+    attachments: [],
+    watchers: [],
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  }
 }
 
 export async function deleteTask(supabase: SupabaseClient<Database>, taskId: string) {
