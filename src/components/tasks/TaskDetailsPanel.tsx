@@ -481,7 +481,7 @@ export function TaskDetailsPanel() {
                     <SelectContent>
                       <SelectItem value="none" className="text-xs">None</SelectItem>
                       {requests.map(r => (
-                        <SelectItem key={r.id} value={r.id} className="text-xs">{r.title}</SelectItem>
+                        <SelectItem key={r.id} value={r.id} className="text-xs">{r.title || r.form?.title || 'Request'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

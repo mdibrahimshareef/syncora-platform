@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
-import { Task, Project, WorkflowStatus, Activity, User, Workspace } from '@/types'
+import { Task, Project, WorkflowStatus, Activity, User, Workspace, ProjectStatus } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+import { Database, Json } from '@/types/supabase'
 import * as projectApi from '@/lib/api/projects'
 import * as taskApi from '@/lib/api/tasks'
 import * as activityApi from '@/lib/api/activity'
@@ -20,6 +21,42 @@ import { createProjectFromTemplate as apiCreateProjectFromTemplate, getTemplates
 import { Template } from '@/lib/api/templates'
 import { useUIStore } from './ui-store'
 
+export type DocumentItem = documentsApi.Document & {
+  author?: {
+    id: string
+    full_name: string | null
+    avatar_url: string | null
+  } | null
+}
+
+export type RequestItem = requestsApi.Request & {
+  title?: string | null
+  createdAt?: string
+  form?: (requestsApi.RequestForm & { isPublic?: boolean | null }) | null
+  requester?: {
+    id: string
+    full_name?: string | null
+    name?: string | null
+    avatar_url?: string | null
+    avatarUrl?: string | null
+  } | null
+  task?: { id: string; title: string; status: string } | null
+}
+
+export type RequestFormItem = requestsApi.RequestForm & {
+  isPublic?: boolean | null
+  fields?: unknown
+  schema?: unknown
+}
+
+export type ApprovalItem = approvalsApi.Approval & {
+  title?: string | null
+  details?: Record<string, unknown> | string | null
+  createdAt?: string
+  approver?: { id: string; full_name?: string | null; name?: string | null; avatar_url?: string | null } | null
+  requester?: { id: string; full_name?: string | null; name?: string | null; avatar_url?: string | null } | null
+}
+
 type DataState = {
   tasks: Task[]
   workspaceTasks: Task[]
@@ -33,11 +70,11 @@ type DataState = {
   activity: Activity[]
   workspaces: Workspace[]
   workspaceMembers: User[]
-  onlineWorkspaceUsers: any[]
-  documents: any[]
-  requests: any[]
-  requestForms: any[]
-  approvals: any[]
+  onlineWorkspaceUsers: User[]
+  documents: DocumentItem[]
+  requests: RequestItem[]
+  requestForms: RequestFormItem[]
+  approvals: ApprovalItem[]
   customers: customersApi.Customer[]
   customerRequests: customersApi.CustomerRequest[]
   notifications: notificationsApi.Notification[]
@@ -51,7 +88,7 @@ type DataState = {
   isLoading: boolean
   error: string | null
 
-  setOnlineWorkspaceUsers: (users: any[]) => void
+  setOnlineWorkspaceUsers: (users: User[]) => void
 
   setInitialData: (data: { 
     currentUser: User | null, 
@@ -92,22 +129,37 @@ type DataState = {
   markAllNotificationsAsRead: () => Promise<void>
 
   // Document Actions
-  createDocument: (payload: any) => Promise<string>
-  updateDocument: (id: string, updates: any) => Promise<void>
+  createDocument: (payload: Omit<Database['public']['Tables']['documents']['Insert'], 'id' | 'created_at' | 'updated_at' | 'workspace_id'> & { workspace_id?: string } & Record<string, unknown>) => Promise<string>
+  updateDocument: (id: string, updates: Database['public']['Tables']['documents']['Update'] & Record<string, unknown>) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
 
   // Request Actions
-  createRequestForm: (payload: any) => Promise<any>
-  submitRequest: (payload: any) => Promise<any>
+  createRequestForm: (payload: {
+    workspace_id?: string
+    title: string
+    description?: string | null
+    schema?: unknown
+    fields?: unknown
+    fields_schema?: Json
+    is_public?: boolean | null
+    isPublic?: boolean | null
+  } & Record<string, unknown>) => Promise<requestsApi.RequestForm>
+  submitRequest: (payload: {
+    workspace_id?: string
+    form_id: string
+    requester_id?: string | null
+    data?: Json
+    status?: string
+  } & Record<string, unknown>) => Promise<requestsApi.Request>
   updateRequestStatus: (id: string, status: string, linkedTaskId?: string) => Promise<void>
 
   // Customer Actions
-  createCustomer: (payload: any) => Promise<any>
-  createCustomerRequest: (payload: any) => Promise<any>
-  updateCustomerRequest: (id: string, updates: any) => Promise<void>
+  createCustomer: (payload: Omit<Database['public']['Tables']['customers']['Insert'], 'id' | 'created_at' | 'updated_at'> & { workspace_id?: string } & Record<string, unknown>) => Promise<customersApi.Customer>
+  createCustomerRequest: (payload: Omit<Database['public']['Tables']['customer_requests']['Insert'], 'id' | 'created_at' | 'updated_at'> & { type?: string; workspace_id?: string } & Record<string, unknown>) => Promise<customersApi.CustomerRequest>
+  updateCustomerRequest: (id: string, updates: Database['public']['Tables']['customer_requests']['Update'] & Record<string, unknown>) => Promise<void>
 
   // Approval Actions
-  requestApproval: (payload: any) => Promise<any>
+  requestApproval: (payload: Omit<Database['public']['Tables']['approvals']['Insert'], 'id' | 'created_at' | 'updated_at' | 'status'> & { details?: Record<string, unknown> | string | null } & Record<string, unknown>) => Promise<approvalsApi.Approval>
   resolveApproval: (id: string, status: 'Approved' | 'Rejected' | 'Changes Requested', comment?: string) => Promise<void>
 
   // Task Actions
@@ -130,11 +182,11 @@ type DataState = {
   deleteMilestone: (id: string) => Promise<void>
   
   // Filter Actions
-  saveFilter: (name: string, filterData: any) => Promise<void>
+  saveFilter: (name: string, filterData: unknown) => Promise<void>
   deleteFilter: (id: string) => Promise<void>
 
   // Automation Actions
-  createAutomation: (payload: any) => Promise<void>
+  createAutomation: (payload: Partial<automationsApi.Automation> & Record<string, unknown>) => Promise<void>
   updateAutomation: (id: string, updates: Partial<automationsApi.Automation>) => Promise<void>
   deleteAutomation: (id: string) => Promise<void>
 
@@ -148,16 +200,16 @@ type DataState = {
   deleteProject: (id: string) => Promise<void>
   
   // Realtime Receivers
-  applyRealtimeProjectInsert: (payload: any) => void
-  applyRealtimeProjectUpdate: (payload: any) => void
-  applyRealtimeProjectDelete: (payload: any) => void
-  applyRealtimeTaskUpdate: (payload: any) => void
-  applyRealtimeTaskInsert: (payload: any) => void
-  applyRealtimeTaskDelete: (payload: any) => void
-  applyRealtimeMilestoneInsert: (payload: any) => void
-  applyRealtimeMilestoneUpdate: (payload: any) => void
-  applyRealtimeMilestoneDelete: (payload: any) => void
-  applyRealtimeNotification: (payload: any) => void
+  applyRealtimeProjectInsert: (payload: Record<string, unknown>) => void
+  applyRealtimeProjectUpdate: (payload: Record<string, unknown>) => void
+  applyRealtimeProjectDelete: (payload: Record<string, unknown>) => void
+  applyRealtimeTaskUpdate: (payload: Record<string, unknown>) => void
+  applyRealtimeTaskInsert: (payload: Record<string, unknown>) => void
+  applyRealtimeTaskDelete: (payload: Record<string, unknown>) => void
+  applyRealtimeMilestoneInsert: (payload: Record<string, unknown>) => void
+  applyRealtimeMilestoneUpdate: (payload: Record<string, unknown>) => void
+  applyRealtimeMilestoneDelete: (payload: Record<string, unknown>) => void
+  applyRealtimeNotification: (payload: { new: notificationsApi.Notification | Record<string, unknown> }) => void
 }
 
 const generateId = () => `temp-${Math.random().toString(36).substring(2, 9)}`
@@ -268,10 +320,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
     try {
       const supabase = createClient()
-      const dbUpdates: any = {}
+      const dbUpdates: Database['public']['Tables']['profiles']['Update'] = {}
       if (updates.name !== undefined) dbUpdates.full_name = updates.name
       if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl
-      if (updates.metadata !== undefined) dbUpdates.metadata = updates.metadata
+      if (updates.metadata !== undefined) dbUpdates.metadata = updates.metadata as Json
 
       if (Object.keys(dbUpdates).length > 0) {
         await supabase
@@ -289,10 +341,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       
-      const dbUpdates: any = {}
+      const dbUpdates: Database['public']['Tables']['workspaces']['Update'] = {}
       if (updates.name !== undefined) dbUpdates.name = updates.name
       if (updates.slug !== undefined) dbUpdates.slug = updates.slug
-      if (updates.logoUrl !== undefined) dbUpdates.logo_url = updates.logoUrl
       if (updates.organizationId !== undefined) dbUpdates.organization_id = updates.organizationId
       if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId
       
@@ -317,8 +368,20 @@ export const useDataStore = create<DataState>()((set, get) => ({
   fetchProjectStatuses: async (projectId: string) => {
     try {
       const supabase = createClient()
-      const projectStatuses = await projectApi.getProjectStatuses(supabase, projectId)
-      set({ projectStatuses: projectStatuses as any })
+      const rawStatuses = await projectApi.getProjectStatuses(supabase, projectId)
+      const formattedStatuses: WorkflowStatus[] = (rawStatuses || []).map((s) => ({
+        id: s.id,
+        projectId: s.project_id,
+        name: s.name,
+        color: s.color,
+        position: s.position,
+        category: (s.category as WorkflowStatus['category']) || 'Todo',
+        isDefault: s.is_default ?? false,
+        allowedTransitions: Array.isArray(s.allowed_transitions)
+          ? (s.allowed_transitions as unknown[]).map(String)
+          : []
+      }))
+      set({ projectStatuses: formattedStatuses })
     } catch (err: unknown) {
       console.error('Failed to load project statuses', err)
     }
@@ -396,7 +459,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const searchResults = await searchApi.performGlobalSearch(supabase, activeWorkspaceId, query)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults, isSearching: false })
-    } catch (err) {
+    } catch {
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults: [], isSearching: false })
     }
@@ -432,14 +495,17 @@ export const useDataStore = create<DataState>()((set, get) => ({
         .eq('workspace_id', activeWorkspaceId)
       
       if (data) {
-        const members = data.map((d: any) => ({
-          id: d.profiles.id,
-          name: d.profiles.full_name || 'Unknown User',
-          initials: (d.profiles.full_name || 'U').substring(0, 2).toUpperCase(),
-          email: '',
-          role: 'Member',
-          avatarUrl: d.profiles.avatar_url || undefined
-        }))
+        type ProfileData = { id: string; full_name: string | null; avatar_url: string | null }
+        const members: User[] = (data as unknown as { profiles: ProfileData | null }[])
+          .filter((d): d is { profiles: ProfileData } => Boolean(d.profiles))
+          .map((d) => ({
+            id: d.profiles.id,
+            name: d.profiles.full_name || 'Unknown User',
+            initials: (d.profiles.full_name || 'U').substring(0, 2).toUpperCase(),
+            email: '',
+            role: 'Member',
+            avatarUrl: d.profiles.avatar_url || undefined
+          }))
         set({ workspaceMembers: members })
       }
     } catch (err: unknown) {
@@ -490,10 +556,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const reqs = await requestsApi.getRequests(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return
-      set({ requests: reqs || [] })
-    } catch (err: any) {
+      set({ requests: (reqs || []) as RequestItem[] })
+    } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return
-      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      const errorObj = err as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof err === 'string' ? err : 'Unknown error')
       console.error('Failed to fetch requests:', errMsg, err)
     }
   },
@@ -503,8 +570,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const data = await milestonesApi.getMilestones(supabase, projectId)
       set({ milestones: data || [] })
-    } catch (error: any) {
-      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+    } catch (error: unknown) {
+      const errorObj = error as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof error === 'string' ? error : 'Unknown error')
       console.error("Failed to load milestones:", errMsg, error)
     }
   },
@@ -517,9 +585,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const data = await filtersApi.getSavedFilters(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return
       set({ savedFilters: data || [] })
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return
-      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+      const errorObj = error as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof error === 'string' ? error : 'Unknown error')
       console.error("Failed to load filters:", errMsg, error)
     }
   },
@@ -529,8 +598,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const data = await getTemplates(supabase)
       set({ templates: data || [] })
-    } catch (error: any) {
-      const errMsg = error?.message || error?.details || (typeof error === 'string' ? error : 'Unknown error')
+    } catch (error: unknown) {
+      const errorObj = error as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof error === 'string' ? error : 'Unknown error')
       console.error("Failed to load templates:", errMsg, error)
     }
   },
@@ -543,9 +613,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const forms = await requestsApi.getRequestForms(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return
       set({ requestForms: forms || [] })
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return
-      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      const errorObj = err as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof err === 'string' ? err : 'Unknown error')
       console.error('Failed to fetch request forms:', errMsg, err)
     }
   },
@@ -556,34 +627,35 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       
-      let approvalsList: any[] = []
+      let approvalsList: ApprovalItem[] = []
       try {
-        approvalsList = await approvalsApi.getWorkspaceApprovals(supabase, activeWorkspaceId)
+        approvalsList = (await approvalsApi.getWorkspaceApprovals(supabase, activeWorkspaceId)) as ApprovalItem[]
       } catch {
         const [requestedByMeRes, assignedToMeRes] = await Promise.allSettled([
           approvalsApi.getApprovalsRequestedByMe(supabase, activeWorkspaceId, currentUser.id),
           approvalsApi.getApprovalsAssignedToMe(supabase, activeWorkspaceId, currentUser.id)
         ])
-        const map = new Map<string, any>()
+        const map = new Map<string, ApprovalItem>()
         if (requestedByMeRes.status === 'fulfilled' && Array.isArray(requestedByMeRes.value)) {
-          requestedByMeRes.value.forEach(a => a && a.id && map.set(a.id, a))
+          requestedByMeRes.value.forEach(a => a && a.id && map.set(a.id, a as ApprovalItem))
         }
         if (assignedToMeRes.status === 'fulfilled' && Array.isArray(assignedToMeRes.value)) {
-          assignedToMeRes.value.forEach(a => a && a.id && map.set(a.id, a))
+          assignedToMeRes.value.forEach(a => a && a.id && map.set(a.id, a as ApprovalItem))
         }
         approvalsList = Array.from(map.values())
       }
 
       if (get().activeWorkspaceId !== activeWorkspaceId) return
 
-      const map = new Map<string, any>()
+      const map = new Map<string, ApprovalItem>()
       ;(approvalsList || []).forEach(a => {
         if (a && a.id) map.set(a.id, a)
       })
       set({ approvals: Array.from(map.values()) })
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return
-      const errMsg = err?.message || err?.details || (typeof err === 'string' ? err : 'Unknown error')
+      const errorObj = err as { message?: string; details?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof err === 'string' ? err : 'Unknown error')
       console.error('Failed to fetch approvals:', errMsg, err)
     }
   },
@@ -624,7 +696,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const count = await notificationsApi.getUnreadNotificationCount(supabase, currentUser.id, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ notifications, unreadNotificationCount: count })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching notifications:', error)
     }
   },
@@ -638,7 +710,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const automations = await automationsApi.getAutomations(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ automations })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching automations:', error)
     }
   },
@@ -652,7 +724,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const automationRuns = await automationsApi.getAutomationRuns(supabase, activeWorkspaceId)
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ automationRuns })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching automation runs:', error)
     }
   },
@@ -672,7 +744,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
         notifications: updatedNotifications,
         unreadNotificationCount: Math.max(0, unreadNotificationCount - 1)
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error marking notification as read:', error)
     }
   },
@@ -693,7 +765,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
         notifications: updatedNotifications,
         unreadNotificationCount: 0
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error marking all notifications as read:', error)
     }
   },
@@ -725,14 +797,31 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   createRequestForm: async (payload) => {
     const supabase = createClient()
-    const newForm = await requestsApi.createRequestForm(supabase, payload)
+    const { activeWorkspaceId } = get()
+    const workspaceId = payload.workspace_id || activeWorkspaceId
+    if (!workspaceId) throw new Error("No active workspace")
+    const newForm = await requestsApi.createRequestForm(supabase, {
+      title: payload.title,
+      description: payload.description || null,
+      workspace_id: workspaceId,
+      fields_schema: (payload.fields_schema || payload.schema || payload.fields || {}) as Json,
+      is_public: payload.is_public ?? payload.isPublic ?? false
+    })
     set({ requestForms: [newForm, ...get().requestForms] })
     return newForm
   },
 
   submitRequest: async (payload) => {
     const supabase = createClient()
-    const newReq = await requestsApi.submitRequest(supabase, payload)
+    const { activeWorkspaceId } = get()
+    const workspaceId = payload.workspace_id || activeWorkspaceId
+    if (!workspaceId) throw new Error("No active workspace")
+    const newReq = await requestsApi.submitRequest(supabase, {
+      workspace_id: workspaceId,
+      form_id: payload.form_id,
+      requester_id: payload.requester_id || null,
+      data: (payload.data as Json) || {}
+    })
     set({ requests: [newReq, ...get().requests] })
     return newReq
   },
@@ -741,7 +830,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const supabase = createClient()
     const updated = await requestsApi.updateRequestStatus(supabase, id, status, linkedTaskId)
     set({
-      requests: get().requests.map(r => r.id === id ? { ...r, status, linked_task_id: linkedTaskId || r.linked_task_id } : r)
+      requests: get().requests.map(r => r.id === id ? { ...r, ...updated, status, linked_task_id: linkedTaskId || r.linked_task_id } : r)
     })
   },
 
@@ -1232,8 +1321,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
         payload
       )
       set({ milestones: [...milestones, newMilestone] })
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create milestone")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to create milestone"
+      toast.error(message)
     }
   },
 
@@ -1241,10 +1331,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const { milestones } = get()
     try {
       const supabase = createClient()
-      const updated = await milestonesApi.updateMilestone(supabase, id, updates as any)
-      set({ milestones: milestones.map(m => m.id === id ? updated as any : m) })
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update milestone")
+      const updated = await milestonesApi.updateMilestone(supabase, id, updates)
+      set({ milestones: milestones.map(m => m.id === id ? updated : m) })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update milestone"
+      toast.error(message)
     }
   },
 
@@ -1259,8 +1350,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       await milestonesApi.deleteMilestone(supabase, id)
       set({ milestones: milestones.filter(m => m.id !== id) })
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete milestone")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete milestone"
+      toast.error(message)
     }
   },
 
@@ -1272,8 +1364,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const newFilter = await filtersApi.saveFilter(supabase, activeWorkspaceId, currentUser.id, name, filterData)
       set({ savedFilters: [...savedFilters, newFilter] })
       toast.success("Filter saved")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save filter")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to save filter"
+      toast.error(message)
     }
   },
 
@@ -1284,8 +1377,9 @@ export const useDataStore = create<DataState>()((set, get) => ({
       await filtersApi.deleteFilter(supabase, id)
       set({ savedFilters: savedFilters.filter(f => f.id !== id) })
       toast.success("Filter deleted")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete filter")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete filter"
+      toast.error(message)
     }
   },
 
@@ -1299,10 +1393,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
         ...payload,
         workspace_id: activeWorkspaceId,
         created_by: currentUser.id
-      })
+      } as Parameters<typeof automationsApi.createAutomation>[1])
       
       set(state => ({ automations: [newAutomation, ...state.automations] }))
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating automation:', error)
       throw error
     }
@@ -1314,7 +1408,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       const updated = await automationsApi.updateAutomation(supabase, id, updates)
       set({ automations: automations.map(a => a.id === id ? { ...a, ...updated } : a) })
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Failed to update automation")
       throw error
     }
@@ -1325,7 +1419,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       const supabase = createClient()
       await automationsApi.deleteAutomation(supabase, id)
       set(state => ({ automations: state.automations.filter(a => a.id !== id) }))
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting automation:', error)
       throw error
     }
@@ -1402,7 +1496,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
           description: newProject.description || '',
           icon: newProject.icon || undefined,
           color: newProject.color || undefined,
-          status: (newProject.status as any) || 'Active',
+          status: (newProject.status as ProjectStatus) || 'Active',
           progress: 0,
           taskCount: 0,
           members: [], // default members empty for now, could be passed
@@ -1466,21 +1560,24 @@ export const useDataStore = create<DataState>()((set, get) => ({
     console.log('ZUSTAND INSERT PAYLOAD:', payload);
     set((state) => {
       console.log('ZUSTAND INSERT STATE activeWorkspaceId:', state.activeWorkspaceId, 'projects length:', state.projects.length);
+      if (!payload.id || !payload.name) return state;
+      const id = payload.id as string;
+      const name = payload.name as string;
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      if (state.projects.some(p => p.id === payload.id)) return state
+      if (state.projects.some(p => p.id === id)) return state
       const newProject: Project = {
-        id: payload.id,
-        name: payload.name,
-        description: payload.description || "",
-        icon: payload.icon || undefined,
-        color: payload.color || "bg-blue-500",
-        status: payload.status || "Active",
+        id,
+        name,
+        description: (payload.description as string) || "",
+        icon: (payload.icon as string) || undefined,
+        color: (payload.color as string) || "bg-blue-500",
+        status: (payload.status as ProjectStatus) || "Active",
         progress: 0,
         taskCount: 0,
         members: [],
-        updatedAt: payload.updated_at || new Date().toISOString(),
-        templateId: payload.template_id || undefined,
-        taskTypes: payload.task_types || undefined
+        updatedAt: (payload.updated_at as string) || new Date().toISOString(),
+        templateId: (payload.template_id as string) || undefined,
+        taskTypes: Array.isArray(payload.task_types) ? (payload.task_types as string[]) : undefined
       }
       return { projects: [newProject, ...state.projects] }
     })
@@ -1489,78 +1586,89 @@ export const useDataStore = create<DataState>()((set, get) => ({
     console.log('ZUSTAND UPDATE PAYLOAD:', payload);
     set((state) => {
       console.log('ZUSTAND UPDATE STATE activeWorkspaceId:', state.activeWorkspaceId, 'projects length:', state.projects.length);
+      if (!payload.id) return state;
+      const id = payload.id as string;
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) {
         console.log('ZUSTAND UPDATE REJECTED: Workspace mismatch. Payload:', payload.workspace_id, 'State:', state.activeWorkspaceId);
         return state;
       }
-      const existing = state.projects.find(p => p.id === payload.id)
+      const existing = state.projects.find(p => p.id === id)
       if (!existing) {
-        console.log('ZUSTAND UPDATE REJECTED: Project not found in state:', payload.id);
+        console.log('ZUSTAND UPDATE REJECTED: Project not found in state:', id);
         return state;
       }
-      const updatedProject = {
+      const updatedProject: Project = {
         ...existing,
-        name: payload.name ?? existing.name,
-        description: payload.description ?? existing.description,
-        icon: payload.icon ?? existing.icon,
-        color: payload.color ?? existing.color,
-        status: payload.status ?? existing.status,
-        updatedAt: payload.updated_at ?? new Date().toISOString(),
-        templateId: payload.template_id ?? existing.templateId,
-        taskTypes: payload.task_types ?? existing.taskTypes
+        name: (payload.name as string) ?? existing.name,
+        description: (payload.description as string) ?? existing.description,
+        icon: (payload.icon as string) ?? existing.icon,
+        color: (payload.color as string) ?? existing.color,
+        status: (payload.status as ProjectStatus) ?? existing.status,
+        updatedAt: (payload.updated_at as string) ?? new Date().toISOString(),
+        templateId: (payload.template_id as string) ?? existing.templateId,
+        taskTypes: Array.isArray(payload.task_types) ? (payload.task_types as string[]) : existing.taskTypes
       }
-      return { projects: state.projects.map(p => p.id === payload.id ? updatedProject : p) }
+      return { projects: state.projects.map(p => p.id === id ? updatedProject : p) }
     })
   },
   applyRealtimeProjectDelete: (payload) => {
-    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
-      projects: state.projects.filter(p => p.id !== payload.id),
-      tasks: state.tasks.filter(t => t.projectId !== payload.id),
-      workspaceTasks: state.workspaceTasks.filter(t => t.projectId !== payload.id)
-    } })
+    set((state) => { 
+      if (!payload.id) return state;
+      const id = payload.id as string;
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; 
+      return {
+        projects: state.projects.filter(p => p.id !== id),
+        tasks: state.tasks.filter(t => t.projectId !== id),
+        workspaceTasks: state.workspaceTasks.filter(t => t.projectId !== id)
+      } 
+    })
   },
 
   applyRealtimeTaskUpdate: (payload) => {
     set((state) => {
+      if (!payload.id) return state;
+      const id = payload.id as string;
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      const existing = state.tasks.find(t => t.id === payload.id) || state.workspaceTasks.find(t => t.id === payload.id);
+      const existing = state.tasks.find(t => t.id === id) || state.workspaceTasks.find(t => t.id === id);
       if (!existing) return state
       
+      const updatedAtStr = payload.updated_at as string | undefined;
       // Basic deduplication: if the updated_at from the payload is not newer, ignore it
-      if (new Date(payload.updated_at).getTime() <= new Date(existing.updatedAt).getTime()) {
+      if (updatedAtStr && new Date(updatedAtStr).getTime() <= new Date(existing.updatedAt).getTime()) {
         return state
       }
 
-      const member = payload.assignee_id !== undefined
-        ? (payload.assignee_id ? state.workspaceMembers.find(m => m.id === payload.assignee_id) : undefined)
+      const assigneeId = payload.assignee_id !== undefined ? (payload.assignee_id as string | null) : undefined;
+      const member = assigneeId !== undefined
+        ? (assigneeId ? state.workspaceMembers.find(m => m.id === assigneeId) : undefined)
         : undefined;
 
       const updatedTask: Task = {
         ...existing,
-        title: payload.title ?? existing.title,
-        description: payload.description ?? existing.description,
-        status: payload.status ?? existing.status,
-        priority: payload.priority ?? existing.priority,
-        position: payload.position ?? existing.position,
-        parentId: payload.parent_id !== undefined ? payload.parent_id : existing.parentId,
-        recurrenceRule: payload.recurrence_rule !== undefined ? payload.recurrence_rule : existing.recurrenceRule,
-        isRecurring: payload.is_recurring !== undefined ? payload.is_recurring : existing.isRecurring,
-        nextOccurrence: payload.next_occurrence !== undefined ? payload.next_occurrence : existing.nextOccurrence,
-        recurringParentId: payload.recurring_parent_id !== undefined ? payload.recurring_parent_id : existing.recurringParentId,
-        dueDate: payload.due_date !== undefined ? payload.due_date : existing.dueDate,
-        startDate: payload.start_date !== undefined ? payload.start_date : existing.startDate,
-        assignee: payload.assignee_id !== undefined 
-          ? (member || (payload.assignee_id ? ({ id: payload.assignee_id, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined))
+        title: (payload.title as string) ?? existing.title,
+        description: (payload.description as string) ?? existing.description,
+        status: (payload.status as import('@/types').TaskStatus) ?? existing.status,
+        priority: (payload.priority as import('@/types').TaskPriority) ?? existing.priority,
+        position: (payload.position as number) ?? existing.position,
+        parentId: payload.parent_id !== undefined ? (payload.parent_id as string | null) : existing.parentId,
+        recurrenceRule: payload.recurrence_rule !== undefined ? (payload.recurrence_rule as string | null) : existing.recurrenceRule,
+        isRecurring: payload.is_recurring !== undefined ? Boolean(payload.is_recurring) : existing.isRecurring,
+        nextOccurrence: payload.next_occurrence !== undefined ? (payload.next_occurrence as string | null) : existing.nextOccurrence,
+        recurringParentId: payload.recurring_parent_id !== undefined ? (payload.recurring_parent_id as string | null) : existing.recurringParentId,
+        dueDate: payload.due_date !== undefined ? ((payload.due_date as string) || undefined) : existing.dueDate,
+        startDate: payload.start_date !== undefined ? ((payload.start_date as string) || undefined) : existing.startDate,
+        assignee: assigneeId !== undefined 
+          ? (member || (assigneeId ? ({ id: assigneeId, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined))
           : existing.assignee,
-        assigneeId: payload.assignee_id !== undefined ? (payload.assignee_id || null) : existing.assigneeId,
-        milestoneId: payload.milestone_id !== undefined ? payload.milestone_id : existing.milestoneId,
-        estimatedTime: payload.estimated_time !== undefined ? payload.estimated_time : existing.estimatedTime,
-        updatedAt: payload.updated_at
+        assigneeId: assigneeId !== undefined ? assigneeId : existing.assigneeId,
+        milestoneId: payload.milestone_id !== undefined ? (payload.milestone_id as string | null) : existing.milestoneId,
+        estimatedTime: payload.estimated_time !== undefined ? (payload.estimated_time as number | null) : existing.estimatedTime,
+        updatedAt: updatedAtStr || new Date().toISOString()
       }
 
-      const updatedWorkspaceTasks = state.workspaceTasks.map(t => t.id === payload.id ? updatedTask : t)
+      const updatedWorkspaceTasks = state.workspaceTasks.map(t => t.id === id ? updatedTask : t)
       return {
-        tasks: state.tasks.map(t => t.id === payload.id ? updatedTask : t),
+        tasks: state.tasks.map(t => t.id === id ? updatedTask : t),
         workspaceTasks: updatedWorkspaceTasks,
         projects: syncProjectsWithTasks(state.projects, updatedWorkspaceTasks)
       }
@@ -1569,65 +1677,72 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeTaskInsert: (payload) => {
     set((state) => {
+      if (!payload.id || !payload.project_id || !payload.title) return state;
+      const id = payload.id as string;
+      const projectId = payload.project_id as string;
+      const title = payload.title as string;
+      const workspaceId = (payload.workspace_id as string) || state.activeWorkspaceId || '';
+
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
       
       // Check if it already exists by ID
-      if (state.tasks.some(t => t.id === payload.id) || state.workspaceTasks.some(t => t.id === payload.id)) {
+      if (state.tasks.some(t => t.id === id) || state.workspaceTasks.some(t => t.id === id)) {
         return state;
       }
 
       // Check if there is an in-flight optimistic task matching this newly inserted task
       const matchingOptimisticTask = state.tasks.find(t => 
         t.id.startsWith('temp-') && 
-        t.projectId === payload.project_id && 
-        t.title === payload.title
+        t.projectId === projectId && 
+        t.title === title
       ) || state.workspaceTasks.find(t => 
         t.id.startsWith('temp-') && 
-        t.projectId === payload.project_id && 
-        t.title === payload.title
+        t.projectId === projectId && 
+        t.title === title
       );
 
+      const assigneeId = (payload.assignee_id as string | null) || null;
       // Resolve member from workspaceMembers
-      const member = payload.assignee_id 
-        ? state.workspaceMembers.find(m => m.id === payload.assignee_id)
+      const member = assigneeId 
+        ? state.workspaceMembers.find(m => m.id === assigneeId)
         : undefined;
 
       const assignee = member 
         || (matchingOptimisticTask?.assignee 
             ? matchingOptimisticTask.assignee 
-            : (payload.assignee_id ? ({ id: payload.assignee_id, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined));
+            : (assigneeId ? ({ id: assigneeId, name: 'Unknown User', initials: 'U', email: '', role: 'Member' } as User) : undefined));
 
       const newTask: Task = {
-        id: payload.id,
-        projectId: payload.project_id,
-        workspaceId: payload.workspace_id,
-        title: payload.title,
-        description: payload.description || undefined,
-        status: payload.status,
-        priority: payload.priority,
-        position: payload.position,
-        parentId: payload.parent_id || null,
-        recurrenceRule: payload.recurrence_rule || null,
-        isRecurring: payload.is_recurring || false,
-        nextOccurrence: payload.next_occurrence || null,
-        recurringParentId: payload.recurring_parent_id || null,
-        dueDate: payload.due_date || undefined,
-        startDate: payload.start_date || undefined,
+        id,
+        projectId,
+        workspaceId,
+        title,
+        description: (payload.description as string) || undefined,
+        status: (payload.status as import('@/types').TaskStatus) || 'Todo',
+        priority: (payload.priority as import('@/types').TaskPriority) || 'Medium',
+        position: (payload.position as number) ?? 0,
+        parentId: (payload.parent_id as string | null) || null,
+        recurrenceRule: (payload.recurrence_rule as string | null) || null,
+        isRecurring: Boolean(payload.is_recurring),
+        nextOccurrence: (payload.next_occurrence as string | null) || null,
+        recurringParentId: (payload.recurring_parent_id as string | null) || null,
+        dueDate: (payload.due_date as string) || undefined,
+        startDate: (payload.start_date as string) || undefined,
         assignee,
-        assigneeId: payload.assignee_id || null,
-        milestoneId: payload.milestone_id || matchingOptimisticTask?.milestoneId || null,
-        documentId: payload.document_id || matchingOptimisticTask?.documentId || undefined,
-        taskType: payload.task_type || matchingOptimisticTask?.taskType || 'Task',
-        estimatedTime: payload.estimated_time || matchingOptimisticTask?.estimatedTime || null,
+        assigneeId,
+        milestoneId: (payload.milestone_id as string | null) || matchingOptimisticTask?.milestoneId || null,
+        documentId: (payload.document_id as string | null) || matchingOptimisticTask?.documentId || undefined,
+        taskType: (payload.task_type as string) || matchingOptimisticTask?.taskType || 'Task',
+        estimatedTime: (payload.estimated_time as number | null) || matchingOptimisticTask?.estimatedTime || null,
         dependencies: matchingOptimisticTask?.dependencies || [],
         blockedBy: matchingOptimisticTask?.blockedBy || [],
         attachments: matchingOptimisticTask?.attachments || [],
         watchers: matchingOptimisticTask?.watchers || [],
-        createdAt: payload.created_at,
-        updatedAt: payload.updated_at
+        createdAt: (payload.created_at as string) || new Date().toISOString(),
+        updatedAt: (payload.updated_at as string) || new Date().toISOString()
       }
 
-      const belongsToTasks = state.tasks.length === 0 || state.tasks.some(t => t.projectId === payload.project_id);
+      const belongsToTasks = state.tasks.length === 0 || state.tasks.some(t => t.projectId === projectId);
 
       let nextTasks: Task[];
       if (matchingOptimisticTask) {
@@ -1674,9 +1789,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
     if (typeof window !== 'undefined') {
       const uiState = useUIStore.getState();
       if (uiState.selectedTaskId && uiState.selectedTaskId.startsWith('temp-')) {
-        const task = get().tasks.find(t => t.id === payload.id);
-        if (task) {
-          uiState.setSelectedTaskId(payload.id);
+        const id = payload.id as string | undefined;
+        if (id) {
+          const task = get().tasks.find(t => t.id === id);
+          if (task) {
+            uiState.setSelectedTaskId(id);
+          }
         }
       }
     }
@@ -1684,10 +1802,12 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeTaskDelete: (payload) => {
     set((state) => { 
+      if (!payload.id) return state;
+      const id = payload.id as string;
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; 
-      const nextWorkspaceTasks = state.workspaceTasks.filter(t => t.id !== payload.id)
+      const nextWorkspaceTasks = state.workspaceTasks.filter(t => t.id !== id)
       return {
-        tasks: state.tasks.filter(t => t.id !== payload.id),
+        tasks: state.tasks.filter(t => t.id !== id),
         workspaceTasks: nextWorkspaceTasks,
         projects: syncProjectsWithTasks(state.projects, nextWorkspaceTasks)
       }
@@ -1696,17 +1816,24 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeMilestoneInsert: (payload) => {
     set((state) => {
+      if (!payload.id || !payload.project_id || !payload.name) return state;
+      const id = payload.id as string;
+      const projectId = payload.project_id as string;
+      const name = payload.name as string;
+      const workspaceId = (payload.workspace_id as string) || state.activeWorkspaceId || '';
+
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      if (state.milestones.some(m => m.id === payload.id)) return state
+      if (state.milestones.some(m => m.id === id)) return state
+      const dueDate = (payload.due_date as string) || (payload.date as string) || undefined;
       const newMilestone: import('@/types').Milestone = {
-        id: payload.id,
-        projectId: payload.project_id,
-        workspaceId: payload.workspace_id,
-        name: payload.name,
-        dueDate: payload.due_date || payload.date,
-        status: payload.status,
-        createdAt: payload.created_at,
-        updatedAt: payload.updated_at,
+        id,
+        projectId,
+        workspaceId,
+        name,
+        dueDate,
+        status: (payload.status as import('@/types').Milestone['status']) || 'Open',
+        createdAt: (payload.created_at as string) || new Date().toISOString(),
+        updatedAt: (payload.updated_at as string) || new Date().toISOString(),
       }
       return { milestones: [...state.milestones, newMilestone].sort((a, b) => new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime()) }
     })
@@ -1714,34 +1841,39 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   applyRealtimeMilestoneUpdate: (payload) => {
     set((state) => {
+      if (!payload.id) return state;
+      const id = payload.id as string;
       if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state;
-      const existing = state.milestones.find(m => m.id === payload.id)
+      const existing = state.milestones.find(m => m.id === id)
       if (!existing) return state
+      const dueDate = (payload.due_date as string) || (payload.date as string) || existing.dueDate;
       const updatedMilestone = {
         ...existing,
-        name: payload.name ?? existing.name,
-        dueDate: payload.due_date ?? payload.date ?? existing.dueDate,
-        status: payload.status ?? existing.status,
+        name: (payload.name as string) ?? existing.name,
+        dueDate,
+        status: (payload.status as import('@/types').Milestone['status']) ?? existing.status,
       }
-      return { milestones: state.milestones.map(m => m.id === payload.id ? updatedMilestone : m).sort((a, b) => new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime()) }
+      return { milestones: state.milestones.map(m => m.id === id ? updatedMilestone : m).sort((a, b) => new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime()) }
     })
   },
 
   applyRealtimeMilestoneDelete: (payload) => {
-    set((state) => { if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; return {
-      milestones: state.milestones.filter(m => m.id !== payload.id)
-    } })
+    set((state) => { 
+      if (!payload.id) return state;
+      const id = payload.id as string;
+      if (payload.workspace_id && payload.workspace_id !== state.activeWorkspaceId) return state; 
+      return {
+        milestones: state.milestones.filter(m => m.id !== id)
+      } 
+    })
   },
 
 
-  applyRealtimeNotification: (payload: any) => {
+  applyRealtimeNotification: (payload) => {
     const { notifications, unreadNotificationCount } = get()
-    
-    // Check if we need to hydrate missing relation info (like actor details)
-    // For now we'll push the raw payload and it will lack nested relations until re-fetched,
-    // or we can structure the payload appropriately
+    if (!payload.new) return;
     set({
-      notifications: [payload.new, ...notifications],
+      notifications: [payload.new as notificationsApi.Notification, ...notifications],
       unreadNotificationCount: unreadNotificationCount + 1
     })
   }

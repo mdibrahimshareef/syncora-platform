@@ -247,7 +247,7 @@ export function MyWorkClientWrapper() {
                       <div key={request.id} className="text-sm border-b border-border pb-3 last:border-0 last:pb-0 flex justify-between items-start">
                         <div>
                           <div className="font-medium">{request.form?.title || 'Request'}</div>
-                          <div className="text-xs text-muted-foreground mt-1">Submitted on {new Date(request.createdAt).toLocaleDateString()}</div>
+                          <div className="text-xs text-muted-foreground mt-1">Submitted on {new Date(request.createdAt || request.created_at).toLocaleDateString()}</div>
                         </div>
                         <Badge variant="outline">{request.status}</Badge>
                       </div>

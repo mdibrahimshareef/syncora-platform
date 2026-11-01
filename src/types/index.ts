@@ -101,8 +101,8 @@ export type Task = {
   reporterId?: string | null;
   customerId?: string | null;
   requestId?: string | null;
-  approvalId?: string; // links to an approval
-  documentId?: string; // links to a specific document
+  approvalId?: string | null; // links to an approval
+  documentId?: string | null; // links to a specific document
 
   // Phase 11D - Workload
   estimatedHours?: number;

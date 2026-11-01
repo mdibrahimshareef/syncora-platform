@@ -513,7 +513,7 @@ export async function updateTask(
 
   const { data, error } = await supabase
     .from('tasks')
-    .update(updateData)
+    .update(updateData as Database['public']['Tables']['tasks']['Update'])
     .eq('id', taskId)
     .select(`
       *,

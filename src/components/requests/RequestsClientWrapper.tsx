@@ -204,13 +204,13 @@ export function RequestsClientWrapper({ orgSlug, teamSlug, workspaceSlug }: { or
                         {request.requester ? (
                           <>
                             <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
-                              {request.requester.avatarUrl ? (
-                                <img src={request.requester.avatarUrl} alt={request.requester.name} className="h-full w-full object-cover" />
+                              {(request.requester.avatarUrl || request.requester.avatar_url) ? (
+                                <img src={(request.requester.avatarUrl || request.requester.avatar_url)!} alt={request.requester.name || request.requester.full_name || 'User'} className="h-full w-full object-cover" />
                               ) : (
-                                <span>{request.requester.name.substring(0, 2).toUpperCase()}</span>
+                                <span>{(request.requester.name || request.requester.full_name || 'U').substring(0, 2).toUpperCase()}</span>
                               )}
                             </div>
-                            <span>{request.requester.name}</span>
+                            <span>{request.requester.name || request.requester.full_name || 'Unknown User'}</span>
                           </>
                         ) : (
                           <span>Unknown User</span>
@@ -218,7 +218,7 @@ export function RequestsClientWrapper({ orgSlug, teamSlug, workspaceSlug }: { or
                       </div>
                       <div className="flex items-center text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 mr-1" />
-                        {new Date(request.createdAt).toLocaleDateString()}
+                        {new Date(request.createdAt || request.created_at).toLocaleDateString()}
                       </div>
                     </div>
 
