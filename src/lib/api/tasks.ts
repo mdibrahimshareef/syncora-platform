@@ -2,6 +2,76 @@ import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
 import { Task, TaskStatus, TaskDependency, TaskDependencyType } from "@/types"
 
+async function fetchTaskRelations(supabase: SupabaseClient<Database>, taskIds: string[]) {
+  if (taskIds.length === 0) {
+    return { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+  }
+
+  const BATCH_SIZE = 100
+  const dependencies: TaskDependency[] = []
+  const attachments: any[] = []
+  const watchers: any[] = []
+
+  for (let i = 0; i < taskIds.length; i += BATCH_SIZE) {
+    const chunk = taskIds.slice(i, i + BATCH_SIZE)
+    const chunkStr = chunk.join(',')
+
+    const [depsRes, attRes, watchRes] = await Promise.all([
+      supabase
+        .from('task_dependencies')
+        .select('*')
+        .or(`task_id.in.(${chunkStr}),depends_on_task_id.in.(${chunkStr})`),
+      supabase
+        .from('task_attachments')
+        .select('*')
+        .in('task_id', chunk),
+      supabase
+        .from('task_watchers')
+        .select('*')
+        .in('task_id', chunk),
+    ])
+
+    if (!depsRes.error && depsRes.data) {
+      for (const d of depsRes.data as any[]) {
+        dependencies.push({
+          id: d.id,
+          taskId: d.task_id,
+          dependsOnTaskId: d.depends_on_task_id,
+          type: d.type as TaskDependencyType,
+          createdAt: d.created_at,
+        })
+      }
+    }
+
+    if (!attRes.error && attRes.data) {
+      for (const a of attRes.data as any[]) {
+        attachments.push({
+          id: a.id,
+          taskId: a.task_id,
+          workspaceId: a.workspace_id,
+          fileName: a.file_name,
+          fileSize: a.file_size,
+          fileType: a.file_type,
+          storagePath: a.storage_path,
+          uploadedBy: a.uploaded_by,
+          createdAt: a.created_at,
+        })
+      }
+    }
+
+    if (!watchRes.error && watchRes.data) {
+      for (const w of watchRes.data as any[]) {
+        watchers.push({
+          taskId: w.task_id,
+          userId: w.user_id,
+        })
+      }
+    }
+  }
+
+  return { dependencies, attachments, watchers }
+}
+
 export async function getTasks(supabase: SupabaseClient<Database>, projectId: string): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks')
@@ -16,58 +86,7 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
   if (error) throw error
   
   const taskIds = data.map(t => t.id)
-  
-  let dependencies: TaskDependency[] = []
-  let attachments: any[] = []
-  let watchers: any[] = []
-  
-  if (taskIds.length > 0) {
-    const { data: depsData, error: depsError } = await supabase
-      .from('task_dependencies')
-      .select('*')
-      .or(`task_id.in.(${taskIds.join(',')}),depends_on_task_id.in.(${taskIds.join(',')})`)
-      
-    if (!depsError && depsData) {
-      dependencies = depsData.map((d: any) => ({
-        id: d.id,
-        taskId: d.task_id,
-        dependsOnTaskId: d.depends_on_task_id,
-        type: d.type as TaskDependencyType,
-        createdAt: d.created_at
-      }))
-    }
-
-    const { data: attData, error: attError } = await supabase
-      .from('task_attachments')
-      .select('*')
-      .in('task_id', taskIds)
-      
-    if (!attError && attData) {
-      attachments = attData.map((a: any) => ({
-        id: a.id,
-        taskId: a.task_id,
-        workspaceId: a.workspace_id,
-        fileName: a.file_name,
-        fileSize: a.file_size,
-        fileType: a.file_type,
-        storagePath: a.storage_path,
-        uploadedBy: a.uploaded_by,
-        createdAt: a.created_at
-      }))
-    }
-
-    const { data: watchData, error: watchError } = await supabase
-      .from('task_watchers')
-      .select('*')
-      .in('task_id', taskIds)
-      
-    if (!watchError && watchData) {
-      watchers = watchData.map((w: any) => ({
-        taskId: w.task_id,
-        userId: w.user_id,
-      }))
-    }
-  }
+  const { dependencies, attachments, watchers } = await fetchTaskRelations(supabase, taskIds)
   
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
@@ -138,59 +157,7 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
   if (error) throw error
   
   const taskIds = data.map(t => t.id)
-  
-  // Fetch dependencies
-  let dependencies: TaskDependency[] = []
-  let attachments: any[] = []
-  let watchers: any[] = []
-  
-  if (taskIds.length > 0) {
-    const { data: depsData, error: depsError } = await supabase
-      .from('task_dependencies')
-      .select('*')
-      .or(`task_id.in.(${taskIds.join(',')}),depends_on_task_id.in.(${taskIds.join(',')})`)
-      
-    if (!depsError && depsData) {
-      dependencies = depsData.map((d: any) => ({
-        id: d.id,
-        taskId: d.task_id,
-        dependsOnTaskId: d.depends_on_task_id,
-        type: d.type as TaskDependencyType,
-        createdAt: d.created_at
-      }))
-    }
-
-    const { data: attData, error: attError } = await supabase
-      .from('task_attachments')
-      .select('*')
-      .in('task_id', taskIds)
-      
-    if (!attError && attData) {
-      attachments = attData.map((a: any) => ({
-        id: a.id,
-        taskId: a.task_id,
-        workspaceId: a.workspace_id,
-        fileName: a.file_name,
-        fileSize: a.file_size,
-        fileType: a.file_type,
-        storagePath: a.storage_path,
-        uploadedBy: a.uploaded_by,
-        createdAt: a.created_at
-      }))
-    }
-
-    const { data: watchData, error: watchError } = await supabase
-      .from('task_watchers')
-      .select('*')
-      .in('task_id', taskIds)
-      
-    if (!watchError && watchData) {
-      watchers = watchData.map((w: any) => ({
-        taskId: w.task_id,
-        userId: w.user_id,
-      }))
-    }
-  }
+  const { dependencies, attachments, watchers } = await fetchTaskRelations(supabase, taskIds)
   
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
