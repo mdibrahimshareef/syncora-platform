@@ -116,4 +116,28 @@ describe('Platform Release 17 — Keyboard-First Productivity System', () => {
     expect(sequenceLeader).toBeNull()
     expect(targetRoute).toBeNull()
   })
+
+  it('correctly detects macOS platform from user agent', () => {
+    expect(typeof isMacPlatform()).toBe('boolean')
+
+    const originalUserAgent = window.navigator.userAgent
+    try {
+      Object.defineProperty(window.navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+        configurable: true,
+      })
+      expect(isMacPlatform()).toBe(true)
+
+      Object.defineProperty(window.navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        configurable: true,
+      })
+      expect(isMacPlatform()).toBe(false)
+    } finally {
+      Object.defineProperty(window.navigator, 'userAgent', {
+        value: originalUserAgent,
+        configurable: true,
+      })
+    }
+  })
 })
