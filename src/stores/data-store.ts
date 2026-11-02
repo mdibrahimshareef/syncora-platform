@@ -242,6 +242,8 @@ function syncProjectsWithTasks(projects: Project[], tasks: Task[]): Project[] {
   })
 }
 
+let activeSearchRequestId = 0;
+
 export const useDataStore = create<DataState>()((set, get) => ({
   tasks: [],
   workspaceTasks: [],
@@ -445,6 +447,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
   },
 
   globalSearch: async (query) => {
+    const currentRequestId = ++activeSearchRequestId;
     const { activeWorkspaceId } = get()
     if (!activeWorkspaceId) return
     if (!query || query.trim() === '') {
@@ -457,10 +460,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const searchResults = await searchApi.performGlobalSearch(supabase, activeWorkspaceId, query)
-      if (get().activeWorkspaceId !== activeWorkspaceId) return;
+      if (currentRequestId !== activeSearchRequestId || get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults, isSearching: false })
     } catch {
-      if (get().activeWorkspaceId !== activeWorkspaceId) return;
+      if (currentRequestId !== activeSearchRequestId || get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ searchResults: [], isSearching: false })
     }
   },

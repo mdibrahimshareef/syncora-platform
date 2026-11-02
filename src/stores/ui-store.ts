@@ -13,6 +13,12 @@ type UIState = {
 
   isAIAssistantOpen: boolean;
   setAIAssistantOpen: (open: boolean) => void;
+
+  isShortcutHelpOpen: boolean;
+  setShortcutHelpOpen: (open: boolean) => void;
+
+  isCreateTaskOpen: boolean;
+  setCreateTaskOpen: (open: boolean) => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -28,4 +34,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   isAIAssistantOpen: false,
   setAIAssistantOpen: (open) => set({ isAIAssistantOpen: open }),
+
+  isShortcutHelpOpen: false,
+  setShortcutHelpOpen: (open) => set({ isShortcutHelpOpen: open }),
+
+  isCreateTaskOpen: false,
+  setCreateTaskOpen: (open) => set({ isCreateTaskOpen: open }),
 }));

@@ -11,6 +11,9 @@ import { useDataStore } from "@/stores/data-store"
 import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime"
 import { TaskDetailsPanel } from "@/components/tasks/TaskDetailsPanel"
 import { AIAssistant } from "@/components/ai/AIAssistant"
+import { GlobalShortcutManager } from "@/components/keyboard/GlobalShortcutManager"
+import { ShortcutHelpDialog } from "@/components/keyboard/ShortcutHelpDialog"
+import { OfflineIndicator } from "@/components/network/OfflineIndicator"
 import { Loader2 } from "lucide-react"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -24,6 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {pathname.includes("/admin") ? <AdminSidebar collapsible="icon" /> : <Sidebar collapsible="icon" />}
       <SidebarInset className="min-w-0 overflow-hidden flex flex-col h-screen">
         <Header />
+        <OfflineIndicator />
         <main className="flex-1 overflow-auto min-h-0 relative">
           {isLoading && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[2px]">
@@ -38,6 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <TaskDetailsPanel />
       <AIAssistant />
+      <GlobalShortcutManager />
+      <ShortcutHelpDialog />
     </SidebarProvider>
   )
 }

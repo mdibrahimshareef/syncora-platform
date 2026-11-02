@@ -12,11 +12,9 @@ import {
   Moon,
   Sun,
   Laptop,
-  Search,
   Users,
-  CheckCircle2,
-  UserPlus,
-  ArrowUpCircle
+  Globe,
+  Keyboard
 } from "lucide-react"
 
 import {
@@ -36,23 +34,26 @@ import { useTheme } from "next-themes"
 
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog"
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
-import { Building2, MessageSquare, CheckCircle, FileText, Globe } from "lucide-react"
 
 export function CommandPalette() {
   const router = useRouter()
-  const { isCommandPaletteOpen, setCommandPaletteOpen, setSelectedTaskId, selectedTaskId } = useUIStore()
-  const tasks = useDataStore(s => s.tasks);
-  const workspaceTasks = useDataStore(s => s.workspaceTasks);
-  const searchResults = useDataStore(s => s.searchResults);
-  const isSearching = useDataStore(s => s.isSearching);
-  const globalSearch = useDataStore(s => s.globalSearch);
-  const clearSearch = useDataStore(s => s.clearSearch);
-  const updateTask = useDataStore(s => s.updateTask);
-  const currentUser = useDataStore(s => s.currentUser);
+  const { 
+    isCommandPaletteOpen, 
+    setCommandPaletteOpen, 
+    setSelectedTaskId,
+    isCreateTaskOpen,
+    setCreateTaskOpen,
+    setShortcutHelpOpen,
+  } = useUIStore()
+
+  const tasks = useDataStore(s => s.tasks)
+  const searchResults = useDataStore(s => s.searchResults)
+  const isSearching = useDataStore(s => s.isSearching)
+  const globalSearch = useDataStore(s => s.globalSearch)
+  const clearSearch = useDataStore(s => s.clearSearch)
   const { setTheme } = useTheme()
   const baseUrl = useWorkspaceUrl()
 
-  const [isTaskOpen, setIsTaskOpen] = React.useState(false)
   const [isProjectOpen, setIsProjectOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
@@ -66,35 +67,9 @@ export function CommandPalette() {
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       globalSearch(searchQuery)
-    }, 300)
+    }, 250)
     return () => clearTimeout(timeoutId)
   }, [searchQuery, globalSearch])
-
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      // Toggle Command Palette with Cmd+K
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setCommandPaletteOpen(!isCommandPaletteOpen)
-      }
-      
-      // Global shortcut for Create Task with 'C' (when not typing in an input)
-      if (e.key === "c" && !e.metaKey && !e.ctrlKey) {
-        if (
-          document.activeElement?.tagName === "INPUT" ||
-          document.activeElement?.tagName === "TEXTAREA" ||
-          document.activeElement?.hasAttribute("contenteditable")
-        ) {
-          return
-        }
-        e.preventDefault()
-        setIsTaskOpen(true)
-      }
-    }
-
-    document.addEventListener("keydown", down)
-    return () => document.removeEventListener("keydown", down)
-  }, [isCommandPaletteOpen, setCommandPaletteOpen])
 
   const runCommand = React.useCallback(
     (command: () => unknown) => {
@@ -128,27 +103,19 @@ export function CommandPalette() {
                       onSelect={() => runCommand(() => {
                         if (result.type === 'project') {
                           router.push(`${baseUrl}${result.link}`)
-                        } else if (result.type === 'user') {
-                          router.push(`${baseUrl}${result.link}`)
-                        } else if (result.type === 'document') {
-                          router.push(`${baseUrl}${result.link}`)
                         } else if (result.type === 'task') {
-                          if (result.projectId) {
-                            router.push(`${baseUrl}/projects/${result.projectId}?task=${result.id}`)
-                            setTimeout(() => setSelectedTaskId(result.id), 100)
-                          } else {
-                            router.push(`${baseUrl}${result.link}`)
-                          }
+                          router.push(`${baseUrl}${result.link}`)
+                          setTimeout(() => setSelectedTaskId(result.id), 100)
+                        } else {
+                          router.push(`${baseUrl}${result.link}`)
                         }
                       })}
                     >
-                      {result.type === 'project' ? <Folders className="mr-2 h-4 w-4 text-indigo-500" /> : 
-                       result.type === 'user' ? <Users className="mr-2 h-4 w-4 text-blue-500" /> :
-                       result.type === 'document' ? <CheckSquare className="mr-2 h-4 w-4 text-yellow-500" /> :
-                       <CheckSquare className="mr-2 h-4 w-4 text-emerald-500" />}
                       <div className="flex flex-col">
-                        <span>{result.title}</span>
-                        {result.description && <span className="text-xs text-muted-foreground">{result.description}</span>}
+                        <span className="font-medium">{result.title}</span>
+                        {result.description && (
+                          <span className="text-xs text-muted-foreground line-clamp-1">{result.description}</span>
+                        )}
                       </div>
                     </CommandItem>
                   ))}
@@ -157,31 +124,8 @@ export function CommandPalette() {
             </>
           ) : (
             <>
-              {selectedTaskId && (
-                <CommandGroup heading="Contextual Task Actions">
-                  <CommandItem onSelect={() => runCommand(() => {
-                    updateTask(selectedTaskId, { assignee: currentUser || undefined })
-                  })}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    <span>Assign to me</span>
-                  </CommandItem>
-                  <CommandItem onSelect={() => runCommand(() => {
-                    updateTask(selectedTaskId, { status: 'Done' })
-                  })}>
-                    <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
-                    <span>Mark as Done</span>
-                  </CommandItem>
-                  <CommandItem onSelect={() => runCommand(() => {
-                    updateTask(selectedTaskId, { priority: 'High' })
-                  })}>
-                    <ArrowUpCircle className="mr-2 h-4 w-4 text-orange-500" />
-                    <span>Set Priority High</span>
-                  </CommandItem>
-                </CommandGroup>
-              )}
-
               <CommandGroup heading="Actions">
-                <CommandItem onSelect={() => runCommand(() => setIsTaskOpen(true))}>
+                <CommandItem onSelect={() => runCommand(() => setCreateTaskOpen(true))}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   <span>Create task</span>
                   <CommandShortcut>C</CommandShortcut>
@@ -189,6 +133,11 @@ export function CommandPalette() {
                 <CommandItem onSelect={() => runCommand(() => setIsProjectOpen(true))}>
                   <FolderPlus className="mr-2 h-4 w-4" />
                   <span>Create project</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => setShortcutHelpOpen(true))}>
+                  <Keyboard className="mr-2 h-4 w-4" />
+                  <span>Show keyboard shortcuts</span>
+                  <CommandShortcut>?</CommandShortcut>
                 </CommandItem>
               </CommandGroup>
 
@@ -204,11 +153,45 @@ export function CommandPalette() {
                     })}
                   >
                     <CheckSquare className="mr-2 h-4 w-4" />
-                    <span>{task.title}</span>
+                    <span className="truncate">{task.title}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
 
+              <CommandSeparator />
+
+              <CommandGroup heading="Navigation">
+                <CommandItem onSelect={() => runCommand(() => router.push(baseUrl))}>
+                  <LayoutDashboard className="mr-2 size-4" />
+                  <span>Home</span>
+                  <CommandShortcut>G H</CommandShortcut>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/projects`))}>
+                  <Folders className="mr-2 size-4" />
+                  <span>Projects</span>
+                  <CommandShortcut>G P</CommandShortcut>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/my-tasks`))}>
+                  <CheckSquare className="mr-2 size-4" />
+                  <span>My Tasks</span>
+                  <CommandShortcut>G M</CommandShortcut>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/inbox`))}>
+                  <CheckSquare className="mr-2 size-4" />
+                  <span>Inbox</span>
+                  <CommandShortcut>G I</CommandShortcut>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/calendar`))}>
+                  <CheckSquare className="mr-2 size-4" />
+                  <span>Calendar</span>
+                  <CommandShortcut>G C</CommandShortcut>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/workload`))}>
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>Workload</span>
+                </CommandItem>
+              </CommandGroup>
+              
               <CommandSeparator />
 
               <CommandGroup heading="Workspace">
@@ -217,56 +200,38 @@ export function CommandPalette() {
                   <span>Switch workspace</span>
                 </CommandItem>
               </CommandGroup>
-              <CommandGroup heading="Navigation">
-                <CommandItem onSelect={() => runCommand(() => router.push(baseUrl))}>
-                  <LayoutDashboard className="mr-2 size-4" />
-                  <span>Home</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/projects`))}>
-                  <Folders className="mr-2 size-4" />
-                  <span>Projects</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/my-tasks`))}>
-                  <CheckSquare className="mr-2 size-4" />
-                  <span>My Tasks</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/workload`))}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Go to Workload</span>
-                </CommandItem>
-              </CommandGroup>
-              
+
               <CommandSeparator />
           
-          <CommandGroup heading="Theme">
-            <CommandItem onSelect={() => runCommand(() => setTheme("light"))}>
-              <Sun className="mr-2 h-4 w-4" />
-              <span>Light Mode</span>
-            </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => setTheme("dark"))}>
-              <Moon className="mr-2 h-4 w-4" />
-              <span>Dark Mode</span>
-            </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => setTheme("system"))}>
-              <Laptop className="mr-2 h-4 w-4" />
-              <span>System Theme</span>
-            </CommandItem>
-          </CommandGroup>
+              <CommandGroup heading="Theme">
+                <CommandItem onSelect={() => runCommand(() => setTheme("light"))}>
+                  <Sun className="mr-2 h-4 w-4" />
+                  <span>Light Mode</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => setTheme("dark"))}>
+                  <Moon className="mr-2 h-4 w-4" />
+                  <span>Dark Mode</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => setTheme("system"))}>
+                  <Laptop className="mr-2 h-4 w-4" />
+                  <span>System Theme</span>
+                </CommandItem>
+              </CommandGroup>
 
-          <CommandSeparator />
-          
-          <CommandGroup heading="Settings">
-            <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/settings`))}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </CommandItem>
-          </CommandGroup>
+              <CommandSeparator />
+              
+              <CommandGroup heading="Settings">
+                <CommandItem onSelect={() => runCommand(() => router.push(`${baseUrl}/settings`))}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </CommandItem>
+              </CommandGroup>
             </>
           )}
         </CommandList>
       </CommandDialog>
 
-      <CreateTaskDialog open={isTaskOpen} onOpenChange={setIsTaskOpen} />
+      <CreateTaskDialog open={isCreateTaskOpen} onOpenChange={setCreateTaskOpen} />
       <CreateProjectDialog open={isProjectOpen} onOpenChange={setIsProjectOpen} />
     </>
   )

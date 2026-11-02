@@ -63,11 +63,16 @@ export function Header() {
       <div className="flex items-center gap-2 sm:gap-3 ml-auto">
         <NotificationCenter />
         
-        <Link href={`${baseUrl}/help`} className="hidden sm:flex">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label="Help">
-            <HelpCircle className="size-5" />
-          </Button>
-        </Link>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-muted-foreground hover:text-foreground hidden sm:flex" 
+          aria-label="Keyboard Shortcuts & Help (?)"
+          onClick={() => useUIStore.getState().setShortcutHelpOpen(true)}
+          title="Keyboard shortcuts (?)"
+        >
+          <HelpCircle className="size-5" />
+        </Button>
 
         <div className="ml-1">
           <UserProfile />

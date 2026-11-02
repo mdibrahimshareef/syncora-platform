@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { Task } from "@/types"
+import { Task, TaskStatus } from "@/types"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, AlignLeft, MessageSquare, CheckSquare, Link as LinkIcon, MoreHorizontal } from "lucide-react"
+import { Calendar, AlignLeft, CheckSquare, Link as LinkIcon, MoreHorizontal } from "lucide-react"
 import { useUIStore } from "@/stores/ui-store"
 import { useDataStore } from "@/stores/data-store"
 import { useSortable } from "@dnd-kit/sortable"
@@ -18,32 +18,38 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
 
 interface TaskCardProps {
   task: Task
 }
 
-export function TaskCard({ task }: TaskCardProps) {
-  const { setSelectedTaskId } = useUIStore()
-  const tasks = useDataStore(s => s.tasks);
-  const moveTask = useDataStore(s => s.moveTask);
-  const projectStatuses = useDataStore(s => s.projectStatuses);
+const PRIORITY_COLOR_MAP: Record<string, string> = {
+  'Low': 'text-slate-600 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300',
+  'Medium': 'text-blue-700 bg-blue-100 dark:bg-blue-900/60 dark:text-blue-300',
+  'High': 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-300',
+  'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-300',
+}
 
-  const subtasks = React.useMemo(() => tasks.filter(t => t.parentId === task.id), [tasks, task.id])
+const DEFAULT_COLUMNS = ['Backlog', 'Todo', 'In Progress', 'Review', 'Done']
+
+export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
+  const setSelectedTaskId = useUIStore(s => s.setSelectedTaskId)
+  const moveTask = useDataStore(s => s.moveTask)
+  const projectStatuses = useDataStore(s => s.projectStatuses)
+
+  // Fine-grained subtask selector avoiding full-store subscription re-renders
+  const subtasks = useDataStore(
+    React.useCallback((s) => s.tasks.filter(t => t.parentId === task.id), [task.id])
+  )
   const subtasksCount = subtasks.length
-  const completedSubtasksCount = subtasks.filter(t => t.status === 'Done').length
+  const completedSubtasksCount = React.useMemo(
+    () => subtasks.filter(t => t.status === 'Done').length,
+    [subtasks]
+  )
 
-  const DEFAULT_COLUMNS = ['Backlog', 'Todo', 'In Progress', 'Review', 'Done'];
-  const columns = projectStatuses && projectStatuses.length > 0 ? projectStatuses.map(s => s.name) : DEFAULT_COLUMNS;
+  const columns = projectStatuses && projectStatuses.length > 0 ? projectStatuses.map(s => s.name) : DEFAULT_COLUMNS
 
-  // Ensure priority color logic
-  const priorityColor = {
-    'Low': 'text-slate-600 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300',
-    'Medium': 'text-blue-700 bg-blue-100 dark:bg-blue-900/60 dark:text-blue-300',
-    'High': 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-300',
-    'Urgent': 'text-destructive bg-destructive/10 dark:bg-destructive/20 dark:text-red-300',
-  }[task.priority]
+  const priorityColor = PRIORITY_COLOR_MAP[task.priority] || PRIORITY_COLOR_MAP['Medium']
 
   const {
     attributes,
@@ -84,7 +90,6 @@ export function TaskCard({ task }: TaskCardProps) {
       tabIndex={0}
       className={`cursor-grab active:cursor-grabbing border-border hover:border-primary/40 hover:shadow-sm transition-all select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isDragging ? 'opacity-30' : ''}`}
       onClick={(e) => {
-        // Prevent click if we were dragging
         if (e.defaultPrevented) return
         setSelectedTaskId(task.id)
       }}
@@ -110,8 +115,8 @@ export function TaskCard({ task }: TaskCardProps) {
                   key={status} 
                   disabled={task.status === status}
                   onClick={(e) => {
-                    e.stopPropagation();
-                    moveTask(task.id, status as any);
+                    e.stopPropagation()
+                    moveTask(task.id, status as TaskStatus)
                   }}
                 >
                   {status}
@@ -188,4 +193,4 @@ export function TaskCard({ task }: TaskCardProps) {
       </CardFooter>
     </Card>
   )
-}
+})

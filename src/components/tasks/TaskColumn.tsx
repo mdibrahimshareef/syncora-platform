@@ -13,7 +13,7 @@ interface TaskColumnProps {
   tasks: Task[]
 }
 
-export function TaskColumn({ title, tasks }: TaskColumnProps) {
+export const TaskColumn = React.memo(function TaskColumn({ title, tasks }: TaskColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: title,
     data: {
@@ -22,8 +22,16 @@ export function TaskColumn({ title, tasks }: TaskColumnProps) {
     },
   })
 
+  const taskIds = React.useMemo(() => tasks.map(t => t.id), [tasks])
+
   return (
-    <div className="flex flex-col w-72 sm:w-80 shrink-0">
+    <div 
+      className="flex flex-col w-72 sm:w-80 shrink-0"
+      style={{
+        contentVisibility: 'auto',
+        containIntrinsicSize: 'auto 320px auto 700px',
+      }}
+    >
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">{title}</h3>
@@ -39,8 +47,11 @@ export function TaskColumn({ title, tasks }: TaskColumnProps) {
       <div 
         ref={setNodeRef}
         className={`flex-1 bg-muted/30 rounded-xl p-2 flex flex-col gap-2 min-h-[150px] transition-colors ${isOver ? 'bg-muted/50 ring-2 ring-primary/20' : ''}`}
+        style={{
+          contain: 'layout style',
+        }}
       >
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
             <TaskCard key={task.id} task={task} />
           ))}
@@ -53,4 +64,4 @@ export function TaskColumn({ title, tasks }: TaskColumnProps) {
       </div>
     </div>
   )
-}
+})
