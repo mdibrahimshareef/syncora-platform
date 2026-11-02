@@ -3,7 +3,8 @@
 import * as React from "react"
 import { useOrganizationStore } from "@/stores/organizationStore"
 import { useParams, useRouter } from "next/navigation"
-import { Building2, Settings as SettingsIcon } from "lucide-react"
+import { Building2, RefreshCw } from "lucide-react"
+import { useDataStore } from "@/stores/data-store"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,30 +24,63 @@ export default function OrganizationSettingsPage() {
   const orgSlug = params.orgSlug as string
   const currentOrg = organizations.find(o => o.slug === orgSlug)
 
+  const [prevOrg, setPrevOrg] = React.useState(currentOrg)
   const [name, setName] = React.useState(currentOrg?.name || "")
   const [slug, setSlug] = React.useState(currentOrg?.slug || "")
   const [isSaving, setIsSaving] = React.useState(false)
 
-  React.useEffect(() => {
-    if (currentOrg) {
-      setName(currentOrg.name)
-      setSlug(currentOrg.slug)
-    }
-  }, [currentOrg])
+  if (currentOrg && currentOrg !== prevOrg) {
+    setPrevOrg(currentOrg)
+    setName(currentOrg.name)
+    setSlug(currentOrg.slug)
+  }
 
   if (!currentOrg) return null
 
+  const generateSlugFromName = (val: string) => {
+    return val
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "")
+  }
+
   const handleSave = async () => {
+    const cleanSlug = slug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/(^-|-$)+/g, "")
+
+    if (!cleanSlug) {
+      toast.error("Please enter a valid URL slug (letters, numbers, and hyphens)")
+      return
+    }
+
     setIsSaving(true)
     try {
-      await updateOrganization(supabase, currentOrg.id, { name, slug })
-      useOrganizationStore.getState().updateOrganization(currentOrg.id, { name, slug })
+      await updateOrganization(supabase, currentOrg.id, { name, slug: cleanSlug })
+      useOrganizationStore.getState().updateOrganization(currentOrg.id, { name, slug: cleanSlug })
+
+      // Update workspaces in dataStore so all navigation links reflect the new slug
+      useDataStore.setState((state) => ({
+        workspaces: state.workspaces.map((w) =>
+          w.organizationId === currentOrg.id ? { ...w, orgSlug: cleanSlug } : w
+        ),
+      }))
+
       toast.success("Organization updated successfully")
-      if (slug !== orgSlug) {
-        router.push(`/${slug}/settings`)
+      if (cleanSlug !== orgSlug) {
+        router.push(`/${cleanSlug}/settings`)
+        router.refresh()
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update organization")
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string }
+      if (err?.code === "23505" || err?.message?.includes("unique") || err?.message?.includes("duplicate")) {
+        toast.error("This URL slug is already taken. Please choose another one.")
+      } else {
+        toast.error(err?.message || "Failed to update organization")
+      }
     } finally {
       setIsSaving(false)
     }
@@ -65,7 +99,7 @@ export default function OrganizationSettingsPage() {
         </div>
         <h2 className="text-3xl font-bold tracking-tight">Organization Settings</h2>
         <p className="text-muted-foreground">
-          Manage your organization's general preferences and details.
+          Manage your organization&apos;s general preferences and details.
         </p>
       </div>
       
@@ -74,7 +108,7 @@ export default function OrganizationSettingsPage() {
           <CardHeader>
             <CardTitle>General Information</CardTitle>
             <CardDescription>
-              Update your organization's name and URL slug.
+              Update your organization&apos;s name and URL slug.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -88,7 +122,21 @@ export default function OrganizationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="orgSlug">URL Slug</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="orgSlug">URL Slug</Label>
+                {name && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setSlug(generateSlugFromName(name))}
+                  >
+                    <RefreshCw className="size-3 mr-1" />
+                    Sync with name
+                  </Button>
+                )}
+              </div>
               <div className="flex items-center">
                 <span className="bg-muted px-3 py-2 border border-r-0 rounded-l-md text-muted-foreground text-sm">
                   syncora.app/
@@ -96,8 +144,9 @@ export default function OrganizationSettingsPage() {
                 <Input 
                   id="orgSlug" 
                   value={slug} 
-                  onChange={(e) => setSlug(e.target.value)} 
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} 
                   className="rounded-l-none"
+                  placeholder="acme-corp"
                 />
               </div>
               <p className="text-[0.8rem] text-muted-foreground">
