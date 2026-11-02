@@ -59,15 +59,18 @@ export async function updateOrganization(
     .update(updates)
     .eq('id', orgId)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) throw error
+  if (!data) {
+    throw new Error("Unable to update organization. You may not have permission to modify this organization.")
+  }
   return data
 }
 
 export async function removeOrganizationMember(
-  supabase: SupabaseClient<Database>, 
-  orgId: string, 
+  supabase: SupabaseClient<Database>,
+  orgId: string,
   userId: string
 ) {
   const { error } = await supabase
@@ -126,7 +129,7 @@ export async function createOrganizationInvitation(
     .from('profiles')
     .select('id')
     .eq('username', email)
-    .single()
+    .maybeSingle()
 
   if (existingUser) {
     const { data: existingMember } = await supabase
@@ -134,7 +137,7 @@ export async function createOrganizationInvitation(
       .select('id')
       .eq('org_id', orgId)
       .eq('user_id', existingUser.id)
-      .single()
+      .maybeSingle()
 
     if (existingMember) {
       throw new Error("User is already a member of this organization")
@@ -147,7 +150,7 @@ export async function createOrganizationInvitation(
     .select('id, status')
     .eq('org_id', orgId)
     .eq('email', email)
-    .single()
+    .maybeSingle()
 
   if (existingInvite) {
     if (existingInvite.status === 'pending') {
