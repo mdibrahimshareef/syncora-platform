@@ -15,8 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 
 export default function CustomersPage() {
-  const customers = useDataStore(s => s.customers);
-  const customerRequests = useDataStore(s => s.customerRequests);
+  const customers = useDataStore(s => s.customers) || [];
+  const customerRequests = useDataStore(s => s.customerRequests) || [];
   const createCustomer = useDataStore(s => s.createCustomer);
   const createCustomerRequest = useDataStore(s => s.createCustomerRequest);
   const activeWorkspaceId = useDataStore(s => s.activeWorkspaceId);

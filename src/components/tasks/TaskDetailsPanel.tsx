@@ -50,7 +50,7 @@ export function TaskDetailsPanel() {
   const milestones = useDataStore(s => s.milestones);
   const documents = useDataStore(s => s.documents);
   const projectStatuses = useDataStore(s => s.projectStatuses);
-  const customers = useDataStore(s => s.customers);
+  const customers = useDataStore(s => s.customers) || [];
   const requests = useDataStore(s => s.requests);
   const approvals = useDataStore(s => s.approvals);
   const addAttachment = useDataStore(s => s.addAttachment);

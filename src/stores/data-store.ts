@@ -669,10 +669,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const customers = await customersApi.getCustomers(supabase, activeWorkspaceId)
-      if (get().activeWorkspaceId !== activeWorkspaceId) return;
-      set({ customers })
-    } catch (err) {
-      console.error('Failed to fetch customers', err)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      set({ customers: customers || [] })
+    } catch (err: unknown) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errorObj = err as { message?: string; details?: string; code?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof err === 'string' ? err : 'Unknown error')
+      console.error('Failed to fetch customers:', errMsg, err)
     }
   },
 
@@ -682,10 +685,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
     try {
       const supabase = createClient()
       const customerRequests = await customersApi.getCustomerRequests(supabase, activeWorkspaceId)
-      if (get().activeWorkspaceId !== activeWorkspaceId) return;
-      set({ customerRequests })
-    } catch (err) {
-      console.error('Failed to fetch customer requests', err)
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      set({ customerRequests: customerRequests || [] })
+    } catch (err: unknown) {
+      if (get().activeWorkspaceId !== activeWorkspaceId) return
+      const errorObj = err as { message?: string; details?: string; code?: string } | null
+      const errMsg = errorObj?.message || errorObj?.details || (typeof err === 'string' ? err : 'Unknown error')
+      console.error('Failed to fetch customer requests:', errMsg, err)
     }
   },
 
