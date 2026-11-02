@@ -158,3 +158,4 @@ React Subscribers Re-rendered
 ---
 
 **Audit Sign-off:** Verified against live code, tests, and build on 2026-11-03.
+

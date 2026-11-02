@@ -90,3 +90,4 @@ Instead, we adopt a **Lean Memory-First Acceleration Layer**:
 #### Documented Limitations:
 - Hard page refreshes while fully offline will show the standard connection error instead of historic task lists.
 - Offline writes are intentionally disallowed to uphold enterprise security, RLS boundaries, and concurrency integrity.
+

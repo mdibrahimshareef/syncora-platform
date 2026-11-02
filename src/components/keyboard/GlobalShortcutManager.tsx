@@ -139,3 +139,4 @@ export function GlobalShortcutManager() {
 
   return null
 }
+

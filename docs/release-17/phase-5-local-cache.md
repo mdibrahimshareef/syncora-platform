@@ -42,3 +42,4 @@ Cross-workspace leakage is prevented at the root:
 ---
 
 **Phase 5 Sign-off:** Architecture Decision Record and offline resilience verified on 2026-11-03.
+

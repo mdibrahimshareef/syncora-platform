@@ -68,3 +68,4 @@ Composite indexes were introduced to optimize PostgreSQL execution plans:
 ---
 
 **Phase 2 Sign-off:** Verified with TypeScript check (0 errors) and Vitest suite on 2026-11-03.
+

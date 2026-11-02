@@ -64,3 +64,4 @@ describe('Virtualized Task List & Large-Data Rendering Architecture', () => {
     expect(useUIStore.getState().selectedTaskId).toBeNull()
   })
 })
+

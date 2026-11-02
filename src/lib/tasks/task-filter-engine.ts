@@ -136,3 +136,4 @@ export function sortTasks(tasks: Task[], sort: TaskSortOptions): Task[] {
     return (a.position ?? 0) - (b.position ?? 0) || a.id.localeCompare(b.id)
   })
 }
+

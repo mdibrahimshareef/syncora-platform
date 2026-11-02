@@ -15,3 +15,4 @@ CREATE INDEX IF NOT EXISTS idx_tasks_assignee_status ON public.tasks(assignee_id
 
 -- 5. Composite index for due date sorting and calendar queries
 CREATE INDEX IF NOT EXISTS idx_tasks_ws_due_date ON public.tasks(workspace_id, due_date) WHERE due_date IS NOT NULL;
+

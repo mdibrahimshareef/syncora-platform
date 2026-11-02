@@ -88,3 +88,4 @@ Measurements recorded using reproducible test fixtures (`generateBenchmarkTasks`
 ---
 
 **Baseline Approval:** Verified empirically against project fixtures and Vitest benchmark runner on 2026-11-03.
+

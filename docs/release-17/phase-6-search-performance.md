@@ -53,3 +53,4 @@ If Query 1 takes 400ms and Query 2 takes 150ms, Query 1 is safely discarded when
 ---
 
 **Phase 6 Sign-off:** Verified with unit tests in `tests/task_filter_engine.test.ts` on 2026-11-03.
+

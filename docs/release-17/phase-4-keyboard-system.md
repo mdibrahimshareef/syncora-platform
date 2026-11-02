@@ -70,3 +70,4 @@ This utility strictly suppresses single-key and multi-key sequences whenever foc
 ---
 
 **Phase 4 Sign-off:** Verified with unit tests in `tests/keyboard_shortcuts.test.ts` on 2026-11-03.
+

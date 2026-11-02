@@ -156,3 +156,4 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: Omit<ShortcutDefinition, 'action'>[] = 
     category: 'Global',
   },
 ]
+

@@ -50,3 +50,4 @@ To eliminate full-collection re-renders:
 ---
 
 **Phase 3 Sign-off:** Verified with unit tests in `tests/state_selectors.test.ts` on 2026-11-03.
+
