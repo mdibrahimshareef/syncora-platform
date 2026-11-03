@@ -1,4 +1,7 @@
 import { AIErrorCategory } from './errors';
+import { redactSensitiveData } from '../observability/redaction';
+
+export { redactSensitiveData };
 
 export type TraceContext = {
   traceId: string;
@@ -77,56 +80,6 @@ export type AITelemetry = {
     totalTokens?: number;
   };
 };
-
-/**
- * Sensitive field allowlist / denylist patterns for enterprise privacy.
- * Strictly redacts passwords, bearer tokens, API keys, cookies, and secret headers.
- */
-const SENSITIVE_KEY_REGEX = /^(password|token|secret|authorization|cookie|apiKey|api_key|serviceRoleKey|service_role_key|accessToken|access_token|refreshToken|refresh_token)$/i;
-const BEARER_REGEX = /Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi;
-const OPENAI_KEY_REGEX = /sk-[A-Za-z0-9\-_]{20,}/gi;
-const GOOGLE_KEY_REGEX = /AIza[0-9A-Za-z\-_]{25,}/gi;
-
-/**
- * Deeply sanitizes and redacts sensitive data from payloads before logging.
- */
-export function redactSensitiveData<T>(input: T, seen = new WeakSet<object>()): T {
-  if (input === null || input === undefined) {
-    return input;
-  }
-
-  if (typeof input === 'string') {
-    let sanitized = input.replace(BEARER_REGEX, 'Bearer [REDACTED]');
-    sanitized = sanitized.replace(OPENAI_KEY_REGEX, 'sk-[REDACTED]');
-    sanitized = sanitized.replace(GOOGLE_KEY_REGEX, 'AIza[REDACTED]');
-    return sanitized as unknown as T;
-  }
-
-  if (typeof input !== 'object') {
-    return input;
-  }
-
-  // Prevent cyclical object recursion
-  if (seen.has(input as object)) {
-    return '[Circular]' as unknown as T;
-  }
-  seen.add(input as object);
-
-  if (Array.isArray(input)) {
-    return input.map(item => redactSensitiveData(item, seen)) as unknown as T;
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(input as Record<string, unknown>)) {
-    if (SENSITIVE_KEY_REGEX.test(key)) {
-      result[key] = '[REDACTED]';
-    } else {
-      result[key] = redactSensitiveData(val, seen);
-    }
-  }
-
-  return result as T;
-}
 
 /**
  * Creates or derives a traceable correlation context.

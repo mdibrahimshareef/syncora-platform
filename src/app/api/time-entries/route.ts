@@ -3,27 +3,60 @@ import { createClient } from '@/lib/supabase/server';
 import { createTimeEntry } from '@/lib/api/time-tracking';
 import { dispatchEvent } from '@/lib/events/dispatcher';
 import { SyncoraEvent } from '@/lib/integrations/types';
+import {
+  logger,
+  extractCorrelationContext,
+  classifyError,
+  HEADER_REQUEST_ID,
+  HEADER_CORRELATION_ID,
+  PlatformError,
+} from '@/lib/observability';
 
 export async function POST(request: NextRequest) {
+  const { requestId, correlationId } = extractCorrelationContext(request.headers);
+  const responseHeaders = {
+    [HEADER_REQUEST_ID]: requestId,
+    [HEADER_CORRELATION_ID]: correlationId,
+  };
+
+  const timer = logger.startTimer('time_entry.create', {
+    service: 'time-tracking-api',
+    requestId,
+    correlationId,
+  });
+
   try {
     const supabase = await createClient();
-    
+
     // Auth check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      timer.fail(new PlatformError('AUTHENTICATION_ERROR'), {
+        errorCategory: 'AUTHENTICATION_ERROR',
+        status: 'error',
+      });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: responseHeaders });
     }
 
     const payload = await request.json();
-    
+
     if (!payload.workspaceId || payload.durationMinutes === undefined) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      timer.fail(new PlatformError('VALIDATION_ERROR'), {
+        errorCategory: 'VALIDATION_ERROR',
+        status: 'error',
+        userId: user.id,
+      });
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: responseHeaders });
     }
 
     if (payload.source === 'MANUAL' && !payload.endedAt) {
-      return NextResponse.json({ error: 'Manual entries must include an end time.' }, { status: 400 });
+      timer.fail(new PlatformError('VALIDATION_ERROR', 'Manual entries must include an end time.'), {
+        errorCategory: 'VALIDATION_ERROR',
+        status: 'error',
+        userId: user.id,
+      });
+      return NextResponse.json({ error: 'Manual entries must include an end time.' }, { status: 400, headers: responseHeaders });
     }
-
 
     // Perform authoritative database mutation
     const createdEntry = await createTimeEntry(supabase, payload, user.id);
@@ -43,15 +76,34 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    // Use Next.js after() when upgraded, for now just fire and forget
     dispatchEvent(event).catch(err => {
-      console.error('Failed to dispatch time_entry.created event', err);
+      logger.error({
+        service: 'time-tracking-api',
+        operation: 'time_entry.dispatch_event',
+        requestId,
+        correlationId,
+        message: 'Failed to dispatch time_entry.created event',
+        metadata: { error: err?.message || String(err) },
+      });
     });
 
-    return NextResponse.json(createdEntry, { status: 201 });
+    timer.done({
+      status: 'success',
+      workspaceId: payload.workspaceId,
+      userId: user.id,
+    });
 
+    return NextResponse.json(createdEntry, { status: 201, headers: responseHeaders });
   } catch (error: any) {
-    console.error('Error creating time entry:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    const classified = classifyError(error);
+    timer.fail(error, {
+      errorCategory: classified.category,
+      status: 'error',
+      message: error.message,
+    });
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: classified.statusCode, headers: responseHeaders }
+    );
   }
 }

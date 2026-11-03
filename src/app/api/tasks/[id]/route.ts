@@ -3,11 +3,31 @@ import { createClient } from '@/lib/supabase/server';
 import { updateTask } from '@/lib/api/tasks';
 import { dispatchEvent } from '@/lib/events/dispatcher';
 import { SyncoraEvent } from '@/lib/integrations/types';
+import {
+  logger,
+  extractCorrelationContext,
+  classifyError,
+  HEADER_REQUEST_ID,
+  HEADER_CORRELATION_ID,
+  PlatformError,
+} from '@/lib/observability';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { requestId, correlationId } = extractCorrelationContext(request.headers);
+  const responseHeaders = {
+    [HEADER_REQUEST_ID]: requestId,
+    [HEADER_CORRELATION_ID]: correlationId,
+  };
+
+  const timer = logger.startTimer('task.update', {
+    service: 'tasks-api',
+    requestId,
+    correlationId,
+  });
+
   try {
     const resolvedParams = await params;
     const taskId = resolvedParams.id;
@@ -16,7 +36,11 @@ export async function PUT(
     // Auth check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      timer.fail(new PlatformError('AUTHENTICATION_ERROR'), {
+        errorCategory: 'AUTHENTICATION_ERROR',
+        status: 'error',
+      });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: responseHeaders });
     }
 
     const payload = await request.json();
@@ -29,13 +53,21 @@ export async function PUT(
       .single();
 
     if (oldTaskError || !oldTask) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      timer.fail(new PlatformError('NOT_FOUND', `Task ${taskId} not found`), {
+        errorCategory: 'NOT_FOUND',
+        status: 'error',
+        userId: user.id,
+      });
+      return NextResponse.json({ error: 'Task not found' }, { status: 404, headers: responseHeaders });
     }
 
     // Perform authoritative database mutation
     const updatedTask = await updateTask(supabase, taskId, payload);
 
-    const workspaceId = (oldTask as any).workspace_id || (Array.isArray(oldTask.projects) ? (oldTask.projects[0] as any)?.workspace_id : (oldTask.projects as any)?.workspace_id);
+    const rawOldTask = oldTask as Record<string, unknown>;
+    const rawProjects = rawOldTask.projects as Record<string, unknown> | Array<Record<string, unknown>> | undefined;
+    const workspaceId = (rawOldTask.workspace_id as string | undefined) ||
+      (Array.isArray(rawProjects) ? (rawProjects[0]?.workspace_id as string | undefined) : (rawProjects?.workspace_id as string | undefined));
 
     if (workspaceId) {
       // 1. Emit task.updated
@@ -89,9 +121,24 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(updatedTask);
-  } catch (error: any) {
-    console.error('Error updating task:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    timer.done({
+      status: 'success',
+      workspaceId,
+      userId: user.id,
+    });
+
+    return NextResponse.json(updatedTask, { headers: responseHeaders });
+  } catch (error: unknown) {
+    const classified = classifyError(error);
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    timer.fail(error, {
+      errorCategory: classified.category,
+      status: 'error',
+      message,
+    });
+    return NextResponse.json(
+      { error: message },
+      { status: classified.statusCode, headers: responseHeaders }
+    );
   }
 }

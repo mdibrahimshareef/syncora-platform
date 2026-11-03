@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
 import { AIDispatcher } from '@/lib/ai/dispatcher';
+import {
+  logger,
+  extractCorrelationContext,
+  HEADER_REQUEST_ID,
+  HEADER_CORRELATION_ID,
+  PlatformError,
+} from '@/lib/observability';
 
 export const maxDuration = 300; // Allow function to run up to 5 minutes
 
@@ -15,7 +22,12 @@ function verifyCronAuth(req: Request): { authorized: boolean; reason?: string } 
 
   if (!cronSecret) {
     if (isProduction) {
-      console.error('[AI Cron] CRON_SECRET is not configured in production environment.');
+      logger.error({
+        service: 'ai-cron',
+        operation: 'ai.cron.auth',
+        errorCategory: 'AUTHENTICATION_ERROR',
+        message: 'CRON_SECRET is not configured in production environment',
+      });
       return { authorized: false, reason: 'Cron authentication is not configured' };
     }
     // In local non-production environment, allow if specifically opted in via test header or local env
@@ -53,14 +65,31 @@ function verifyCronAuth(req: Request): { authorized: boolean; reason?: string } 
  * 4. Drains the job queue in bounded batches with individual job fault-tolerance.
  */
 async function handleCronExecution(req: Request) {
+  const { requestId, correlationId } = extractCorrelationContext(req.headers);
+  const responseHeaders = {
+    [HEADER_REQUEST_ID]: requestId,
+    [HEADER_CORRELATION_ID]: correlationId,
+  };
+
+  const timer = logger.startTimer('ai.cron.run', {
+    service: 'ai-cron',
+    requestId,
+    correlationId,
+  });
+
   const startTime = Date.now();
 
   // 1. Verify authorization securely
   const auth = verifyCronAuth(req);
   if (!auth.authorized) {
+    timer.fail(new PlatformError('AUTHENTICATION_ERROR'), {
+      errorCategory: 'AUTHENTICATION_ERROR',
+      status: 'error',
+      message: auth.reason,
+    });
     return NextResponse.json(
       { error: 'Unauthorized', message: auth.reason },
-      { status: 401 }
+      { status: 401, headers: responseHeaders }
     );
   }
 
@@ -70,7 +99,13 @@ async function handleCronExecution(req: Request) {
 
     // 2. Lease Recovery Sweep
     const recoveredLeases = await dispatcher.recoverExpiredLeases();
-    console.log(`[AI Cron] Lease recovery completed. Recovered ${recoveredLeases} expired leases.`);
+    logger.info({
+      service: 'ai-cron',
+      operation: 'ai.cron.lease_recovery',
+      requestId,
+      correlationId,
+      metadata: { recoveredLeases },
+    });
 
     // 3. Inject Proactive Jobs for Active Workspaces (Deduplicated)
     const { data: workspaces, error: wsError } = await supabaseAdmin
@@ -79,7 +114,14 @@ async function handleCronExecution(req: Request) {
       .limit(100);
 
     if (wsError) {
-      console.error('[AI Cron] Failed to query active workspaces:', wsError);
+      logger.error({
+        service: 'ai-cron',
+        operation: 'ai.cron.query_workspaces',
+        requestId,
+        correlationId,
+        errorCategory: 'DATABASE_ERROR',
+        message: wsError.message,
+      });
       throw wsError;
     }
 
@@ -110,7 +152,15 @@ async function handleCronExecution(req: Request) {
         if (!insertError) {
           enqueuedProactiveJobs++;
         } else {
-          console.error(`[AI Cron] Failed to enqueue proactive job for workspace ${ws.id}:`, insertError);
+          logger.error({
+            service: 'ai-cron',
+            operation: 'ai.cron.enqueue_proactive',
+            requestId,
+            correlationId,
+            workspaceId: ws.id,
+            errorCategory: 'DATABASE_ERROR',
+            message: insertError.message,
+          });
         }
       }
     }
@@ -137,12 +187,31 @@ async function handleCronExecution(req: Request) {
         } catch (jobErr: unknown) {
           failedCount++;
           const msg = jobErr instanceof Error ? jobErr.message : 'Unknown execution error';
-          console.error(`[AI Cron] Error processing job ${job.id}:`, msg);
+          logger.error({
+            service: 'ai-cron',
+            operation: 'ai.cron.process_job',
+            requestId,
+            correlationId,
+            jobId: job.id,
+            workspaceId: job.workspace_id,
+            errorCategory: 'JOB_EXECUTION_ERROR',
+            message: msg,
+          });
         }
       }
     }
 
     const durationMs = Date.now() - startTime;
+
+    timer.done({
+      status: 'success',
+      metadata: {
+        recoveredLeases,
+        enqueuedProactiveJobs,
+        processedCount,
+        failedCount,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -151,13 +220,17 @@ async function handleCronExecution(req: Request) {
       processed_jobs: processedCount,
       failed_jobs: failedCount,
       duration_ms: durationMs
-    });
+    }, { headers: responseHeaders });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Internal cron dispatcher error';
-    console.error('[AI Cron] Fatal execution failure:', error);
+    timer.fail(error, {
+      status: 'error',
+      errorCategory: 'INTERNAL_ERROR',
+      message: msg,
+    });
     return NextResponse.json(
       { error: 'Internal Server Error', message: msg, duration_ms: Date.now() - startTime },
-      { status: 500 }
+      { status: 500, headers: responseHeaders }
     );
   }
 }
