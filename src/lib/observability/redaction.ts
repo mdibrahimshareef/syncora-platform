@@ -24,7 +24,7 @@ export function redactSensitiveData<T>(input: T, seen = new WeakSet<object>()): 
   }
 
   if (typeof input === 'string') {
-    let sanitized = input
+    const sanitized = input
       .replace(BEARER_REGEX, 'Bearer [REDACTED]')
       .replace(OPENAI_KEY_REGEX, 'sk-[REDACTED]')
       .replace(GOOGLE_KEY_REGEX, 'AIza[REDACTED]')

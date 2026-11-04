@@ -76,14 +76,15 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    dispatchEvent(event).catch(err => {
+    dispatchEvent(event).catch((err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : String(err);
       logger.error({
         service: 'time-tracking-api',
         operation: 'time_entry.dispatch_event',
         requestId,
         correlationId,
         message: 'Failed to dispatch time_entry.created event',
-        metadata: { error: err?.message || String(err) },
+        metadata: { error: errMsg },
       });
     });
 
@@ -94,15 +95,16 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(createdEntry, { status: 201, headers: responseHeaders });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     timer.fail(error, {
       errorCategory: classified.category,
       status: 'error',
-      message: error.message,
+      message: errorMessage,
     });
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: errorMessage },
       { status: classified.statusCode, headers: responseHeaders }
     );
   }

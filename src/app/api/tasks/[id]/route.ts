@@ -32,7 +32,7 @@ export async function PUT(
     const resolvedParams = await params;
     const taskId = resolvedParams.id;
     const supabase = await createClient();
-    
+
     // Auth check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -44,7 +44,7 @@ export async function PUT(
     }
 
     const payload = await request.json();
-    
+
     // Get before state for checking status changes, etc
     const { data: oldTask, error: oldTaskError } = await supabase
       .from('tasks')
@@ -64,10 +64,12 @@ export async function PUT(
     // Perform authoritative database mutation
     const updatedTask = await updateTask(supabase, taskId, payload);
 
-    const rawOldTask = oldTask as Record<string, unknown>;
-    const rawProjects = rawOldTask.projects as Record<string, unknown> | Array<Record<string, unknown>> | undefined;
-    const workspaceId = (rawOldTask.workspace_id as string | undefined) ||
-      (Array.isArray(rawProjects) ? (rawProjects[0]?.workspace_id as string | undefined) : (rawProjects?.workspace_id as string | undefined));
+    type ProjectWorkspaceRef = { workspace_id?: string | null };
+    const projectsRef = oldTask.projects as ProjectWorkspaceRef | ProjectWorkspaceRef[] | null;
+    const projectWorkspaceId = Array.isArray(projectsRef)
+      ? projectsRef[0]?.workspace_id
+      : projectsRef?.workspace_id;
+    const workspaceId = oldTask.workspace_id || projectWorkspaceId || undefined;
 
     if (workspaceId) {
       // 1. Emit task.updated
@@ -102,7 +104,7 @@ export async function PUT(
       }
 
       // 3. Conditionally emit task.assigned
-      const newAssigneeId = payload.assigneeId !== undefined 
+      const newAssigneeId = payload.assigneeId !== undefined
         ? (payload.assigneeId === 'none' ? null : payload.assigneeId)
         : (payload.assignee ? (typeof payload.assignee === 'string' ? payload.assignee : payload.assignee.id) : undefined);
       if (newAssigneeId !== undefined && newAssigneeId !== oldTask.assignee_id) {
@@ -130,14 +132,14 @@ export async function PUT(
     return NextResponse.json(updatedTask, { headers: responseHeaders });
   } catch (error: unknown) {
     const classified = classifyError(error);
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     timer.fail(error, {
       errorCategory: classified.category,
       status: 'error',
-      message,
+      message: errorMessage,
     });
     return NextResponse.json(
-      { error: message },
+      { error: errorMessage },
       { status: classified.statusCode, headers: responseHeaders }
     );
   }

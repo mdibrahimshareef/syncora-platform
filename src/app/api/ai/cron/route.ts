@@ -140,7 +140,7 @@ async function handleCronExecution(req: Request) {
         .maybeSingle();
 
       if (!existing) {
-        const { error: insertError } = await (supabaseAdmin.from('ai_jobs') as any).insert({
+        const { error: insertError } = await supabaseAdmin.from('ai_jobs').insert({
           workspace_id: ws.id,
           user_id: ws.created_by,
           job_type: 'PROACTIVE',

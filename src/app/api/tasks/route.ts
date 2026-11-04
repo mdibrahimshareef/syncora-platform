@@ -89,15 +89,16 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(createdTask, { headers: responseHeaders });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     timer.fail(error, {
       errorCategory: classified.category,
       status: 'error',
-      message: error.message,
+      message: errorMessage,
     });
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: errorMessage },
       { status: classified.statusCode, headers: responseHeaders }
     );
   }

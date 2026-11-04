@@ -44,14 +44,15 @@ export async function PUT(
     };
 
     // Use Next.js after() when upgraded, for now just fire and forget
-    dispatchEvent(event).catch(err => {
+    dispatchEvent(event).catch((err: unknown) => {
       console.error('Failed to dispatch time_entry.updated event', err);
     });
 
     return NextResponse.json(updatedEntry, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('Error updating time entry:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

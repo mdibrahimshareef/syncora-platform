@@ -39,7 +39,13 @@ export async function POST(request: NextRequest) {
     let durationMinutes = Math.floor((endedAt.getTime() - startedAt.getTime()) / 60000);
     if (durationMinutes < 1) durationMinutes = 1; // minimum 1 min
 
-    const updateData: any = {
+    const updateData: {
+      ended_at: string;
+      duration_minutes: number;
+      description?: string;
+      project_id?: string;
+      task_id?: string;
+    } = {
       ended_at: endedAt.toISOString(),
       duration_minutes: durationMinutes,
     };
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    dispatchEvent(event).catch(err => {
+    dispatchEvent(event).catch((err: unknown) => {
       console.error('Failed to dispatch time_entry.created event on stop', err);
     });
 
@@ -95,8 +101,9 @@ export async function POST(request: NextRequest) {
       durationMinutes: updatedEntry.duration_minutes
     }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('Error in POST /api/time-entries/stop:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
