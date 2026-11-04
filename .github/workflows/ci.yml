@@ -6,15 +6,24 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality-gates:
-    name: Typecheck, Test & Production Build
+    name: Lint, Typecheck, Test & Production Build
     runs-on: ubuntu-latest
 
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co' }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'mock-service-role' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key-with-sufficient-length' }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'mock-service-role-key-16-chars' }}
+      SYNCORA_ENCRYPTION_KEY: ${{ secrets.SYNCORA_ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET || 'mock-cron-secret-32-chars-length' }}
 
     steps:
       - name: Checkout code
@@ -27,7 +36,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --prefer-offline --no-audit
+        run: npm ci --prefer-offline
+
+      - name: ESLint Check
+        run: npm run lint
 
       - name: TypeScript Check
         run: npx tsc --noEmit
@@ -37,4 +49,3 @@ jobs:
 
       - name: Next.js Production Build
         run: npm run build
-

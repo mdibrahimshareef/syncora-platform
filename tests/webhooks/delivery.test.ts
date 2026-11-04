@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processWebhookDelivery } from '@/lib/webhooks/delivery';
 import * as serverModule from '@/lib/supabase/server';
 
-describe('Phase 3: Outbound Webhook Delivery & Retry Recovery', () => {
+describe('Phase 4: Outbound Webhook Delivery, SSRF & Redirect Hardening', () => {
   let mockAdminClient: any;
   let mockUpdateDeliveries: any;
   let mockUpdateEndpoints: any;
@@ -77,6 +77,51 @@ describe('Phase 3: Outbound Webhook Delivery & Retry Recovery', () => {
       expect.objectContaining({
         status: 'failed',
         error: expect.stringContaining('SSRF Blocked'),
+      })
+    );
+  });
+
+  it('blocks delivery redirecting to an internal SSRF target (redirect interception)', async () => {
+    // 1. Initial fetch returns 302 redirect pointing to internal metadata IP
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      status: 302,
+      headers: new Headers({
+        location: 'http://169.254.169.254/latest/meta-data',
+      }),
+    } as any);
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: 'del-redirect-ssrf',
+        workspace_id: 'ws-1',
+        endpoint_id: 'ep-1',
+        webhook_endpoints: {
+          id: 'ep-1',
+          url: 'https://public-service.example.com/webhook',
+          secret: 'secret-123',
+          status: 'active',
+        },
+      },
+      error: null,
+    });
+
+    mockAdminClient.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: mockSingle,
+        }),
+      }),
+      update: mockUpdateDeliveries,
+    });
+
+    const event: any = { id: 'evt-1', type: 'task.updated', workspaceId: 'ws-1', payload: {} };
+
+    await processWebhookDelivery('del-redirect-ssrf', event, 1);
+
+    // Delivery must be failed due to SSRF blocked on redirect hop
+    expect(mockUpdateDeliveries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.stringContaining('SSRF Blocked on redirect'),
       })
     );
   });
@@ -174,4 +219,3 @@ describe('Phase 3: Outbound Webhook Delivery & Retry Recovery', () => {
     );
   });
 });
-

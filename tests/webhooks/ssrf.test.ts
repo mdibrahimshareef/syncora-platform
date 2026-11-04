@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { validateWebhookUrl } from '@/lib/webhooks/delivery';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import dns from 'dns';
+import {
+  validateWebhookUrl,
+  validateWebhookUrlAsync,
+  isPrivateOrReservedIp,
+} from '@/lib/webhooks/delivery';
 
-describe('Phase 3: Webhook Delivery SSRF Protection', () => {
+describe('Phase 4: Webhook Delivery SSRF Protection & DNS Rebinding Hardening', () => {
   describe('Valid public destinations', () => {
     it('accepts valid HTTPS public URLs', () => {
       expect(validateWebhookUrl('https://api.github.com/webhook')).toEqual({ isValid: true });
@@ -12,6 +17,25 @@ describe('Phase 3: Webhook Delivery SSRF Protection', () => {
     it('accepts valid public routable IPv4 addresses', () => {
       expect(validateWebhookUrl('https://93.184.216.34/webhook')).toEqual({ isValid: true });
       expect(validateWebhookUrl('https://8.8.8.8/hook')).toEqual({ isValid: true });
+    });
+  });
+
+  describe('Direct IP Classification (isPrivateOrReservedIp)', () => {
+    it('classifies public IPs as non-private', () => {
+      expect(isPrivateOrReservedIp('93.184.216.34')).toEqual({ isPrivate: false });
+      expect(isPrivateOrReservedIp('8.8.8.8')).toEqual({ isPrivate: false });
+      expect(isPrivateOrReservedIp('1.1.1.1')).toEqual({ isPrivate: false });
+    });
+
+    it('classifies private, loopback, and metadata IPs as private', () => {
+      expect(isPrivateOrReservedIp('127.0.0.1').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('10.0.0.5').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('172.16.0.1').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('192.168.1.1').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('169.254.169.254').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('0.0.0.0').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('::1').isPrivate).toBe(true);
+      expect(isPrivateOrReservedIp('fe80::1').isPrivate).toBe(true);
     });
   });
 
@@ -69,6 +93,42 @@ describe('Phase 3: Webhook Delivery SSRF Protection', () => {
     });
   });
 
+  describe('DNS Rebinding & Resolved IP Defense (validateWebhookUrlAsync)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('rejects domain resolving to private RFC 1918 IP (DNS Rebinding)', async () => {
+      // Mock DNS resolving benign-looking hostname to internal private IP
+      vi.spyOn(dns.promises, 'lookup').mockResolvedValueOnce([
+        { address: '10.0.0.1', family: 4 },
+      ] as any);
+
+      const res = await validateWebhookUrlAsync('https://sub.attacker-domain.com/webhook');
+      expect(res.isValid).toBe(false);
+      expect(res.reason).toContain('resolved to prohibited IP (10.0.0.1)');
+    });
+
+    it('rejects domain resolving to cloud metadata IP 169.254.169.254', async () => {
+      vi.spyOn(dns.promises, 'lookup').mockResolvedValueOnce([
+        { address: '169.254.169.254', family: 4 },
+      ] as any);
+
+      const res = await validateWebhookUrlAsync('https://metadata-rebinding.com/steal-creds');
+      expect(res.isValid).toBe(false);
+      expect(res.reason).toContain('resolved to prohibited IP (169.254.169.254)');
+    });
+
+    it('accepts domain resolving to legitimate public routable IPs', async () => {
+      vi.spyOn(dns.promises, 'lookup').mockResolvedValueOnce([
+        { address: '93.184.216.34', family: 4 },
+      ] as any);
+
+      const res = await validateWebhookUrlAsync('https://valid-partner.com/webhook');
+      expect(res.isValid).toBe(true);
+    });
+  });
+
   describe('Internal and non-routable hostnames & protocols', () => {
     it('rejects internal domain extensions (.local, .internal, .corp, .lan)', () => {
       expect(validateWebhookUrl('http://service.internal/hook').isValid).toBe(false);
@@ -99,4 +159,3 @@ describe('Phase 3: Webhook Delivery SSRF Protection', () => {
     });
   });
 });
-

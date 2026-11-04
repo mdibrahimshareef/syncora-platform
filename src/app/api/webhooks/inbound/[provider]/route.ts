@@ -7,6 +7,7 @@ import { googleCalendarProvider } from '@/lib/integrations/google-calendar';
 import { recordInboundWebhookEvent, updateInboundWebhookStatus } from '@/lib/webhooks/inbound-idempotency';
 import { logger } from '@/lib/observability/logger';
 import { extractCorrelationContext } from '@/lib/observability/correlation';
+import { rateLimit, rateLimitHeaders, getClientIp } from '@/lib/rate-limit';
 
 interface InboundWebhookPayload {
   type?: string;
@@ -42,6 +43,25 @@ export async function POST(request: Request, context: { params: Promise<{ provid
       },
     });
     return NextResponse.json({ error: 'Unknown provider' }, { status: 404 });
+  }
+
+  // Rate Limiting Protection (60 requests per minute per IP / provider)
+  const clientIp = getClientIp(request);
+  const rlResult = rateLimit(`inbound_webhook:${providerName}:${clientIp}`, {
+    limit: 60,
+    windowMs: 60 * 1000,
+  });
+
+  if (!rlResult.success) {
+    logger.warn({
+      operation: 'inbound_webhook.rate_limited',
+      correlationId: correlation.correlationId,
+      metadata: { provider: providerName, clientIp },
+    });
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429, headers: rateLimitHeaders(rlResult) }
+    );
   }
 
   const timer = logger.startTimer('inbound_webhook.process', {
