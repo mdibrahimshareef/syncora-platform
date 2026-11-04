@@ -2,6 +2,16 @@ import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
 import { Task, TaskStatus, TaskDependency, TaskDependencyType, TaskAttachment } from "@/types"
 
+interface RawProfileRelation {
+  id: string
+  full_name?: string | null
+  avatar_url?: string | null
+}
+
+interface RawProjectRelation {
+  workspace_id?: string | null
+}
+
 /**
  * Release 18 Phase 2 Optimization (Finding 17.1):
  * Demand-based task relation fetcher. Fetches dependencies, attachments, and watchers
@@ -82,13 +92,13 @@ async function fetchTaskRelations(
   concurrencyLimit = 5
 ) {
   if (taskIds.length === 0) {
-    return { dependencies: [] as TaskDependency[], attachments: [] as TaskAttachment[], watchers: [] as { userId: string }[] }
+    return { dependencies: [] as TaskDependency[], attachments: [] as TaskAttachment[], watchers: [] as { taskId: string; userId: string }[] }
   }
 
   const BATCH_SIZE = 100
   const dependencies: TaskDependency[] = []
   const attachments: TaskAttachment[] = []
-  const watchers: { userId: string }[] = []
+  const watchers: { taskId: string; userId: string }[] = []
 
   const chunks: string[][] = []
   for (let i = 0; i < taskIds.length; i += BATCH_SIZE) {
@@ -140,6 +150,7 @@ async function fetchTaskRelations(
         if (!watchRes.error && watchRes.data) {
           for (const w of watchRes.data as Array<Record<string, unknown>>) {
             watchers.push({
+              taskId: w.task_id as string,
               userId: w.user_id as string,
             })
           }
@@ -169,7 +180,7 @@ export async function getTasks(
   if (error) throw error
 
   const includeRelations = options?.includeRelations ?? false
-  let relations = { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+  let relations = { dependencies: [] as TaskDependency[], attachments: [] as TaskAttachment[], watchers: [] as { taskId: string; userId: string }[] }
   if (includeRelations && data.length > 0) {
     const taskIds = data.map(t => t.id)
     relations = await fetchTaskRelations(supabase, taskIds)
@@ -178,6 +189,9 @@ export async function getTasks(
 
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
+    const assignee = t.assignee as RawProfileRelation | null | undefined
+    const projectRef = t.projects as RawProjectRelation | RawProjectRelation[] | null | undefined
+    const workspaceId = (Array.isArray(projectRef) ? projectRef[0]?.workspace_id : projectRef?.workspace_id) || (t.workspace_id as string)
 
     return {
       id: taskId,
@@ -186,19 +200,19 @@ export async function getTasks(
       description: (t.description as string) || undefined,
       status: t.status as TaskStatus,
       priority: t.priority as import("@/types").TaskPriority,
-      assignee: t.assignee ? {
-        id: (t.assignee as any).id,
-        name: (t.assignee as any).full_name || 'Unknown User',
-        initials: ((t.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+      assignee: assignee ? {
+        id: assignee.id,
+        name: assignee.full_name || 'Unknown User',
+        initials: (assignee.full_name || 'U').substring(0, 2).toUpperCase(),
         email: '',
         role: 'Member',
-        avatarUrl: (t.assignee as any).avatar_url || undefined
+        avatarUrl: assignee.avatar_url || undefined
       } : undefined,
       dueDate: t.due_date as string || undefined,
       startDate: t.start_date as string || undefined,
       position: t.position as number,
       parentId: t.parent_id as string | null,
-      workspaceId: (t.projects as any)?.workspace_id as string,
+      workspaceId,
       taskType: t.task_type as string | undefined,
       reporterId: t.reporter_id as string | null,
       customerId: t.customer_id as string | null,
@@ -249,7 +263,7 @@ export async function getWorkspaceTasks(
   if (error) throw error
 
   const includeRelations = options?.includeRelations ?? false
-  let relations = { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+  let relations = { dependencies: [] as TaskDependency[], attachments: [] as TaskAttachment[], watchers: [] as { taskId: string; userId: string }[] }
   if (includeRelations && data.length > 0) {
     const taskIds = data.map(t => t.id)
     relations = await fetchTaskRelations(supabase, taskIds)
@@ -258,6 +272,7 @@ export async function getWorkspaceTasks(
 
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
+    const assignee = t.assignee as RawProfileRelation | null | undefined
 
     return {
       id: taskId,
@@ -266,13 +281,13 @@ export async function getWorkspaceTasks(
       description: (t.description as string) || undefined,
       status: t.status as TaskStatus,
       priority: t.priority as import("@/types").TaskPriority,
-      assignee: t.assignee ? {
-        id: (t.assignee as any).id,
-        name: (t.assignee as any).full_name || 'Unknown User',
-        initials: ((t.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+      assignee: assignee ? {
+        id: assignee.id,
+        name: assignee.full_name || 'Unknown User',
+        initials: (assignee.full_name || 'U').substring(0, 2).toUpperCase(),
         email: '',
         role: 'Member',
-        avatarUrl: (t.assignee as any).avatar_url || undefined
+        avatarUrl: assignee.avatar_url || undefined
       } : undefined,
       dueDate: t.due_date as string || undefined,
       startDate: t.start_date as string || undefined,
@@ -321,7 +336,7 @@ export async function createTask(
     status: string,
     priority: string,
     assigneeId?: string | null,
-    assignee?: any,
+    assignee?: { id: string } | string | null,
     startDate?: string | null,
     dueDate?: string | null,
     userId?: string,
@@ -336,7 +351,9 @@ export async function createTask(
     estimatedHours?: number,
     storyPoints?: number,
     milestoneId?: string | null,
-    estimatedTime?: number | null
+    milestone_id?: string | null,
+    estimatedTime?: number | null,
+    estimated_time?: number | null
   }
 ) {
   // Get max position for the status
@@ -381,8 +398,8 @@ export async function createTask(
     request_id: payload.requestId || null,
     approval_id: payload.approvalId || null,
     document_id: payload.documentId || null,
-    milestone_id: payload.milestoneId || (payload as any).milestone_id || null,
-    estimated_time: payload.estimatedTime || (payload as any).estimated_time || null,
+    milestone_id: payload.milestoneId || payload.milestone_id || null,
+    estimated_time: payload.estimatedTime || payload.estimated_time || null,
     estimated_hours: payload.estimatedHours || 0,
     story_points: payload.storyPoints || 0
   }
@@ -402,6 +419,8 @@ export async function createTask(
 
   if (error) throw error
 
+  const assignee = data.assignee as RawProfileRelation | null | undefined
+
   return {
     id: data.id,
     projectId: data.project_id,
@@ -409,13 +428,13 @@ export async function createTask(
     description: data.description || undefined,
     status: data.status as TaskStatus,
     priority: data.priority as import("@/types").TaskPriority,
-    assignee: data.assignee ? {
-      id: (data.assignee as any).id,
-      name: (data.assignee as any).full_name || 'Unknown User',
-      initials: ((data.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+    assignee: assignee ? {
+      id: assignee.id,
+      name: assignee.full_name || 'Unknown User',
+      initials: (assignee.full_name || 'U').substring(0, 2).toUpperCase(),
       email: '',
       role: 'Member',
-      avatarUrl: (data.assignee as any).avatar_url || undefined
+      avatarUrl: assignee.avatar_url || undefined
     } : undefined,
     assigneeId: data.assignee_id || null,
     dueDate: data.due_date || undefined,
@@ -567,7 +586,7 @@ export async function updateTask(
   }
 
   // Whitelist only valid columns on public.tasks table
-  const updateData: Record<string, any> = {}
+  const updateData: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(raw)) {
     if (ALLOWED_TASK_COLUMNS.has(key) && value !== undefined) {
       updateData[key] = value
@@ -587,6 +606,8 @@ export async function updateTask(
 
   if (error) throw error
 
+  const assignee = data.assignee as RawProfileRelation | null | undefined
+
   return {
     id: data.id,
     projectId: data.project_id,
@@ -594,20 +615,20 @@ export async function updateTask(
     description: data.description || undefined,
     status: data.status as TaskStatus,
     priority: data.priority as import("@/types").TaskPriority,
-    assignee: data.assignee ? {
-      id: (data.assignee as any).id,
-      name: (data.assignee as any).full_name || 'Unknown User',
-      initials: ((data.assignee as any).full_name || 'U').substring(0, 2).toUpperCase(),
+    assignee: assignee ? {
+      id: assignee.id,
+      name: assignee.full_name || 'Unknown User',
+      initials: (assignee.full_name || 'U').substring(0, 2).toUpperCase(),
       email: '',
       role: 'Member',
-      avatarUrl: (data.assignee as any).avatar_url || undefined
+      avatarUrl: assignee.avatar_url || undefined
     } : undefined,
     assigneeId: data.assignee_id || null,
     dueDate: data.due_date || undefined,
     startDate: data.start_date || undefined,
     position: data.position,
     parentId: data.parent_id || null,
-    workspaceId: data.workspace_id || (payload as any).workspaceId || '',
+    workspaceId: data.workspace_id || payload.workspaceId || '',
     taskType: data.task_type || 'Task',
     reporterId: data.reporter_id || null,
     customerId: data.customer_id || null,
@@ -647,7 +668,7 @@ export async function updateTaskPositions(
   updates: { id: string, status: TaskStatus, position: number, parentId?: string | null }[]
 ) {
   const promises = updates.map(update => {
-    const updateObj: any = { status: update.status, position: update.position }
+    const updateObj: { status: TaskStatus; position: number; parent_id?: string | null } = { status: update.status, position: update.position }
     if (update.parentId !== undefined) {
       updateObj.parent_id = update.parentId
     }
@@ -770,13 +791,13 @@ export async function deleteAttachment(
 }
 
 export const bulkUpdateTasks = async (
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   taskIds: string[],
   updates: { status?: Task['status'], priority?: Task['priority'] }
 ): Promise<void> => {
   if (!taskIds.length) return
 
-  const dbUpdates: any = {}
+  const dbUpdates: Database['public']['Tables']['tasks']['Update'] = {}
   if (updates.status !== undefined) dbUpdates.status = updates.status
   if (updates.priority !== undefined) dbUpdates.priority = updates.priority
   if (Object.keys(dbUpdates).length === 0) return
@@ -785,7 +806,7 @@ export const bulkUpdateTasks = async (
 
   const { error } = await supabase
     .from('tasks')
-    .update(dbUpdates as any)
+    .update(dbUpdates)
     .in('id', taskIds)
 
   if (error) throw error
