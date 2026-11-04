@@ -149,3 +149,4 @@ All security mechanisms are covered by automated unit and integration tests:
 - `tests/integrations/crypto.test.ts`: 15/15 passing (AES-256-GCM, key parsing, tamper detection).
 
 **Overall Security Verdict:** PASSED.
+

@@ -126,3 +126,4 @@ The logger integrates with `@/lib/observability/redaction`. All log fields (incl
   ```text
   correlationId: "corr_99a8b7..." OR traceId: "trace_44c3d2..."
   ```
+

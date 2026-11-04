@@ -97,3 +97,4 @@ To rotate `SYNCORA_ENCRYPTION_KEY` in production without service disruption:
 4. Deploy the updated environment variables.
 5. `src/lib/integrations/crypto.ts` will decrypt existing credentials using the previous keys in the fallback list and automatically re-encrypt new writes using the active key.
 6. Once all active credentials have been updated or lazily re-saved, remove the old key from `SYNCORA_PREVIOUS_ENCRYPTION_KEYS`.
+

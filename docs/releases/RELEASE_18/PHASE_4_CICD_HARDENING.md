@@ -109,3 +109,4 @@ An automated vulnerability audit of all 65 direct and transitive npm dependencie
 | `zod` (<3.25.76) | GHSA-mrhx-c7xc-m3w5 (Memory exhaustion on oversized collections) | High | **Mitigated:** SYNCORA uses Zod 3.25.76. Upgrading to Zod 4 is a breaking change across all schema definitions. Application payloads are constrained to 1MB max body size. | Low production risk. |
 
 **Conclusion:** Zero critical vulnerabilities are exploitable on SYNCORA's active production attack surface. Breaking updates (such as Zod 4) are deferred to the next scheduled dependency upgrade cycle to preserve platform stability.
+

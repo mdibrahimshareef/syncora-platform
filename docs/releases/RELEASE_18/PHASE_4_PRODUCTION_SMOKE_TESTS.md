@@ -50,3 +50,4 @@ If any of the following conditions occur during post-deployment smoke testing, t
 2. **Journey 04 or 08 Fails:** Row-Level Security bypass or unauthenticated access to protected workspace routes is detected.
 3. **Journey 12 Fails:** Outbound webhook delivers to private/metadata IP without being blocked.
 4. **Error Spike:** Application-wide 5xx error rate exceeds 1% during smoke test execution.
+

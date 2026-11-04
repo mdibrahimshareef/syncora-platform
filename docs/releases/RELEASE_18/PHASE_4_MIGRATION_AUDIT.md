@@ -97,3 +97,4 @@ Under Platform Release 18 verification standards, database migration safety requ
 > 
 > **Required Action Before Production Deployment:**
 > Run `supabase db push --dry-run` or execute migration verification against a staging Supabase instance prior to triggering production DDL application.
+

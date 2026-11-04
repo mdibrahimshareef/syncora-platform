@@ -108,3 +108,4 @@ Based on this audit, Phase 4 will proceed through the following verified remedia
    - Clean up root clutter and update `eslint.config.mjs` ignores.
 5. **Final Quality Gates (Phase 4T):**
    - Verify TypeScript (`npx tsc --noEmit`), Vitest suite, and Next.js Turbopack production build.
+
