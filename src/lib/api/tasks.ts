@@ -1,78 +1,161 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/supabase"
-import { Task, TaskStatus, TaskDependency, TaskDependencyType } from "@/types"
+import { Task, TaskStatus, TaskDependency, TaskDependencyType, TaskAttachment } from "@/types"
 
-async function fetchTaskRelations(supabase: SupabaseClient<Database>, taskIds: string[]) {
+/**
+ * Release 18 Phase 2 Optimization (Finding 17.1):
+ * Demand-based task relation fetcher. Fetches dependencies, attachments, and watchers
+ * for a single task on-demand when the user views task details.
+ */
+export async function getTaskRelations(supabase: SupabaseClient<Database>, taskId: string) {
+  const [depsRes, attRes, watchRes] = await Promise.all([
+    supabase
+      .from('task_dependencies')
+      .select('*')
+      .or(`task_id.eq.${taskId},depends_on_task_id.eq.${taskId}`),
+    supabase
+      .from('task_attachments')
+      .select('*')
+      .eq('task_id', taskId),
+    supabase
+      .from('task_watchers')
+      .select('*')
+      .eq('task_id', taskId),
+  ])
+
+  const dependencies: TaskDependency[] = []
+  const attachments: TaskAttachment[] = []
+  const watchers: { userId: string }[] = []
+
+  if (!depsRes.error && depsRes.data) {
+    for (const d of depsRes.data as Array<Record<string, unknown>>) {
+      dependencies.push({
+        id: d.id as string,
+        taskId: d.task_id as string,
+        dependsOnTaskId: d.depends_on_task_id as string,
+        type: d.type as TaskDependencyType,
+        createdAt: d.created_at as string,
+      })
+    }
+  }
+
+  if (!attRes.error && attRes.data) {
+    for (const a of attRes.data as Array<Record<string, unknown>>) {
+      attachments.push({
+        id: a.id as string,
+        taskId: a.task_id as string,
+        workspaceId: a.workspace_id as string,
+        fileName: a.file_name as string,
+        fileSize: a.file_size as number,
+        fileType: a.file_type as string,
+        storagePath: a.storage_path as string,
+        uploadedBy: a.uploaded_by as string,
+        createdAt: a.created_at as string,
+      })
+    }
+  }
+
+  if (!watchRes.error && watchRes.data) {
+    for (const w of watchRes.data as Array<Record<string, unknown>>) {
+      watchers.push({
+        userId: w.user_id as string,
+      })
+    }
+  }
+
+  return {
+    dependencies: dependencies.filter(d => d.taskId === taskId),
+    blockedBy: dependencies.filter(d => d.dependsOnTaskId === taskId),
+    attachments,
+    watchers,
+  }
+}
+
+/**
+ * Release 18 Phase 2 Optimization (Finding 17.1):
+ * Bounded concurrency relation fetcher. Limits parallel chunk requests to prevent
+ * connection pool exhaustion and sequential round-trip serialization.
+ */
+async function fetchTaskRelations(
+  supabase: SupabaseClient<Database>,
+  taskIds: string[],
+  concurrencyLimit = 5
+) {
   if (taskIds.length === 0) {
-    return { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+    return { dependencies: [] as TaskDependency[], attachments: [] as TaskAttachment[], watchers: [] as { userId: string }[] }
   }
 
   const BATCH_SIZE = 100
   const dependencies: TaskDependency[] = []
-  const attachments: any[] = []
-  const watchers: any[] = []
+  const attachments: TaskAttachment[] = []
+  const watchers: { userId: string }[] = []
 
+  const chunks: string[][] = []
   for (let i = 0; i < taskIds.length; i += BATCH_SIZE) {
-    const chunk = taskIds.slice(i, i + BATCH_SIZE)
-    const chunkStr = chunk.join(',')
+    chunks.push(taskIds.slice(i, i + BATCH_SIZE))
+  }
 
-    const [depsRes, attRes, watchRes] = await Promise.all([
-      supabase
-        .from('task_dependencies')
-        .select('*')
-        .or(`task_id.in.(${chunkStr}),depends_on_task_id.in.(${chunkStr})`),
-      supabase
-        .from('task_attachments')
-        .select('*')
-        .in('task_id', chunk),
-      supabase
-        .from('task_watchers')
-        .select('*')
-        .in('task_id', chunk),
-    ])
+  for (let c = 0; c < chunks.length; c += concurrencyLimit) {
+    const chunkWindow = chunks.slice(c, c + concurrencyLimit)
+    await Promise.all(
+      chunkWindow.map(async (chunk) => {
+        const chunkStr = chunk.join(',')
+        const [depsRes, attRes, watchRes] = await Promise.all([
+          supabase
+            .from('task_dependencies')
+            .select('*')
+            .or(`task_id.in.(${chunkStr}),depends_on_task_id.in.(${chunkStr})`),
+          supabase.from('task_attachments').select('*').in('task_id', chunk),
+          supabase.from('task_watchers').select('*').in('task_id', chunk),
+        ])
 
-    if (!depsRes.error && depsRes.data) {
-      for (const d of depsRes.data as any[]) {
-        dependencies.push({
-          id: d.id,
-          taskId: d.task_id,
-          dependsOnTaskId: d.depends_on_task_id,
-          type: d.type as TaskDependencyType,
-          createdAt: d.created_at,
-        })
-      }
-    }
+        if (!depsRes.error && depsRes.data) {
+          for (const d of depsRes.data as Array<Record<string, unknown>>) {
+            dependencies.push({
+              id: d.id as string,
+              taskId: d.task_id as string,
+              dependsOnTaskId: d.depends_on_task_id as string,
+              type: d.type as TaskDependencyType,
+              createdAt: d.created_at as string,
+            })
+          }
+        }
 
-    if (!attRes.error && attRes.data) {
-      for (const a of attRes.data as any[]) {
-        attachments.push({
-          id: a.id,
-          taskId: a.task_id,
-          workspaceId: a.workspace_id,
-          fileName: a.file_name,
-          fileSize: a.file_size,
-          fileType: a.file_type,
-          storagePath: a.storage_path,
-          uploadedBy: a.uploaded_by,
-          createdAt: a.created_at,
-        })
-      }
-    }
+        if (!attRes.error && attRes.data) {
+          for (const a of attRes.data as Array<Record<string, unknown>>) {
+            attachments.push({
+              id: a.id as string,
+              taskId: a.task_id as string,
+              workspaceId: a.workspace_id as string,
+              fileName: a.file_name as string,
+              fileSize: a.file_size as number,
+              fileType: a.file_type as string,
+              storagePath: a.storage_path as string,
+              uploadedBy: a.uploaded_by as string,
+              createdAt: a.created_at as string,
+            })
+          }
+        }
 
-    if (!watchRes.error && watchRes.data) {
-      for (const w of watchRes.data as any[]) {
-        watchers.push({
-          taskId: w.task_id,
-          userId: w.user_id,
-        })
-      }
-    }
+        if (!watchRes.error && watchRes.data) {
+          for (const w of watchRes.data as Array<Record<string, unknown>>) {
+            watchers.push({
+              userId: w.user_id as string,
+            })
+          }
+        }
+      })
+    )
   }
 
   return { dependencies, attachments, watchers }
 }
 
-export async function getTasks(supabase: SupabaseClient<Database>, projectId: string): Promise<Task[]> {
+export async function getTasks(
+  supabase: SupabaseClient<Database>,
+  projectId: string,
+  options?: { includeRelations?: boolean }
+): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks')
     .select(`
@@ -84,13 +167,18 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
     .order('position', { ascending: true })
 
   if (error) throw error
-  
-  const taskIds = data.map(t => t.id)
-  const { dependencies, attachments, watchers } = await fetchTaskRelations(supabase, taskIds)
-  
+
+  const includeRelations = options?.includeRelations ?? false
+  let relations = { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+  if (includeRelations && data.length > 0) {
+    const taskIds = data.map(t => t.id)
+    relations = await fetchTaskRelations(supabase, taskIds)
+  }
+  const { dependencies, attachments, watchers } = relations
+
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
-    
+
     return {
       id: taskId,
       projectId: t.project_id as string,
@@ -123,7 +211,7 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
       isRecurring: t.is_recurring as boolean,
       nextOccurrence: t.next_occurrence as string | null,
       recurringParentId: t.recurring_parent_id as string | null,
-      labels: [], 
+      labels: [],
       dependencies: dependencies.filter(d => d.taskId === taskId),
       blockedBy: dependencies.filter(d => d.dependsOnTaskId === taskId),
       attachments: attachments.filter(a => a.taskId === taskId),
@@ -143,7 +231,11 @@ export async function getTasks(supabase: SupabaseClient<Database>, projectId: st
   })
 }
 
-export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, workspaceId: string): Promise<Task[]> {
+export async function getWorkspaceTasks(
+  supabase: SupabaseClient<Database>,
+  workspaceId: string,
+  options?: { includeRelations?: boolean }
+): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks')
     .select(`
@@ -155,13 +247,18 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  
-  const taskIds = data.map(t => t.id)
-  const { dependencies, attachments, watchers } = await fetchTaskRelations(supabase, taskIds)
-  
+
+  const includeRelations = options?.includeRelations ?? false
+  let relations = { dependencies: [] as TaskDependency[], attachments: [] as any[], watchers: [] as any[] }
+  if (includeRelations && data.length > 0) {
+    const taskIds = data.map(t => t.id)
+    relations = await fetchTaskRelations(supabase, taskIds)
+  }
+  const { dependencies, attachments, watchers } = relations
+
   return data.map((t: Record<string, unknown>) => {
     const taskId = t.id as string
-    
+
     return {
       id: taskId,
       projectId: t.project_id as string,
@@ -194,7 +291,7 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
       isRecurring: t.is_recurring as boolean,
       nextOccurrence: t.next_occurrence as string | null,
       recurringParentId: t.recurring_parent_id as string | null,
-      labels: [], 
+      labels: [],
       dependencies: dependencies.filter(d => d.taskId === taskId),
       blockedBy: dependencies.filter(d => d.dependsOnTaskId === taskId),
       attachments: attachments.filter(a => a.taskId === taskId),
@@ -216,27 +313,27 @@ export async function getWorkspaceTasks(supabase: SupabaseClient<Database>, work
 
 
 export async function createTask(
-  supabase: SupabaseClient<Database>, 
-  projectId: string, 
-  payload: { 
-    title: string, 
-    description?: string, 
-    status: string, 
-    priority: string, 
-    assigneeId?: string | null, 
-    assignee?: any, 
-    startDate?: string | null, 
-    dueDate?: string | null, 
-    userId?: string, 
-    parentId?: string | null, 
-    workspaceId?: string | null, 
-    taskType?: string, 
-    reporterId?: string | null, 
-    customerId?: string | null, 
-    requestId?: string | null, 
-    approvalId?: string | null, 
-    documentId?: string | null, 
-    estimatedHours?: number, 
+  supabase: SupabaseClient<Database>,
+  projectId: string,
+  payload: {
+    title: string,
+    description?: string,
+    status: string,
+    priority: string,
+    assigneeId?: string | null,
+    assignee?: any,
+    startDate?: string | null,
+    dueDate?: string | null,
+    userId?: string,
+    parentId?: string | null,
+    workspaceId?: string | null,
+    taskType?: string,
+    reporterId?: string | null,
+    customerId?: string | null,
+    requestId?: string | null,
+    approvalId?: string | null,
+    documentId?: string | null,
+    estimatedHours?: number,
     storyPoints?: number,
     milestoneId?: string | null,
     estimatedTime?: number | null
@@ -250,7 +347,7 @@ export async function createTask(
     .eq('status', payload.status)
     .order('position', { ascending: false })
     .limit(1)
-    
+
   if (payload.parentId) {
     positionQuery = positionQuery.eq('parent_id', payload.parentId)
   } else {
@@ -258,11 +355,11 @@ export async function createTask(
   }
 
   const { data: existingTasks } = await positionQuery
-  
+
   const position = (existingTasks && existingTasks.length > 0) ? existingTasks[0].position + 65536 : 65536
 
-  const assigneeId = payload.assigneeId || 
-    (typeof payload.assignee === 'string' ? payload.assignee : payload.assignee?.id) || 
+  const assigneeId = payload.assigneeId ||
+    (typeof payload.assignee === 'string' ? payload.assignee : payload.assignee?.id) ||
     null
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -340,7 +437,7 @@ export async function createTask(
     isRecurring: data.is_recurring || false,
     nextOccurrence: data.next_occurrence || null,
     recurringParentId: data.recurring_parent_id || null,
-    labels: [], 
+    labels: [],
     dependencies: [],
     blockedBy: [],
     attachments: [],
@@ -388,10 +485,10 @@ const ALLOWED_TASK_COLUMNS = new Set([
 ]);
 
 export async function updateTask(
-  supabase: SupabaseClient<Database>, 
-  taskId: string, 
-  payload: Partial<{ 
-    title: string, description: string, status: string, priority: string, assigneeId: string, 
+  supabase: SupabaseClient<Database>,
+  taskId: string,
+  payload: Partial<{
+    title: string, description: string, status: string, priority: string, assigneeId: string,
     startDate: string, dueDate: string, parentId: string | null, recurrenceRule: string | null,
     slaPriority: string, slaSeverity: string, responseTarget: string, resolutionTarget: string, slaStatus: string,
     estimatedTime: number, trackedTime: number, estimatedCost: number, actualCost: number,
@@ -525,7 +622,7 @@ export async function updateTask(
     isRecurring: data.is_recurring || false,
     nextOccurrence: data.next_occurrence || null,
     recurringParentId: data.recurring_parent_id || null,
-    labels: [], 
+    labels: [],
     dependencies: [],
     blockedBy: [],
     attachments: [],
@@ -546,7 +643,7 @@ export async function deleteTask(supabase: SupabaseClient<Database>, taskId: str
 }
 
 export async function updateTaskPositions(
-  supabase: SupabaseClient<Database>, 
+  supabase: SupabaseClient<Database>,
   updates: { id: string, status: TaskStatus, position: number, parentId?: string | null }[]
 ) {
   const promises = updates.map(update => {
@@ -559,9 +656,9 @@ export async function updateTaskPositions(
       .update(updateObj)
       .eq('id', update.id)
   })
-  
+
   const results = await Promise.all(promises)
-  
+
   const hasError = results.find(r => r.error)
   if (hasError) throw hasError.error
   return true
@@ -612,7 +709,7 @@ export async function uploadAttachment(
   // 1. Upload to storage
   const fileExt = file.name.split('.').pop()
   const filePath = `${workspaceId}/${taskId}/${Math.random().toString(36).substring(7)}.${fileExt}`
-  
+
   const { error: uploadError } = await supabase.storage
     .from('attachments')
     .upload(filePath, file)
@@ -635,7 +732,7 @@ export async function uploadAttachment(
     .single()
 
   if (dbError) throw dbError
-  
+
   return {
     id: data.id,
     taskId: data.task_id,
@@ -668,7 +765,7 @@ export async function deleteAttachment(
     .eq('id', attachmentId)
 
   if (dbError) throw dbError
-  
+
   return true
 }
 
@@ -678,7 +775,7 @@ export const bulkUpdateTasks = async (
   updates: { status?: Task['status'], priority?: Task['priority'] }
 ): Promise<void> => {
   if (!taskIds.length) return
-  
+
   const dbUpdates: any = {}
   if (updates.status !== undefined) dbUpdates.status = updates.status
   if (updates.priority !== undefined) dbUpdates.priority = updates.priority

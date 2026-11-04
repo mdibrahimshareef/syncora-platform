@@ -37,14 +37,15 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
   const moveTask = useDataStore(s => s.moveTask)
   const projectStatuses = useDataStore(s => s.projectStatuses)
 
-  // Fine-grained subtask selector avoiding full-store subscription re-renders
-  const subtasks = useDataStore(
-    React.useCallback((s) => s.tasks.filter(t => t.parentId === task.id), [task.id])
+  // Release 18 Phase 2: Primitive Zustand selectors avoiding cascading array reference re-renders
+  const subtasksCount = useDataStore(
+    React.useCallback((s) => s.tasks.filter(t => t.parentId === task.id).length, [task.id])
   )
-  const subtasksCount = subtasks.length
-  const completedSubtasksCount = React.useMemo(
-    () => subtasks.filter(t => t.status === 'Done').length,
-    [subtasks]
+  const completedSubtasksCount = useDataStore(
+    React.useCallback(
+      (s) => s.tasks.filter(t => t.parentId === task.id && t.status === 'Done').length,
+      [task.id]
+    )
   )
 
   const columns = projectStatuses && projectStatuses.length > 0 ? projectStatuses.map(s => s.name) : DEFAULT_COLUMNS
@@ -82,7 +83,7 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
   }
 
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -111,8 +112,8 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
               <DropdownMenuLabel>Move to...</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {columns.map(status => (
-                <DropdownMenuItem 
-                  key={status} 
+                <DropdownMenuItem
+                  key={status}
                   disabled={task.status === status}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -141,12 +142,12 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
             </Badge>
           ))}
         </div>
-        
+
         <p className="text-sm font-medium leading-tight">
           {task.title}
         </p>
       </CardContent>
-      
+
       <CardFooter className="p-3 pt-0 flex items-center justify-between text-muted-foreground">
         <div className="flex items-center gap-3 text-xs">
           {task.dueDate && (
@@ -155,14 +156,14 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
               <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-2 text-muted-foreground">
             {task.description && (
               <div title="Has description">
                 <AlignLeft className="size-3" />
               </div>
             )}
-            
+
             {subtasksCount > 0 && (
               <div className="flex items-center gap-1" title={`${completedSubtasksCount}/${subtasksCount} subtasks completed`}>
                 <CheckSquare className="size-3" />

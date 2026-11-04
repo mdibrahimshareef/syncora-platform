@@ -87,6 +87,7 @@ type DataState = {
   activeWorkspaceId: string | null
   isLoading: boolean
   error: string | null
+  taskRelationsLoading: Record<string, boolean>
 
   setOnlineWorkspaceUsers: (users: User[]) => void
 
@@ -110,6 +111,7 @@ type DataState = {
   fetchSavedFilters: () => Promise<void>
   fetchTemplates: () => Promise<void>
   fetchWorkspaceTasks: () => Promise<void>
+  fetchSingleTaskRelations: (taskId: string) => Promise<void>
   fetchActivity: () => Promise<void>
   fetchWorkspaceMembers: () => Promise<void>
   globalSearch: (query: string) => Promise<void>
@@ -274,6 +276,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
   activeWorkspaceId: null,
   isLoading: false,
   error: null,
+  taskRelationsLoading: {},
 
   setOnlineWorkspaceUsers: (users) => set({ onlineWorkspaceUsers: users }),
 
@@ -309,6 +312,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
       automationRuns: [],
       integrations: [],
       webhookEndpoints: [],
+      taskRelationsLoading: {},
       isLoading: true, // Show loading state on switch
       error: null,
     });
@@ -443,6 +447,44 @@ export const useDataStore = create<DataState>()((set, get) => ({
     } catch (err: unknown) {
       if (get().activeWorkspaceId !== activeWorkspaceId) return;
       set({ error: (err as Error).message, isLoading: false })
+    }
+  },
+
+  fetchSingleTaskRelations: async (taskId: string) => {
+    if (!taskId) return;
+    const { taskRelationsLoading } = get();
+    if (taskRelationsLoading[taskId]) return; // Deduplicate in-flight requests
+
+    set((state) => ({
+      taskRelationsLoading: { ...state.taskRelationsLoading, [taskId]: true },
+    }));
+
+    try {
+      const supabase = createClient();
+      const relations = await taskApi.getTaskRelations(supabase, taskId);
+
+      set((state) => {
+        const updateTask = (t: Task): Task => {
+          if (t.id !== taskId) return t;
+          return {
+            ...t,
+            dependencies: relations.dependencies,
+            blockedBy: relations.blockedBy,
+            attachments: relations.attachments,
+            watchers: relations.watchers,
+          };
+        };
+
+        return {
+          tasks: state.tasks.map(updateTask),
+          workspaceTasks: state.workspaceTasks.map(updateTask),
+          taskRelationsLoading: { ...state.taskRelationsLoading, [taskId]: false },
+        };
+      });
+    } catch {
+      set((state) => ({
+        taskRelationsLoading: { ...state.taskRelationsLoading, [taskId]: false },
+      }));
     }
   },
 

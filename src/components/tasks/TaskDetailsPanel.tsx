@@ -55,7 +55,9 @@ export function TaskDetailsPanel() {
   const approvals = useDataStore(s => s.approvals);
   const addAttachment = useDataStore(s => s.addAttachment);
   const removeAttachment = useDataStore(s => s.removeAttachment);
-  
+  const fetchSingleTaskRelations = useDataStore(s => s.fetchSingleTaskRelations);
+  const taskRelationsLoading = useDataStore(s => s.taskRelationsLoading);
+
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [isCreateSubtaskDialogOpen, setIsCreateSubtaskDialogOpen] = React.useState(false)
   const [addingDependency, setAddingDependency] = React.useState(false)
@@ -69,6 +71,14 @@ export function TaskDetailsPanel() {
   const task = React.useMemo(() => {
     return workspaceTasks.find(t => t.id === selectedTaskId) || tasks.find(t => t.id === selectedTaskId)
   }, [selectedTaskId, workspaceTasks, tasks])
+
+  // Release 18 Phase 2 Optimization (Finding 17.1):
+  // Demand-load relations (attachments, watchers, dependencies) specifically for the selected task
+  React.useEffect(() => {
+    if (selectedTaskId) {
+      fetchSingleTaskRelations(selectedTaskId)
+    }
+  }, [selectedTaskId, fetchSingleTaskRelations])
 
   const subtasks = React.useMemo(() => {
     if (!task) return []
@@ -114,12 +124,12 @@ export function TaskDetailsPanel() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !task) return
-    
+
     setIsUploading(true)
     try {
       await addAttachment(file, task.id)
       toast.success("File uploaded successfully")
-    } catch(err) {
+    } catch (err) {
       toast.error("Failed to upload file")
     } finally {
       setIsUploading(false)
@@ -133,7 +143,7 @@ export function TaskDetailsPanel() {
       const supabase = createClient()
       const { data, error } = await supabase.storage.from('attachments').download(path)
       if (error) throw error
-      
+
       const url = URL.createObjectURL(data)
       const a = document.createElement('a')
       a.href = url
@@ -163,9 +173,9 @@ export function TaskDetailsPanel() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className={`size-10 sm:size-8 ${task.watchers?.some(w => w.userId === currentUser?.id) ? 'text-primary' : 'text-muted-foreground'}`}
                   onClick={() => toggleWatcher(task.id, task.watchers?.some(w => w.userId === currentUser?.id) || false)}
                   title={task.watchers?.some(w => w.userId === currentUser?.id) ? "Unwatch task" : "Watch task"}
@@ -176,7 +186,7 @@ export function TaskDetailsPanel() {
                 <Button variant="ghost" size="icon" className="size-10 sm:size-8" onClick={() => setIsEditDialogOpen(true)}>
                   <Edit2 className="size-4" />
                 </Button>
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger render={<Button variant="ghost" size="icon" className="size-10 sm:size-8 text-destructive hover:text-destructive hover:bg-destructive/10" />}>
                     <Trash2 className="size-4" />
@@ -220,9 +230,9 @@ export function TaskDetailsPanel() {
                 </h4>
                 {isEditingDescription ? (
                   <div className="space-y-2">
-                    <RichTextEditor 
-                      value={tempDescription} 
-                      onChange={setTempDescription} 
+                    <RichTextEditor
+                      value={tempDescription}
+                      onChange={setTempDescription}
                       placeholder="Add a more detailed description..."
                     />
                     <div className="flex items-center gap-2 justify-end">
@@ -232,7 +242,7 @@ export function TaskDetailsPanel() {
                           await updateTask(task.id, { description: tempDescription })
                           setIsEditingDescription(false)
                           toast.success("Description updated")
-                        } catch(e) {
+                        } catch (e) {
                           toast.error("Failed to update description")
                         }
                       }}>Save</Button>
@@ -265,8 +275,8 @@ export function TaskDetailsPanel() {
                 {subtasks.length > 0 && (
                   <div className="flex items-center gap-3 mb-4 p-3 bg-muted/40 rounded-lg border border-border/50">
                     <div className="flex-1 h-2 bg-muted/80 rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out" 
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out"
                         style={{ width: `${Math.round((subtasks.filter(s => s.status === 'Done').length / subtasks.length) * 100)}%` }}
                       />
                     </div>
@@ -275,7 +285,7 @@ export function TaskDetailsPanel() {
                     </span>
                   </div>
                 )}
-                
+
                 <div className="space-y-2">
                   {subtasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center text-sm text-muted-foreground italic bg-muted/20 p-6 rounded-lg border border-border/50">
@@ -285,13 +295,13 @@ export function TaskDetailsPanel() {
                   ) : (
                     subtasks.map(subtask => (
                       <div key={subtask.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors">
-                        <button 
+                        <button
                           onClick={() => toggleSubtaskStatus(subtask)}
                           className={`size-5 rounded-full border flex items-center justify-center shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${subtask.status === 'Done' ? 'bg-primary border-primary text-primary-foreground' : 'border-input hover:border-primary'}`}
                         >
                           {subtask.status === 'Done' && <CheckCircle2 className="size-3" />}
                         </button>
-                        <button 
+                        <button
                           className={`text-sm flex-1 text-left cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded px-1 -mx-1 ${subtask.status === 'Done' ? 'line-through text-muted-foreground' : ''}`}
                           onClick={() => setSelectedTaskId(subtask.id)}
                         >
@@ -316,8 +326,8 @@ export function TaskDetailsPanel() {
               <div className="bg-muted/30 p-4 rounded-lg border border-border/50 space-y-4">
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Status</span>
-                  <Select 
-                    value={task.status} 
+                  <Select
+                    value={task.status}
                     onValueChange={(val) => updateTask(task.id, { status: val as any })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -338,7 +348,7 @@ export function TaskDetailsPanel() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Priority</span>
                   <div className="font-medium text-sm">{task.priority}</div>
@@ -352,7 +362,7 @@ export function TaskDetailsPanel() {
                     <span>--:--</span>
                   </div>
                 </div>
-                
+
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Assignee</span>
                   <div className="flex items-center gap-2 mt-1">
@@ -397,7 +407,7 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Effort (Hours)</span>
-                  <Input 
+                  <Input
                     type="number"
                     min="0"
                     step="0.5"
@@ -417,8 +427,8 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Milestone</span>
-                  <Select 
-                    value={task.milestoneId || "none"} 
+                  <Select
+                    value={task.milestoneId || "none"}
                     onValueChange={(val) => updateTask(task.id, { milestoneId: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -435,8 +445,8 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Document</span>
-                  <Select 
-                    value={task.documentId || "none"} 
+                  <Select
+                    value={task.documentId || "none"}
                     onValueChange={(val) => updateTask(task.id, { documentId: val === "none" ? null : (val as string) })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -453,8 +463,8 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Customer</span>
-                  <Select 
-                    value={task.customerId || "none"} 
+                  <Select
+                    value={task.customerId || "none"}
                     onValueChange={(val) => updateTask(task.id, { customerId: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -471,8 +481,8 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Request</span>
-                  <Select 
-                    value={task.requestId || "none"} 
+                  <Select
+                    value={task.requestId || "none"}
                     onValueChange={(val) => updateTask(task.id, { requestId: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -489,8 +499,8 @@ export function TaskDetailsPanel() {
 
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Linked Approval</span>
-                  <Select 
-                    value={task.approvalId || "none"} 
+                  <Select
+                    value={task.approvalId || "none"}
                     onValueChange={(val) => updateTask(task.id, { approvalId: val === "none" ? null : (val as string) })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -506,11 +516,11 @@ export function TaskDetailsPanel() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recurrence</span>
-                  <Select 
-                    value={task.recurrenceRule || "none"} 
+                  <Select
+                    value={task.recurrenceRule || "none"}
                     onValueChange={(val) => updateTask(task.id, { recurrenceRule: val === "none" ? null : val })}
                   >
                     <SelectTrigger className="h-8 text-xs mt-1 bg-transparent border-border/50">
@@ -555,19 +565,24 @@ export function TaskDetailsPanel() {
                     <Paperclip className="size-4 text-muted-foreground" /> Attachments
                   </h4>
                   <Button variant="ghost" size="sm" className="h-8" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                    {isUploading ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Plus className="size-3 mr-1" />} 
+                    {isUploading ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Plus className="size-3 mr-1" />}
                     Add
                   </Button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    onChange={handleFileUpload} 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  {!task.attachments || task.attachments.length === 0 ? (
+                  {taskRelationsLoading[task.id] && (!task.attachments || task.attachments.length === 0) ? (
+                    <div className="flex items-center justify-center text-xs text-muted-foreground py-4 gap-2">
+                      <Loader2 className="size-3 animate-spin" />
+                      <span>Loading attachments...</span>
+                    </div>
+                  ) : !task.attachments || task.attachments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center text-sm text-muted-foreground italic bg-muted/20 p-6 rounded-lg border border-border/50">
                       <Paperclip className="size-6 mb-2 opacity-20" />
                       No attachments yet.
@@ -588,16 +603,16 @@ export function TaskDetailsPanel() {
                           <Button variant="ghost" size="icon" className="size-6" onClick={() => handleDownload(attachment.storagePath, attachment.fileName)}>
                             <Download className="size-3" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="size-6 text-muted-foreground hover:text-destructive"
                             onClick={async () => {
-                              if(confirm('Delete this attachment?')) {
+                              if (confirm('Delete this attachment?')) {
                                 try {
                                   await removeAttachment(attachment.id, attachment.storagePath)
                                   toast.success("Attachment deleted")
-                                } catch(e) { toast.error("Failed to delete") }
+                                } catch (e) { toast.error("Failed to delete") }
                               }
                             }}
                           >
@@ -614,17 +629,17 @@ export function TaskDetailsPanel() {
         </DialogContent>
       </Dialog>
 
-      <CreateTaskDialog 
-        open={isEditDialogOpen} 
-        onOpenChange={setIsEditDialogOpen} 
-        defaultValues={task} 
+      <CreateTaskDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        defaultValues={task}
       />
 
       {/* Subtask Creation Dialog */}
-      <CreateTaskDialog 
-        open={isCreateSubtaskDialogOpen} 
-        onOpenChange={setIsCreateSubtaskDialogOpen} 
-        defaultValues={{ projectId: task.projectId, parentId: task.id }} 
+      <CreateTaskDialog
+        open={isCreateSubtaskDialogOpen}
+        onOpenChange={setIsCreateSubtaskDialogOpen}
+        defaultValues={{ projectId: task.projectId, parentId: task.id }}
       />
     </>
   )
