@@ -9,7 +9,7 @@ export interface Integration {
   auth_type: 'oauth2' | 'token';
   external_account_id?: string;
   external_account_name?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -55,7 +55,7 @@ export interface WebhookDelivery {
   response_status?: number;
   response_time?: number;
   error?: string;
-  payload: any;
+  payload: Record<string, unknown>;
   created_at: string;
   delivered_at?: string;
   next_retry_at?: string;
@@ -68,7 +68,7 @@ export interface SyncoraEvent {
   actorId?: string;
   createdAt?: string;
   timestamp?: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
 export interface IntegrationProviderAdapter {
@@ -81,7 +81,7 @@ export interface IntegrationProviderAdapter {
     scopes: string[];
     external_account_id?: string;
     external_account_name?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>;
   handleOutgoingEvent: (integration: Integration, credentials: IntegrationCredentials, event: SyncoraEvent) => Promise<void>;
   verifyWebhookSignature?: (req: Request, rawBody: string) => Promise<boolean>;

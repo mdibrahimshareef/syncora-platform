@@ -1,8 +1,9 @@
-import { SyncoraEvent, WebhookEndpoint } from '../integrations/types';
+import { SyncoraEvent } from '../integrations/types';
 import { processWebhookDelivery, processIntegrationDelivery } from '../webhooks/delivery';
 import { processEventForAutomations } from '../automations/engine';
 import { after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { Json } from '@/types/supabase';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -52,7 +53,7 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
 
   // Idempotency check: Have we processed this event_id?
   // Privileged admin client ensures normal authenticated users are not blocked by RLS.
-  const { data: idempotencyRecord, error: idempotencyError } = await (adminSupabase as any)
+  const { data: idempotencyRecord, error: idempotencyError } = await adminSupabase
     .from('webhook_idempotency')
     .insert({ event_id: event.id })
     .select('event_id')
@@ -98,7 +99,7 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
   }
 
   // Fetch active webhooks strictly filtered by the event's workspace boundary
-  const { data: endpoints, error: endpointError } = await (adminSupabase as any)
+  const { data: endpoints, error: endpointError } = await adminSupabase
     .from('webhook_endpoints')
     .select('*')
     .eq('workspace_id', event.workspaceId)
@@ -116,7 +117,7 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
     });
   }
 
-  const subscribedEndpoints = (endpoints || []).filter((ep: WebhookEndpoint) =>
+  const subscribedEndpoints = (endpoints || []).filter((ep) =>
     ep.subscribed_events?.includes(event.type) || ep.subscribed_events?.includes('*')
   );
 
@@ -124,7 +125,7 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
 
   // Synchronously create delivery records (PENDING) inside tenant workspace boundary
   for (const endpoint of subscribedEndpoints) {
-    const { data: deliveryRecord, error: deliveryError } = await (adminSupabase as any)
+    const { data: deliveryRecord, error: deliveryError } = await adminSupabase
       .from('webhook_deliveries')
       .insert({
         endpoint_id: endpoint.id,
@@ -132,7 +133,7 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
         event_id: event.id,
         event_type: event.type,
         status: 'pending',
-        payload: event
+        payload: event as unknown as Json
       })
       .select('id')
       .single();
@@ -195,11 +196,12 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
         });
       }
       timer.done();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       logger.error({
         operation: 'event.dispatch.background_failure',
         workspaceId: event.workspaceId,
-        message: error?.message || String(error),
+        message: errorMsg,
         metadata: {
           eventId: event.id,
           eventType: event.type,
@@ -212,10 +214,11 @@ export async function dispatchEvent(event: SyncoraEvent, depth: number = 1): Pro
     after(runBackgroundTasks);
   } catch {
     // Outside of Next.js request scope (unit tests, CLI, workers)
-    runBackgroundTasks().catch((err) => {
+    runBackgroundTasks().catch((err: unknown) => {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       logger.error({
         operation: 'event.dispatch.background_fallback_failure',
-        message: err?.message || String(err),
+        message: errorMsg,
       });
     });
   }

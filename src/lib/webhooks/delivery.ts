@@ -162,7 +162,7 @@ export async function processWebhookDelivery(
   const adminSupabase = createAdminClient();
 
   // Fetch delivery and endpoint info
-  const { data: delivery, error: fetchError } = await (adminSupabase as any)
+  const { data: delivery, error: fetchError } = await adminSupabase
     .from('webhook_deliveries')
     .select('*, webhook_endpoints(id, url, secret, status)')
     .eq('id', deliveryId)
@@ -185,7 +185,7 @@ export async function processWebhookDelivery(
       operation: 'webhook.delivery.endpoint_disabled',
       metadata: { deliveryId, endpointId: endpoint.id },
     });
-    await (adminSupabase as any)
+    await adminSupabase
       .from('webhook_deliveries')
       .update({
         status: 'failed',
@@ -210,7 +210,7 @@ export async function processWebhookDelivery(
       },
     });
 
-    await (adminSupabase as any)
+    await adminSupabase
       .from('webhook_deliveries')
       .update({
         status: 'failed',
@@ -279,8 +279,8 @@ export async function processWebhookDelivery(
     } else {
       errorMsg = `HTTP Error: ${response.status} ${response.statusText}`;
     }
-  } catch (err: any) {
-    errorMsg = err.message || 'Network error or timeout';
+  } catch (err: unknown) {
+    errorMsg = err instanceof Error ? err.message : 'Network error or timeout';
   }
 
   const responseTime = Date.now() - startTime;
@@ -309,7 +309,7 @@ export async function processWebhookDelivery(
       },
     });
 
-    await (adminSupabase as any)
+    await adminSupabase
       .from('webhook_deliveries')
       .update({
         status: 'retrying',
@@ -343,7 +343,7 @@ export async function processWebhookDelivery(
     });
   }
 
-  await (adminSupabase as any)
+  await adminSupabase
     .from('webhook_deliveries')
     .update({
       status: finalStatus,
@@ -356,7 +356,7 @@ export async function processWebhookDelivery(
     .eq('id', deliveryId);
 
   // Update endpoint operational statistics
-  await (adminSupabase as any)
+  await adminSupabase
     .from('webhook_endpoints')
     .update({
       last_delivery_at: new Date().toISOString(),

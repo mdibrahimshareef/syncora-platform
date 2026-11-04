@@ -1,8 +1,9 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { Database } from '@/types/supabase';
 import { SyncoraEvent } from '../integrations/types';
 import { 
   AutomationRecord, 
-  AutomationExecutionContext, 
   AutomationConditionGroup, 
   AutomationActionConfig 
 } from './types';
@@ -22,7 +23,7 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
   const supabase = createAdminClient();
 
   // 1. Fetch active automations for the workspace
-  const { data: automationsData, error } = await (supabase as any)
+  const { data: automationsData, error } = await supabase
     .from('automations')
     .select('*')
     .eq('workspace_id', event.workspaceId)
@@ -32,17 +33,19 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
     return;
   }
 
-  const automations = automationsData as AutomationRecord[];
+  const automations = automationsData as unknown as AutomationRecord[];
 
   for (const automation of automations) {
     // 2. Evaluate Trigger
     if (!evaluateTrigger(automation, event)) continue;
 
     // 3. Evaluate Conditions
-    if (!evaluateConditions(automation.conditions, event)) continue;
+    if (!evaluateConditions(automation.conditions)) continue;
 
     // 4. Create Run Record (Pending)
-    const { data: runRecord } = await (supabase as any)
+    const entityId = (event.payload.id || event.payload.taskId || event.payload.projectId || null) as string | null;
+
+    const { data: runRecord } = await supabase
       .from('automation_runs')
       .insert({
         automation_id: automation.id,
@@ -51,7 +54,7 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
         status: 'running',
         root_event_id: event.id,
         entity_type: event.type.split('.')[0],
-        entity_id: event.payload.id || event.payload.taskId || event.payload.projectId || null,
+        entity_id: entityId,
         execution_depth: depth,
         triggered_by: event.actorId || null
       })
@@ -72,15 +75,15 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
       try {
         await executeAction(action, event, supabase, depth, automation);
         actionSuccess = true;
-      } catch (err: any) {
+      } catch (err: unknown) {
         hasFailure = true;
         actionSuccess = false;
-        actionErrorMsg = err.message || String(err);
+        actionErrorMsg = err instanceof Error ? err.message : String(err);
         console.error(`[Automation Engine] Action failed:`, err);
       }
 
       // Record Action Log
-      await (supabase as any).from('automation_action_logs').insert({
+      await supabase.from('automation_action_logs').insert({
         run_id: runRecord.id,
         automation_id: automation.id,
         workspace_id: event.workspaceId,
@@ -98,7 +101,7 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
     }
 
     // 6. Update Run Status
-    await (supabase as any).from('automation_runs')
+    await supabase.from('automation_runs')
       .update({
         status: hasFailure ? 'failed' : 'completed',
         completed_at: new Date().toISOString()
@@ -121,7 +124,7 @@ function evaluateTrigger(automation: AutomationRecord, event: SyncoraEvent): boo
   return true;
 }
 
-function evaluateConditions(conditions: AutomationConditionGroup | undefined, event: SyncoraEvent): boolean {
+function evaluateConditions(conditions: AutomationConditionGroup | undefined): boolean {
   if (!conditions || !conditions.rules || conditions.rules.length === 0) {
     return true; // No conditions = always run
   }
@@ -132,14 +135,14 @@ function evaluateConditions(conditions: AutomationConditionGroup | undefined, ev
   return true; 
 }
 
-async function executeAction(action: AutomationActionConfig, event: SyncoraEvent, supabase: any, depth: number, automation: AutomationRecord) {
+async function executeAction(action: AutomationActionConfig, event: SyncoraEvent, supabase: SupabaseClient<Database>, depth: number, automation: AutomationRecord) {
   const { type, config } = action;
 
   switch (type) {
     case 'task.assign': {
       if (!config.userId || !event.payload.taskId) throw new Error('Missing userId or taskId');
       
-      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId, { assigneeId: config.userId });
+      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId as string, { assigneeId: config.userId });
       
       const newEvent: SyncoraEvent = {
         id: crypto.randomUUID(),
@@ -158,8 +161,8 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
     case 'task.set_status': {
       if (!config.status || !event.payload.taskId) throw new Error('Missing status or taskId');
       
-      const oldTask = await supabase.from('tasks').select('status').eq('id', event.payload.taskId).single();
-      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId, { status: config.status });
+      const oldTask = await supabase.from('tasks').select('status').eq('id', event.payload.taskId as string).single();
+      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId as string, { status: config.status });
       
       const newEvent: SyncoraEvent = {
         id: crypto.randomUUID(),
@@ -176,7 +179,7 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
     case 'task.set_priority': {
       if (!config.priority || !event.payload.taskId) throw new Error('Missing priority or taskId');
       
-      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId, { priority: config.priority });
+      const updatedTask = await taskApi.updateTask(supabase, event.payload.taskId as string, { priority: config.priority });
       
       const newEvent: SyncoraEvent = {
         id: crypto.randomUUID(),
@@ -194,13 +197,16 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
       if (!config.userId) throw new Error('Missing userId for notification');
       const { error } = await supabase.from('notifications')
         .insert({
-          user_id: config.userId,
+          recipient_id: config.userId,
           workspace_id: event.workspaceId,
           type: 'SYSTEM',
-          title: 'Automation Triggered',
-          message: config.message || `Automated message.`,
-          link: `/projects/${event.payload.projectId || ''}`,
-          is_read: false
+          entity_type: event.type.split('.')[0] || 'system',
+          entity_id: (event.payload.id || event.payload.taskId || event.payload.projectId || event.id) as string,
+          metadata: {
+            title: 'Automation Triggered',
+            message: config.message || 'Automated message.',
+            link: `/projects/${event.payload.projectId || ''}`,
+          },
         });
       if (error) throw error;
       break;
@@ -208,13 +214,13 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
     case 'task.create': {
       if (!config.title || !event.payload.projectId) throw new Error('Missing title or projectId');
       
-      const createdTask = await taskApi.createTask(supabase, event.payload.projectId, {
+      const createdTask = await taskApi.createTask(supabase, event.payload.projectId as string, {
           title: config.title,
           description: config.description || null,
           status: 'To Do',
           priority: 'Medium',
           workspaceId: event.workspaceId,
-          parentId: event.payload.taskId || null,
+          parentId: (event.payload.taskId as string) || null,
           userId: 'system-automation'
       });
 
@@ -243,7 +249,7 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
           event_id: event.id,
           event_type: event.type,
           status: 'pending',
-          payload: event
+          payload: event as unknown as import('@/types/supabase').Json
         })
         .select('id')
         .single();
@@ -275,7 +281,7 @@ async function executeAction(action: AutomationActionConfig, event: SyncoraEvent
         .from('ai_jobs')
         .insert({
           workspace_id: event.workspaceId,
-          user_id: event.actorId === 'system' ? automation.created_by : (event.actorId || automation.created_by), // Fallback to automation creator
+          user_id: (event.actorId === 'system' ? automation.created_by : (event.actorId || automation.created_by)) || 'system', // Fallback to automation creator
           job_type: 'EVENT_TRIGGERED',
           trigger_type: config.trigger_type,
           payload: config.payload || event.payload || {},
