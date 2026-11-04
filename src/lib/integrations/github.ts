@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IntegrationProviderAdapter, Integration, IntegrationCredentials, SyncoraEvent } from './types';
 
 export const githubProvider: IntegrationProviderAdapter = {
@@ -60,5 +61,33 @@ export const githubProvider: IntegrationProviderAdapter = {
   handleOutgoingEvent: async (integration: Integration, credentials: IntegrationCredentials, event: SyncoraEvent) => {
     // Dummy implementation: map Syncora tasks to GitHub Issues, etc.
     console.log(`[GitHub] Event ${event.id} triggered for account ${integration.external_account_name}`);
+  },
+
+  verifyWebhookSignature: async (req: Request, rawBody: string): Promise<boolean> => {
+    const secret = process.env.GITHUB_WEBHOOK_SECRET;
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('GITHUB_WEBHOOK_SECRET is not configured on this server.');
+      }
+      return false;
+    }
+
+    const headerSig = req.headers.get('x-hub-signature-256');
+    if (!headerSig || !headerSig.startsWith('sha256=')) {
+      return false;
+    }
+
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(rawBody, 'utf8');
+    const expectedSig = `sha256=${hmac.digest('hex')}`;
+
+    const headerBuffer = Buffer.from(headerSig, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSig, 'utf8');
+
+    if (headerBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(headerBuffer, expectedBuffer);
   }
 };

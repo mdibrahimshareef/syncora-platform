@@ -50,7 +50,7 @@ export interface WebhookDelivery {
   workspace_id: string;
   event_id: string;
   event_type: string;
-  status: 'pending' | 'delivered' | 'failed' | 'retrying';
+  status: 'pending' | 'delivered' | 'failed' | 'retrying' | 'dead_letter';
   attempt_count: number;
   response_status?: number;
   response_time?: number;

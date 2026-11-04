@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { SyncoraEvent } from '../integrations/types';
 import { 
   AutomationRecord, 
@@ -18,7 +18,8 @@ export async function processEventForAutomations(event: SyncoraEvent, depth = 1)
     return;
   }
 
-  const supabase = await createClient();
+  // Background automation runs need privileged access to insert logs and mutate state across tenant boundary
+  const supabase = createAdminClient();
 
   // 1. Fetch active automations for the workspace
   const { data: automationsData, error } = await (supabase as any)

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IntegrationProviderAdapter, Integration, IntegrationCredentials, SyncoraEvent } from './types';
 
 export const slackProvider: IntegrationProviderAdapter = {
@@ -69,5 +70,48 @@ export const slackProvider: IntegrationProviderAdapter = {
     if (!result.ok) {
       console.error('[Slack] Failed to send message', result.error);
     }
+  },
+
+  verifyWebhookSignature: async (req: Request, rawBody: string): Promise<boolean> => {
+    const secret = process.env.SLACK_SIGNING_SECRET;
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('SLACK_SIGNING_SECRET is not configured on this server.');
+      }
+      return false;
+    }
+
+    const signature = req.headers.get('x-slack-signature');
+    const timestamp = req.headers.get('x-slack-request-timestamp');
+
+    if (!signature || !timestamp || !signature.startsWith('v0=')) {
+      return false;
+    }
+
+    const timestampNum = parseInt(timestamp, 10);
+    if (isNaN(timestampNum)) {
+      return false;
+    }
+
+    // Replay attack prevention: Reject timestamps older than 5 minutes (300 seconds)
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (Math.abs(currentTime - timestampNum) > 300) {
+      return false;
+    }
+
+    // Slack signing signature format: v0:timestamp:body
+    const sigBaseString = `v0:${timestamp}:${rawBody}`;
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(sigBaseString, 'utf8');
+    const expectedSig = `v0=${hmac.digest('hex')}`;
+
+    const sigBuffer = Buffer.from(signature, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSig, 'utf8');
+
+    if (sigBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
   }
 };
