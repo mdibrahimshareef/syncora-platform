@@ -90,3 +90,4 @@ The operational alerting matrix documented in [`PHASE_4_MONITORING_AND_ALERTING.
 - **Zod Schema Validation (`src/lib/env.ts`):** Centralized validation distinguishes client-safe variables (`NEXT_PUBLIC_*`) from server-only secrets. Requires 32-byte `SYNCORA_ENCRYPTION_KEY` and minimum 16-character `CRON_SECRET` in production.
 - **Template Configuration (`.env.example`):** Complete inventory of all 26 production variables with security classifications, formatting notes, and safe placeholder templates.
 - **Secret Scanning:** Static code scan confirms zero hardcoded secrets in version control.
+

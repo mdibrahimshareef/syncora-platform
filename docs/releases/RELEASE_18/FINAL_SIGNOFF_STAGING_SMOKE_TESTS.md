@@ -42,3 +42,4 @@ It evaluates each journey across two dimensions:
 - **Code & Unit Level:** All 14 journeys have verified implementations, passing automated test suites, and clean Next.js build compilation.
 - **Live Staging Infrastructure:** Journeys requiring an active Supabase backend (Journeys 02, 05, 06, 07, 08, 10) are classified as **`BLOCKED — AWAITING STAGING DEPLOYMENT`** because this workstation has no linked staging Supabase project.
 - **Release Precondition:** Following staging deployment and project linking, an operations engineer must run the 14 journeys using synthetic credentials in the staging environment before routing production traffic.
+

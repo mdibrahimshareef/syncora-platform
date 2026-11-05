@@ -77,3 +77,4 @@ npx supabase db push --dry-run
 # 3. Verify migration application on staging
 npx supabase db push
 ```
+

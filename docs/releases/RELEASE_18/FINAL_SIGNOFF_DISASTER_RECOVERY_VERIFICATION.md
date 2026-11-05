@@ -86,3 +86,4 @@ Prior to live production cutover, the release engineer must execute a dry-run re
 2. Trigger a point-in-time branch/restore to `T_seed + 120s`.
 3. Measure actual elapsed restoration duration (verifying observed RTO < 30 minutes).
 4. Verify that data inserted prior to the restore timestamp is intact and data inserted after is cleanly truncated (verifying observed RPO < 5 minutes).
+

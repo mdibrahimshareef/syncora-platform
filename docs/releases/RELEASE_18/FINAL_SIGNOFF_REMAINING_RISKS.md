@@ -34,3 +34,4 @@ Each item is classified by severity, likelihood, impact, mitigating controls, ow
 - **Pre-Deployment Staging Gates:** **3 MANDATORY CONDITIONS** (RSK-03, RSK-04, RSK-05) must be performed by the release engineer against an active staging deployment prior to initiating production traffic cutover.
 - **Production Decision Justification:** Because all application code and configuration is fully ready, but physical staging replay and restore drills require external cloud project access, the release is classified as:  
   **`READY FOR PRODUCTION APPROVAL WITH DOCUMENTED CONDITIONS`**.
+
